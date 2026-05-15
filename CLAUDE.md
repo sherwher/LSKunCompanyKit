@@ -117,12 +117,28 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y` (LSKunCompanyKit 책임).
 LSKunCompanyKit/
 ├── .claude-plugin/
 │   ├── plugin.json           # P3 작성
-│   └── marketplace.json      # P3 작성
-├── commands/
-│   └── doctor.md             # P3 첫 prototype
+│   └── marketplace.json
+├── commands/                  # 5개 slash command
+│   ├── doctor.md             # /lskun-kit:doctor    (P3)
+│   ├── hire.md               # /lskun-kit:hire      (P6)
+│   ├── work.md               # /lskun-kit:work      (P6)
+│   ├── reflect.md            # /lskun-kit:reflect   (P6)
+│   └── migrate.md            # /lskun-kit:migrate   (P7)
+├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
+│   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
+│   ├── hooks/                # Claude Code hook 진입점 (stop_reflect)
+│   ├── models.py             # Worker / HistoryEntry / Company
+│   ├── errors.py             # LSKunKitError 계층
+│   ├── session.py            # 활성 워커 1명 프로세스 간 공유
+│   ├── context.py            # build_worker_context (history 컨텍스트 주입)
+│   ├── reflection.py         # record (history 1줄 append)
+│   ├── metrics.py            # estimate_citation_rate (KPI 측정)
+│   └── migration.py          # plan / execute (Local ↔ Vault)
+├── tests/                     # stdlib unittest, 52 케이스 (P4 14 + P5 10 + P6 21 + P7 7)
+├── docs/                      # storage-adapter-spec, reflection-spec, migration-spec, p8-dogfooding-guide
 ├── CLAUDE.md                 # 본 문서
 ├── LICENSE                   # MIT (P2 완료)
-└── README.md                 # P3 작성
+└── README.md
 ```
 
 **hired/ / reflections/ / projects/ 같은 회사 운영 데이터는 본 repo 에 절대 작성 금지.**
@@ -136,14 +152,16 @@ LSKunCompanyKit/
 P0 ✅ ADR-0001 박제
 P1 ✅ 옛 plugin / CLI 정리
 P2 ✅ GitHub repo + 로컬 작업 위치 + LICENSE
-P3 ⏳ Plugin manifest + namespace + /lskun-kit:doctor   ← 현재
-P4    StorageAdapter 인터페이스 + Local adapter
-P5    Vault adapter
-P6    Reflection 자동화 (hook + frontmatter schema)
-P7    Migration tool (/lskun-kit:migrate)
-P8    Dogfooding (Vault backend, 멀티 PC)
-P9    KPI 측정
+P3 ✅ Plugin manifest + namespace + /lskun-kit:doctor             (#1)
+P4 ✅ StorageAdapter 인터페이스 + LocalAdapter                    (#2)
+P5 ✅ VaultAdapter + MarkdownTreeAdapter 공통 베이스              (#3)
+P6 ✅ Reflection 자동화 (session/context/metrics/hook + 3 명령)   (#4)
+P7 ✅ Migration tool (/lskun-kit:migrate)                         (#5)
+P8 ⏳ Dogfooding (1주, Vault backend + 멀티 PC)                   ← 현재
+P9    KPI 측정 → 채택 / 폐기 / 조건부 채택 판정 (ADR-0002 박제)
 ```
+
+도그푸딩 가이드: `docs/p8-dogfooding-guide.md`
 
 ---
 
