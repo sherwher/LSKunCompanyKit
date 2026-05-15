@@ -83,14 +83,24 @@ Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (Phase 1 후반
 
 ## 설치 (개발 중)
 
-> 0.1.0-dev 는 아직 marketplace 정식 등록 전입니다. 로컬 clone 으로 시험할 수 있습니다.
+> 0.1.0-dev 는 아직 marketplace 정식 등록 전입니다. Claude Code 의 `/plugin` 은 marketplace 경유로만 설치되므로, 본 repo 자체를 marketplace 로 등록해야 합니다.
+
+### 옵션 A — GitHub repo 경유 (다른 PC 동기화에 유리)
+
+```text
+/plugin marketplace add sherwher/LSKunCompanyKit
+/plugin install LSKunCompanyKit@LSKunCompanyKit
+```
+
+### 옵션 B — 로컬 경로 경유 (개발/도그푸딩 빠른 반복)
 
 ```bash
 git clone https://github.com/sherwher/LSKunCompanyKit.git
-cd LSKunCompanyKit
+```
 
-# Claude Code 에서 local plugin 등록
-/plugin install ./
+```text
+/plugin marketplace add /path/to/LSKunCompanyKit
+/plugin install LSKunCompanyKit@LSKunCompanyKit
 ```
 
 설치 후 검증:

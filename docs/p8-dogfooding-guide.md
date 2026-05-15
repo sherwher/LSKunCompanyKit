@@ -5,19 +5,36 @@
 
 ## 0. 진입 조건
 
-- [x] P3~P7 모두 merge (main: `fe98d33`)
+- [x] P3~P7 모두 merge (main: `9da96b1` 이상)
 - [x] 52/52 테스트 통과
-- [ ] 본인 (이성근) 의 Mac 1대 + 보조 PC 1대 (멀티 PC 동기화 KPI 검증용)
-- [ ] Obsidian (또는 다른 vault 가능 도구) 가 양쪽 PC 에 설치되어 있고 sync 활성화
+- [ ] 본인 Mac 1대 + 보조 PC 1대 (멀티 PC 동기화 KPI 검증용)
+- [ ] Obsidian (또는 다른 vault 가능 도구) 이 양쪽 PC 에 설치되어 있고 sync 활성화
+
+본 가이드는 회사명을 `<your-company>` 또는 환경변수 `$LSKUN_COMPANY` 로 표기한다. 명령 실행 전 본인 환경 값으로 치환할 것.
 
 ## 1. 설치 — 본인 환경
 
-### 1.1 Plugin 등록
+### 1.1 Plugin 등록 (marketplace 경유)
+
+Claude Code 의 `/plugin install` 은 **marketplace 경유로만** 동작한다. 본 repo 자체를 marketplace 로 먼저 등록한 뒤 plugin 을 설치한다.
+
+**옵션 A — GitHub repo 경유 (다른 PC 도 동일하게)**
+
+```text
+/plugin marketplace add sherwher/LSKunCompanyKit
+/plugin install LSKunCompanyKit@LSKunCompanyKit
+```
+
+**옵션 B — 로컬 경로 경유 (개발 중 빠른 반복)**
 
 ```bash
-cd /Users/sk.lee/Documents/private-workspaces/LSKunCompanyKit
-# Claude Code 안에서:
-/plugin install ./
+# clone (이미 했다면 생략)
+git clone https://github.com/sherwher/LSKunCompanyKit.git ~/Documents/private-workspaces/LSKunCompanyKit
+```
+
+```text
+/plugin marketplace add ~/Documents/private-workspaces/LSKunCompanyKit
+/plugin install LSKunCompanyKit@LSKunCompanyKit
 ```
 
 설치 후 검증:
@@ -44,28 +61,53 @@ cd /Users/sk.lee/Documents/private-workspaces/LSKunCompanyKit
 ```bash
 # ~/.zshrc 에 추가
 export LSKUN_VAULT="$HOME/Documents/private-workspaces/obsidian-vault"
-export LSKUN_SSOT_ROOT="$LSKUN_VAULT/03_Companies/LSKun"
+export LSKUN_COMPANY="<your-company>"        # 예: LSKun, Acme, ...
+export LSKUN_SSOT_ROOT="$LSKUN_VAULT/03_Companies/$LSKUN_COMPANY"
 ```
 
-Vault 안에 회사 디렉토리가 없으면 만든다:
+#### 1.2.1 회사 디렉토리 — 공존 정책 (중요)
+
+`<vault>/03_Companies/<your-company>/` 는 **회사의 일반 운영 데이터** (hub 문서 / now / products / archive / decisions / notes 등) 와 **LSKunCompanyKit 의 plugin 데이터** (`hired/`, `company.md`) 가 **한 디렉토리에 공존**한다. ADR-0001 §5 의 spec 그대로다.
+
+따라서 다음 두 가지를 사전에 확인:
 
 ```bash
+# 1) 회사 디렉토리 존재 여부 (없으면 회사부터 박제하라는 신호 — plugin 이 만들 게 아님)
+test -d "$LSKUN_SSOT_ROOT" && echo "company dir OK" || echo "회사 디렉토리부터 만들고 시작"
+
+# 2) 기존 company.md 가 있는지 — 있으면 덮어쓰기 금지
+test -e "$LSKUN_SSOT_ROOT/company.md" && echo "이미 존재. 덮어쓰지 말 것." || echo "신규 생성 가능"
+
+# 3) hired/ 디렉토리 (없으면 생성, 있으면 그대로)
 mkdir -p "$LSKUN_SSOT_ROOT/hired"
 ```
 
-`company.md` 박제:
+#### 1.2.2 `company.md` 박제 (없을 때만)
+
+`company.md` 는 LSKunCompanyKit 가 회사 메타데이터를 읽는 진입 파일이다. **이미 같은 파일이 있다면 절대 덮어쓰지 말고 frontmatter 필수 필드만 확인**한다.
+
+신규일 때만:
 
 ```bash
-cat > "$LSKUN_SSOT_ROOT/company.md" <<'EOF'
+test -e "$LSKUN_SSOT_ROOT/company.md" || cat > "$LSKUN_SSOT_ROOT/company.md" <<EOF
 ---
-name: LSKun
-founded: 2026-05-15
+name: $LSKUN_COMPANY
+founded: $(date +%Y-%m-%d)
 ---
 
-# LSKun
+# $LSKUN_COMPANY
 
-이성근의 1인 회사. AI 직원이 자라며 함께 일한다.
+(회사 한 줄 소개)
 EOF
+```
+
+이미 있다면 frontmatter 에 다음 필드가 있는지 점검 후 부족한 것만 보완:
+
+```yaml
+---
+name: <your-company>     # 필수
+founded: YYYY-MM-DD      # 선택, 있으면 좋음
+---
 ```
 
 ### 1.3 Stop hook 등록
@@ -159,7 +201,7 @@ export LSKUN_FIRST_PASS=80
    from lskun_kit import VaultAdapter
    from lskun_kit.metrics import estimate_citation_rate
    import os
-   adapter = VaultAdapter(os.environ['LSKUN_VAULT'], 'LSKun')
+   adapter = VaultAdapter(os.environ['LSKUN_VAULT'], os.environ['LSKUN_COMPANY'])
    # responses = [<일주일치 워커 응답 모음>]
    responses = []  # TODO: claude-code transcript 에서 수집
    for w in adapter.list_workers():
