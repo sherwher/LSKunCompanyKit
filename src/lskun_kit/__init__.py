@@ -2,11 +2,16 @@
 
 from lskun_kit.adapters.base import StorageAdapter
 from lskun_kit.adapters.local import LocalAdapter
+from lskun_kit.adapters.vault import (
+    VaultAdapter,
+    VaultCompanyNotFoundError,
+    list_companies,
+)
 from lskun_kit.errors import (
+    InvalidWorkerSchemaError,
     LSKunKitError,
     SSOTContaminationError,
     WorkerNotFoundError,
-    InvalidWorkerSchemaError,
 )
 from lskun_kit.models import Company, HistoryEntry, Worker
 
@@ -16,6 +21,9 @@ __all__ = [
     "__version__",
     "StorageAdapter",
     "LocalAdapter",
+    "VaultAdapter",
+    "VaultCompanyNotFoundError",
+    "list_companies",
     "Company",
     "HistoryEntry",
     "Worker",
