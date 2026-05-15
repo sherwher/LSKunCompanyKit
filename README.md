@@ -107,14 +107,16 @@ cd LSKunCompanyKit
 P0 ✅ ADR-0001 박제
 P1 ✅ 옛 plugin / CLI 정리
 P2 ✅ GitHub repo + 로컬 작업 위치 + LICENSE
-P3 ⏳ Plugin manifest + namespace + /lskun-kit:doctor   ← 현재
-P4    StorageAdapter 인터페이스 + Local adapter
-P5    Vault adapter
-P6    Reflection 자동화 (hook + frontmatter schema)
-P7    Migration tool (/lskun-kit:migrate)
-P8    Dogfooding (Vault backend, 멀티 PC)
-P9    KPI 측정
+P3 ✅ Plugin manifest + namespace + /lskun-kit:doctor             (#1)
+P4 ✅ StorageAdapter 인터페이스 + LocalAdapter                    (#2)
+P5 ✅ VaultAdapter + MarkdownTreeAdapter 공통 베이스              (#3)
+P6 ✅ Reflection 자동화 (session/context/metrics/hook + 3 명령)   (#4)
+P7 ✅ Migration tool (/lskun-kit:migrate)                         (#5)
+P8 ⏳ Dogfooding (1주, Vault backend + 멀티 PC)                   ← 현재
+P9    KPI 측정 → 채택 / 폐기 / 조건부 채택 판정 (ADR-0002 박제)
 ```
+
+도그푸딩 가이드: [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md)
 
 ---
 
