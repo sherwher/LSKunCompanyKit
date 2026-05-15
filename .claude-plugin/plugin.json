@@ -20,6 +20,9 @@
     "claude-code"
   ],
   "commands": [
-    "commands/doctor.md"
+    "commands/doctor.md",
+    "commands/hire.md",
+    "commands/work.md",
+    "commands/reflect.md"
   ]
 }
