@@ -1,0 +1,24 @@
+{
+  "name": "LSKunCompanyKit",
+  "owner": {
+    "name": "이성근",
+    "email": "sherwher@sherwher.org",
+    "url": "https://github.com/sherwher"
+  },
+  "plugins": [
+    {
+      "name": "LSKunCompanyKit",
+      "source": "./",
+      "description": "AI workers that remember their work — Stateful Workers with Reflection and pluggable storage backends.",
+      "version": "0.1.0-dev",
+      "license": "MIT",
+      "homepage": "https://github.com/sherwher/LSKunCompanyKit",
+      "keywords": [
+        "stateful-workers",
+        "reflection",
+        "storage-abstraction",
+        "claude-code"
+      ]
+    }
+  ]
+}
