@@ -23,6 +23,7 @@
     "commands/doctor.md",
     "commands/hire.md",
     "commands/work.md",
-    "commands/reflect.md"
+    "commands/reflect.md",
+    "commands/migrate.md"
   ]
 }
