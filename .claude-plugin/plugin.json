@@ -1,0 +1,25 @@
+{
+  "name": "LSKunCompanyKit",
+  "version": "0.1.0-dev",
+  "description": "AI workers that remember their work — Stateful Workers with Reflection and pluggable storage backends for Claude Code.",
+  "author": {
+    "name": "이성근",
+    "email": "sherwher@sherwher.org",
+    "url": "https://github.com/sherwher"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/sherwher/LSKunCompanyKit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sherwher/LSKunCompanyKit.git"
+  },
+  "keywords": [
+    "stateful-workers",
+    "reflection",
+    "storage-abstraction",
+    "claude-code"
+  ],
+  "commands": [
+    "commands/doctor.md"
+  ]
+}
