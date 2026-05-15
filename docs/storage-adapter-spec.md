@@ -1,6 +1,6 @@
 # Storage Adapter Specification (v0.1.0-dev)
 
-> ADR-0001 §4 의 추상화 계층을 구현 가능한 형태로 풀어 쓴 사양. P4 단계에서 박제.
+> ADR-0001 §4 의 추상화 계층을 구현 가능한 형태로 풀어 쓴 사양. P4 에서 박제, P5 에서 Vault backend 추가.
 
 ## 1. Why an interface
 
@@ -55,19 +55,45 @@ storage_backend: local        # local | vault | (future)
 
 ## 5. SSOT guard
 
-`LocalAdapter(root)` 는 root 경로에 `02_Projects/LSKunCompanyKit` 가 포함되면 `SSOTContaminationError` 를 raise 한다. ADR-0001 §5 의 개발자/사용자 SSOT 분리 정책을 코드 차원에서 강제하기 위한 보호 장치.
+`LocalAdapter` / `VaultAdapter` 모두 root 경로에 `02_Projects/LSKunCompanyKit` 가 포함되면 `SSOTContaminationError` 를 raise 한다. ADR-0001 §5 의 개발자/사용자 SSOT 분리 정책을 코드 차원에서 강제하기 위한 보호 장치. `_markdown_tree.MarkdownTreeAdapter` 기반 클래스가 두 adapter 모두에게 동일 가드를 제공한다.
 
-Vault backend (P5) 도 동일 가드를 상속한다. doctor (P3) 는 런타임 검증을 보강한다.
+doctor (P3) 는 런타임 검증을 보강한다.
 
-## 6. Non-goals (v0.1)
+## 6. Backend 구현 현황
+
+### 6.1 LocalAdapter (P4)
+
+- 경로: `<project-root>/.company/`
+- 한 프로젝트 단위. 외부 동기화 의존성 없음.
+- 사용: `LocalAdapter("<project-root>/.company")`
+
+### 6.2 VaultAdapter (P5)
+
+- 경로: `<vault>/03_Companies/<company>/`
+- 한 vault 가 N개 회사를 가질 수 있어 인스턴스화 시 `company` 인자 필수.
+- `<vault>/03_Companies/` 또는 지정한 company 디렉토리가 없으면 `VaultCompanyNotFoundError` (사용 가능한 회사 목록을 메시지에 포함).
+- `lskun_kit.list_companies(vault)` — vault 안의 회사 디렉토리 정렬 목록 (점-prefix 제외).
+- 멀티 PC 동기화는 OS file sync (Obsidian Sync / iCloud / Dropbox) 가 담당. atomic write 미보장 — P8 도그푸딩에서 충돌 빈도 측정.
+- 사용: `VaultAdapter("~/Documents/private-workspaces/obsidian-vault", "LSKun")`
+
+### 6.3 Future backends
+
+Notion (v0.2+), HTTP API 등을 추가하려면 :class:`StorageAdapter` 또는 :class:`MarkdownTreeAdapter` 를 상속하면 된다. 4-method 시그니처는 변경 금지.
+
+## 7. Non-goals (v0.1)
 
 - 쓰기 atomicity / lock (P8 에서 검토)
 - frontmatter 의 nested / list / multiline (의도적으로 미지원, 평탄 key-value 만)
 - 외부 의존성 (PyYAML 등) — stdlib only
 
-## 7. Test surface
+## 8. Test surface
 
-`tests/test_local_adapter.py` 에 unittest 기반 18+ 케이스. 실행:
+| Backend | 파일 | 케이스 수 |
+|---|---|---|
+| Local | `tests/test_local_adapter.py` | 14 |
+| Vault | `tests/test_vault_adapter.py` | 9 |
+
+실행:
 
 ```bash
 python3 -m unittest discover -s tests -v
