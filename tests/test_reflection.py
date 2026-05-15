@@ -1,0 +1,208 @@
+"""Reflection 자동화 — session / context / reflection.record / metrics 테스트."""
+
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from datetime import date
+from pathlib import Path
+from textwrap import dedent
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from lskun_kit import HistoryEntry, LocalAdapter  # noqa: E402
+from lskun_kit import context, metrics, reflection, session  # noqa: E402
+
+
+WORKER_MD = dedent(
+    """\
+    ---
+    name: alice
+    role: backend-engineer
+    hired_at: 2026-05-15
+    storage_backend: local
+    ---
+
+    # alice
+
+    ## Project History
+
+    - 2026-05-10 / payment-svc / idempotency / stripe-key-as-idem / first-pass 92%
+    - 2026-05-12 / music-pay / webhook / signature-verify / first-pass 85%
+    """
+)
+
+
+def _setup_local(tmp: Path) -> tuple[Path, LocalAdapter]:
+    root = tmp / ".company"
+    (root / "hired").mkdir(parents=True)
+    (root / "hired" / "alice.md").write_text(WORKER_MD, encoding="utf-8")
+    return root, LocalAdapter(root)
+
+
+class SessionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        self.root.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_start_creates_session_file(self) -> None:
+        sess = session.start(self.root, "alice")
+        self.assertEqual(sess.active_worker, "alice")
+        self.assertTrue(session.session_path(self.root).exists())
+
+    def test_read_roundtrip(self) -> None:
+        session.start(self.root, "alice")
+        again = session.read(self.root)
+        self.assertIsNotNone(again)
+        assert again is not None
+        self.assertEqual(again.active_worker, "alice")
+
+    def test_read_missing_returns_none(self) -> None:
+        self.assertIsNone(session.read(self.root))
+
+    def test_read_malformed_returns_none(self) -> None:
+        session.session_path(self.root).write_text("{not json", encoding="utf-8")
+        self.assertIsNone(session.read(self.root))
+
+    def test_clear_removes_file(self) -> None:
+        session.start(self.root, "alice")
+        session.clear(self.root)
+        self.assertFalse(session.session_path(self.root).exists())
+
+    def test_clear_missing_is_safe(self) -> None:
+        session.clear(self.root)  # 예외 없어야 함
+
+
+class ContextTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root, self.adapter = _setup_local(Path(self.tmp.name))
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_includes_header_and_recent_history(self) -> None:
+        ctx = context.build_worker_context(self.adapter, "alice")
+        self.assertIn("Worker: alice (backend-engineer)", ctx)
+        self.assertIn("Backend: local", ctx)
+        self.assertIn("stripe-key-as-idem", ctx)
+        self.assertIn("signature-verify", ctx)
+
+    def test_limits_to_recent_n(self) -> None:
+        # 10줄 추가
+        for i in range(12):
+            self.adapter.append_history(
+                "alice",
+                HistoryEntry(date(2026, 5, 15), f"proj{i}", "topic", "pattern", 50),
+            )
+        ctx = context.build_worker_context(self.adapter, "alice", recent=5)
+        self.assertEqual(ctx.count("- 2026-"), 5)
+
+    def test_empty_history_message(self) -> None:
+        blank = dedent(
+            """\
+            ---
+            name: bob
+            role: pm
+            hired_at: 2026-05-15
+            storage_backend: local
+            ---
+
+            # bob
+            """
+        )
+        (self.root / "hired" / "bob.md").write_text(blank, encoding="utf-8")
+        ctx = context.build_worker_context(self.adapter, "bob")
+        self.assertIn("no history yet", ctx)
+
+
+class ReflectionRecordTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root, self.adapter = _setup_local(Path(self.tmp.name))
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_record_appends_line(self) -> None:
+        entry = reflection.record(
+            self.adapter, "alice", "music-pay", "refund-flow", "saga", 88,
+            when=date(2026, 5, 15),
+        )
+        text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertIn(entry.render(), text)
+
+    def test_record_rejects_slash_in_field(self) -> None:
+        with self.assertRaises(ValueError):
+            reflection.record(self.adapter, "alice", "a/b", "x", "y", 50)
+        with self.assertRaises(ValueError):
+            reflection.record(self.adapter, "alice", "p", "t", "pat/tern", 50)
+
+    def test_record_rejects_empty_field(self) -> None:
+        with self.assertRaises(ValueError):
+            reflection.record(self.adapter, "alice", "", "t", "p", 50)
+
+    def test_record_rejects_score_out_of_range(self) -> None:
+        for bad in (-1, 101, 200):
+            with self.assertRaises(ValueError):
+                reflection.record(self.adapter, "alice", "p", "t", "x", bad)
+
+
+class MetricsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        _, self.adapter = _setup_local(Path(self.tmp.name))
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_extract_keywords_from_history(self) -> None:
+        kws = metrics.extract_keywords(self.adapter, "alice")
+        self.assertIn("idempotency", kws)
+        self.assertIn("webhook", kws)
+        # kebab-case 패턴 이름은 한 토큰으로 추출 — 응답에서 정확히 같은 표현을
+        # 써야 "인용" 으로 친다 (의도적 엄격함, v1.0 의 LLM judge 로 완화 예정)
+        self.assertIn("stripe-key-as-idem", kws)
+        self.assertIn("signature-verify", kws)
+
+    def test_estimate_citation_rate_counts_responses(self) -> None:
+        responses = [
+            "I'll reuse the stripe idempotency pattern here.",
+            "This is unrelated text about cats.",
+            "Webhook signature verify is the way.",
+            "Just a hello.",
+        ]
+        report = metrics.estimate_citation_rate(self.adapter, "alice", responses)
+        self.assertEqual(report.sampled_responses, 4)
+        self.assertEqual(report.cited_responses, 2)
+        self.assertAlmostEqual(report.rate, 0.5)
+
+    def test_empty_keywords_returns_zero_rate(self) -> None:
+        # history 없는 워커
+        blank = dedent(
+            """\
+            ---
+            name: carol
+            role: designer
+            hired_at: 2026-05-15
+            storage_backend: local
+            ---
+
+            # carol
+            """
+        )
+        (self.adapter.root / "hired" / "carol.md").write_text(blank, encoding="utf-8")
+        report = metrics.estimate_citation_rate(
+            self.adapter, "carol", ["anything"]
+        )
+        self.assertEqual(report.rate, 0.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
