@@ -27,6 +27,11 @@ from lskun_kit.init import (  # noqa: E402
     resolve_company_root,
     run,
 )
+from lskun_kit.persona_injection import (  # noqa: E402
+    CLAUDE_MD_FILENAME,
+    PERSONA_MARKER_START,
+    detect as detect_persona,
+)
 
 
 class DetectBackendTests(unittest.TestCase):
@@ -154,6 +159,39 @@ class RunLocalBackendTests(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 run(Path(tmp), cpo_name="이세근", env={})
             self.assertIn("hr-lead", str(ctx.exception).lower())
+
+    def test_injects_cpo_persona_into_claude_md(self) -> None:
+        # ADR-0004 §1 — init 가 project_root 의 CLAUDE.md 에 CPO persona 박제
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            self.assertEqual(result.persona_action, "created")
+            self.assertTrue(detect_persona(Path(tmp)))
+            content = (Path(tmp) / CLAUDE_MD_FILENAME).read_text(encoding="utf-8")
+            self.assertIn(PERSONA_MARKER_START, content)
+            self.assertIn("이세근", content)
+
+    def test_inject_persona_can_be_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run(
+                Path(tmp),
+                cpo_name="이세근",
+                hr_name="김지혜",
+                inject_persona=False,
+                env={},
+            )
+            self.assertEqual(result.persona_action, "skipped")
+            self.assertFalse(detect_persona(Path(tmp)))
+
+    def test_persona_reinject_preserves_user_claude_md_outside_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            # 사용자가 먼저 CLAUDE.md 작성
+            user_text = "# Project\n\n사용자 정의 가이드.\n"
+            (Path(tmp) / CLAUDE_MD_FILENAME).write_text(user_text, encoding="utf-8")
+            run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            content = (Path(tmp) / CLAUDE_MD_FILENAME).read_text(encoding="utf-8")
+            # 사용자 본문 보존 + persona 추가
+            self.assertIn("사용자 정의 가이드.", content)
+            self.assertIn(PERSONA_MARKER_START, content)
 
     def test_company_md_records_domain(self) -> None:
         # ADR-0003 — company.md frontmatter 에 domain 박제
