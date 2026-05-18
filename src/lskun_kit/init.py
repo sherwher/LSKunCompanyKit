@@ -19,6 +19,7 @@ from pathlib import Path
 
 from lskun_kit.adapters import frontmatter
 from lskun_kit.adapters.vault import COMPANIES_DIRNAME
+from lskun_kit.persona_injection import inject as inject_cpo_persona
 from lskun_kit.templates import iter_default_workers, render_default_worker
 
 #: ``$LSKUN_VAULT`` 환경변수 키 — Vault backend 선택 trigger.
@@ -41,6 +42,8 @@ class InitResult:
     workers_created: list[str] = field(default_factory=list)
     workers_skipped: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    persona_action: str = "skipped"  # ADR-0004 §1 — "created" | "updated" | "unchanged" | "skipped"
+    persona_path: Path | None = None
 
     def render(self) -> str:
         """사람이 읽는 진단 리포트."""
@@ -56,6 +59,12 @@ class InitResult:
         ]
         if self.workers_skipped:
             lines.append(f"workers kept  : {', '.join(self.workers_skipped)}")
+        if self.persona_path is not None:
+            lines.append(
+                f"CPO persona   : {self.persona_action} → {self.persona_path}"
+            )
+        else:
+            lines.append(f"CPO persona   : {self.persona_action}")
         for note in self.notes:
             lines.append(f"note          : {note}")
         return "\n".join(lines) + "\n"
@@ -128,6 +137,7 @@ def run(
     domain: str = "",
     cpo_name: str = "",
     hr_name: str = "",
+    inject_persona: bool = True,
     env: dict[str, str] | None = None,
     today: date_cls | None = None,
 ) -> InitResult:
@@ -206,6 +216,24 @@ def run(
         )
         workers_created.append(worker_name)
 
+    # ADR-0004 §1 — CPO persona 를 사용자 프로젝트 root 의 CLAUDE.md 에 inline 박제.
+    persona_action = "skipped"
+    persona_path: Path | None = None
+    if inject_persona:
+        cpo_md = hired_dir / "cpo.md"
+        if cpo_md.exists():
+            parsed = frontmatter.parse(cpo_md.read_text(encoding="utf-8"))
+            result = inject_cpo_persona(
+                project_root=Path(project_root).expanduser(),
+                company_name=resolved_company,
+                cpo_display_name=parsed.frontmatter.get("display_name", "CPO"),
+                cpo_body=parsed.body,
+            )
+            persona_action = result.action
+            persona_path = result.claude_md_path
+        else:
+            notes.append("CPO persona 박제 skip — hired/cpo.md 가 존재하지 않음")
+
     return InitResult(
         backend=backend,
         company_root=company_root,
@@ -215,6 +243,8 @@ def run(
         workers_created=workers_created,
         workers_skipped=workers_skipped,
         notes=notes,
+        persona_action=persona_action,
+        persona_path=persona_path,
     )
 
 
