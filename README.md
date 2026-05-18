@@ -5,7 +5,7 @@
 **LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다.
 저장 위치는 사용자가 고르고, 마이그레이션은 LSKunCompanyKit 이 책임집니다.
 
-- **Status:** `0.1.0-dev` · pre-alpha · zero-base 시작
+- **Status:** `0.2.0-dev` · Phase 2 (CPO/HR pivot — [ADR-0002](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md))
 - **License:** MIT
 - **Namespace:** `/lskun-kit:*`
 
@@ -58,14 +58,14 @@ LSKunCompanyKit core (interface 만 알고 구현은 모름)
        Local | Vault | (future: Notion, ...)
 ```
 
-v0.1 출시 backend (2종):
+v0.2 backend (2종):
 
-| Backend | 경로 |
-|---|---|
-| **Local** (기본값) | `<project-root>/.company/` |
-| **Vault** | `<vault>/03_Companies/<company-name>/` |
+| Backend | 경로 | 선택 조건 |
+|---|---|---|
+| **Vault** | `<vault>/03_Companies/<company-name>/` | `LSKUN_VAULT` 환경변수 있을 때 |
+| **Local** (기본값) | `<project-root>/.company/` | 환경변수 없을 때 자동 |
 
-Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (Phase 1 후반 구현).
+Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (SHA-256 무결성 보장).
 
 ---
 
@@ -111,22 +111,61 @@ git clone https://github.com/sherwher/LSKunCompanyKit.git
 
 ---
 
-## Roadmap (Phase 1)
+## 사용 흐름 (Phase 2)
+
+### 1) 회사 셋업 — `init`
+
+신규 회사 셋업의 단일 진입점. backend 자동 감지 + CPO + 인사팀장 자동 hire.
+
+```text
+# Local backend (가장 가벼움)
+/lskun-kit:init
+
+# Vault backend
+export LSKUN_VAULT="$HOME/Documents/private-workspaces/obsidian-vault"
+/lskun-kit:init Acme "AI agents for SMB compliance"
+```
+
+기존 `company.md` 가 있으면 **절대 덮어쓰지 않습니다** (ADR-0002 §3 보존 정책).
+
+### 2) 작업 호출 — `work`
+
+| 호출 형태 | 동작 |
+|---|---|
+| `/lskun-kit:work backend-engineer "..."` | 직통 호출 (CPO 경유 안 함) |
+| `/lskun-kit:work cpo "..."` | CPO 와 전략 대화 |
+| `/lskun-kit:work "..."` (이름 생략) | **CPO 가 적합 워커를 추천**, 사용자가 다음 명령 실행 |
+
+CPO 는 인사팀장을 **자동으로 호출하지 않습니다** (ADR-0002 §1). 적합한 워커가 없으면 사용자에게 `/lskun-kit:work hr-lead "신규 채용 ..."` 을 권장만 합니다.
+
+### 3) 회고 — `reflect` (또는 Stop hook)
+
+작업 종료 시 1줄 박제. Stop hook 자동 또는 `/lskun-kit:reflect <project> <topic> <pattern> <score>` 수동.
+
+---
+
+## Roadmap
+
+### Phase 1 (P0~P7 완료, P8/P9 폐기 by [ADR-0002](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md))
 
 ```
-P0 ✅ ADR-0001 박제
-P1 ✅ 옛 plugin / CLI 정리
-P2 ✅ GitHub repo + 로컬 작업 위치 + LICENSE
-P3 ✅ Plugin manifest + namespace + /lskun-kit:doctor             (#1)
-P4 ✅ StorageAdapter 인터페이스 + LocalAdapter                    (#2)
-P5 ✅ VaultAdapter + MarkdownTreeAdapter 공통 베이스              (#3)
-P6 ✅ Reflection 자동화 (session/context/metrics/hook + 3 명령)   (#4)
-P7 ✅ Migration tool (/lskun-kit:migrate)                         (#5)
-P8 ⏳ Dogfooding (1주, Vault backend + 멀티 PC)                   ← 현재
-P9    KPI 측정 → 채택 / 폐기 / 조건부 채택 판정 (ADR-0002 박제)
+P0~P7 ✅ ADR-0001 → manifest → storage adapter → reflection → migration
+P8/P9 ❌ Dogfooding / KPI 측정 — 폐기 (ADR-0002 §5)
 ```
 
-도그푸딩 가이드: [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md)
+### Phase 2 (현재)
+
+```
+P10 ✅ ADR-0002 박제 (CPO/HR pivot)
+P11 ✅ CLAUDE.md / docs 갱신
+P12 ✅ CPO / HR 워커 템플릿 (src/lskun_kit/templates/)
+P13 ✅ /lskun-kit:init
+P14 ✅ /lskun-kit:work 라우팅
+P15 ✅ /lskun-kit:doctor 갱신 (init 상태 + CPO/HR 점검)
+P16 ✅ README 갱신
+```
+
+> 이전 [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md) 는 deprecated. 역사적 참조용으로만 보존됩니다.
 
 ---
 
