@@ -6,6 +6,7 @@
 > - [ADR-0002](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md) — CPO/HR pivot (Phase 2 진입)
 > - [ADR-0003](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0003-2026-05-18-domain-aware-workers.md) — 도메인 인지 워커 (`role × domain`)
 > - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — **메인 세션 = CPO (Leader-Worker, 자동 채용)**
+> - [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md) — Schema 마이그레이션 (`/lskun-kit:migrate-schema`)
 >
 > Developer SSOT hub: `obsidian-vault/02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md`
 
@@ -15,7 +16,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.4.0-dev (Phase 4 — 검토단 23건 보완 + hook bootstrap 수정)
+- **버전:** 0.5.0-dev (Phase 5 — schema 마이그레이션 도입, ADR-0005)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -36,6 +37,7 @@
 | `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 (P14) |
 | `/lskun-kit:reflect` | 작업 종료 1줄 기록 (수동) |
 | `/lskun-kit:migrate` | Local ↔ Vault 무결성 이동 |
+| `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 v0.4 schema 로 보강 (P50/ADR-0005) |
 | `/lskun-kit:doctor` | 환경 진단 |
 
 ---
@@ -161,6 +163,11 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - ~~"CPO 는 결재 라인이 아니다 / 다른 워커의 작업 결과를 검수·승인하지 않는다"~~ → CPO 가 결재 라인
 - ~~"HR Lead 는 사용자 명시 호출만 받는다"~~ → CPO 의 Task dispatch 도 수용 (해고만 명시 요청 유지)
 
+### ADR-0005 가 폐기한 ADR-0004 §6 조항
+
+- ~~"frontmatter 5→6 자동 마이그레이션 X / 사용자가 display_name 1줄 수동 추가"~~ → `/lskun-kit:migrate-schema` 로 사용자 confirm 기반 plugin 책임 마이그레이션 (ADR-0005)
+- 단, **history 보존 / frontmatter 덮어쓰기 금지 / 백업 강제** 가드는 불변
+
 ---
 
 ## 7. 디렉토리 구조 (현재)
@@ -178,7 +185,8 @@ LSKunCompanyKit/
 │   ├── hire.md               # /lskun-kit:hire      (P26 — --domain --model 옵션)
 │   ├── work.md               # /lskun-kit:work      (P14/P26 — 메인 세션 = CPO, --model)
 │   ├── reflect.md            # /lskun-kit:reflect
-│   └── migrate.md            # /lskun-kit:migrate
+│   ├── migrate.md            # /lskun-kit:migrate         (Local ↔ Vault)
+│   └── migrate-schema.md     # /lskun-kit:migrate-schema  (P50/ADR-0005)
 ├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
 │   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
 │   ├── hooks/                # stop_reflect (P6) + session_start (P24)
@@ -189,6 +197,7 @@ LSKunCompanyKit/
 │   ├── context.py            # build_worker_context (history 컨텍스트 주입)
 │   ├── reflection.py         # record (history 1줄 append)
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
+│   ├── schema_migration.py   # v0.2/v0.3 → v0.4 frontmatter 보강 (P50/ADR-0005)
 │   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log (P32/P45)
 │   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
 │   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
