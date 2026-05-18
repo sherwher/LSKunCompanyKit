@@ -21,19 +21,20 @@ class HooksManifestTests(unittest.TestCase):
     def test_session_start_registered(self) -> None:
         entries = self.manifest["hooks"]["SessionStart"]
         commands = [h["command"] for e in entries for h in e["hooks"]]
-        self.assertIn("python3 -m lskun_kit.hooks.session_start", commands)
+        # P48 — $CLAUDE_PLUGIN_ROOT 직접 경로 호출. module 이름 / 명령 형식 검증.
+        self.assertTrue(
+            any("session_start.py" in c for c in commands),
+            f"SessionStart command 에 session_start.py 가 없음: {commands}",
+        )
+        # plugin root placeholder 사용 여부
+        self.assertTrue(any("$CLAUDE_PLUGIN_ROOT" in c or "${CLAUDE_PLUGIN_ROOT}" in c for c in commands))
 
     def test_stop_hook_registered(self) -> None:
-        """ADR-0001 §3 — Stop hook 미등록 시 reflection 이 default-off 되어
-        핵심 메커니즘 #1 이 동작하지 않는다."""
-        self.assertIn(
-            "Stop",
-            self.manifest["hooks"],
-            "Stop hook 이 plugin manifest 에 등록되어 있어야 reflection 이 default-on",
-        )
+        """ADR-0001 §3 — Stop hook 미등록 시 reflection 이 default-off."""
+        self.assertIn("Stop", self.manifest["hooks"])
         entries = self.manifest["hooks"]["Stop"]
         commands = [h["command"] for e in entries for h in e["hooks"]]
-        self.assertIn("python3 -m lskun_kit.hooks.stop_reflect", commands)
+        self.assertTrue(any("stop_reflect.py" in c for c in commands), commands)
 
     def test_hook_matchers_are_expected(self) -> None:
         """SessionStart / Stop 은 '*'. PreToolUse 는 'Task' 로 좁힘 (P31)."""
@@ -57,7 +58,26 @@ class HooksManifestTests(unittest.TestCase):
             for e in self.manifest["hooks"]["PreToolUse"]
             for h in e["hooks"]
         ]
-        self.assertIn("python3 -m lskun_kit.hooks.pre_tool_use", commands)
+        self.assertTrue(any("pre_tool_use.py" in c for c in commands), commands)
+
+    def test_all_hook_commands_use_plugin_root_placeholder(self) -> None:
+        """P48 — 모든 hook 명령은 $CLAUDE_PLUGIN_ROOT 직접 경로를 사용해야 한다.
+
+        ``python3 -m lskun_kit.hooks.x`` 형식은 sys.path 에 src/ 가 없어 hook 실행이
+        ModuleNotFoundError 로 깨진다 (실제 설치 환경에서 발현). 회귀 방지 가드.
+        """
+        for event, entries in self.manifest["hooks"].items():
+            for e in entries:
+                for h in e["hooks"]:
+                    cmd = h["command"]
+                    self.assertIn(
+                        "CLAUDE_PLUGIN_ROOT", cmd,
+                        f"{event} hook 이 CLAUDE_PLUGIN_ROOT placeholder 미사용: {cmd!r}",
+                    )
+                    self.assertNotIn(
+                        "python3 -m lskun_kit", cmd,
+                        f"{event} hook 이 -m 모드 사용 (sys.path 깨짐): {cmd!r}",
+                    )
 
 
 if __name__ == "__main__":

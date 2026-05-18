@@ -35,6 +35,11 @@ import os
 import sys
 from pathlib import Path
 
+# P48 — 직접 경로 호출 시 self-bootstrap (P48 hook command 형태에 대응).
+_SRC_DIR = str(Path(__file__).resolve().parents[2])
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+
 TOOL_TASK = "Task"
 ENV_SSOT_ROOT = "LSKUN_SSOT_ROOT"
 ENV_ALLOW_CHAIN = "LSKUN_ALLOW_WORKER_CHAIN"
