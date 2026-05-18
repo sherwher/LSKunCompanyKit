@@ -1,6 +1,6 @@
 {
   "name": "LSKunCompanyKit",
-  "version": "0.1.0-dev",
+  "version": "0.2.0-dev",
   "description": "AI workers that remember their work — Stateful Workers with Reflection and pluggable storage backends for Claude Code.",
   "author": {
     "name": "이성근",
