@@ -127,6 +127,33 @@ class BuildCpoRoutingContextTests(unittest.TestCase):
                 build_cpo_routing_context(adapter, user_request="x")
 
 
+class CpoPersonaSpecTests(unittest.TestCase):
+    """P37 — CPO persona 의 직접 응답 / 에스컬레이션 조건 박제 검증."""
+
+    def _read_rendered_cpo(self) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            cpo = adapter.read_worker(CPO_WORKER_NAME)
+            return cpo.body
+
+    def test_cpo_persona_documents_direct_response_conditions(self) -> None:
+        body = self._read_rendered_cpo()
+        self.assertIn("직접 응답 조건", body)
+        self.assertIn("워커 dispatch 가 명백한 과잉", body)
+        self.assertIn("메타 질문", body)
+
+    def test_cpo_persona_documents_escalation_path(self) -> None:
+        body = self._read_rendered_cpo()
+        self.assertIn("사용자 에스컬레이션 조건", body)
+        self.assertIn("[사용자 검토 요청]", body)
+
+    def test_direct_response_does_not_imply_persona_evolution(self) -> None:
+        """직접 응답 조건이 추가됐어도 금지 사항(persona evolution 등)은 유지된다."""
+        body = self._read_rendered_cpo()
+        self.assertIn("persona evolution narrative", body)
+        self.assertIn("워커 → 워커 chain", body)
+
+
 class Adr0004ConsistencyTests(unittest.TestCase):
     """P35 회귀 가드 — routing.py 가 ADR-0002 의 폐기 조항을 재유입하지 않도록 검증."""
 
