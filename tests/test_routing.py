@@ -95,19 +95,29 @@ class BuildCpoRoutingContextTests(unittest.TestCase):
             self.assertNotIn(CPO_WORKER_NAME, candidates_section)
             self.assertNotIn(HR_LEAD_WORKER_NAME, candidates_section)
 
-    def test_empty_candidates_shows_hire_hint(self) -> None:
+    def test_empty_candidates_directs_to_auto_hire(self) -> None:
+        """P35 — ADR-0004 §3: 적합 워커 부재 시 CPO 가 HR Lead Task dispatch 로 자동 채용."""
         with tempfile.TemporaryDirectory() as tmp:
             adapter = _init_local(Path(tmp))
             ctx = build_cpo_routing_context(adapter, user_request="아무거나")
-            self.assertIn("채용 권장", ctx)
+            # 후보 부재 메시지는 자동 채용 흐름을 가리켜야 한다.
+            self.assertIn("자동 채용", ctx)
+            self.assertIn("HR Lead", ctx)
+            # ADR-0002 시대 "사용자가 hr-lead 를 명시 호출" 안내가 살아있으면 안 됨.
+            self.assertNotIn("권장 조치", ctx)
 
     def test_response_format_documented(self) -> None:
+        """P35 — 응답 양식이 ADR-0004 §3 자동 채용 흐름을 명시한다."""
         with tempfile.TemporaryDirectory() as tmp:
             adapter = _init_local(Path(tmp))
             ctx = build_cpo_routing_context(adapter, user_request="x")
             self.assertIn("추천 워커:", ctx)
-            self.assertIn("권장 조치:", ctx)
-            self.assertIn("/lskun-kit:work hr-lead", ctx)
+            # 자동 채용 행동 양식 (Task tool 호출)
+            self.assertIn("자동 채용", ctx)
+            self.assertIn("Task tool", ctx)
+            self.assertIn("[채용 알림]", ctx)
+            # 워커 → 워커 chain 금지 명시 (ADR-0004 §8)
+            self.assertIn("chain", ctx.lower())
 
     def test_raises_when_cpo_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,6 +125,34 @@ class BuildCpoRoutingContextTests(unittest.TestCase):
             adapter = LocalAdapter(Path(tmp, ".company"))
             with self.assertRaises(WorkerNotFoundError):
                 build_cpo_routing_context(adapter, user_request="x")
+
+
+class Adr0004ConsistencyTests(unittest.TestCase):
+    """P35 회귀 가드 — routing.py 가 ADR-0002 의 폐기 조항을 재유입하지 않도록 검증."""
+
+    def test_module_docstring_does_not_reaffirm_no_chain_to_hr(self) -> None:
+        import lskun_kit.routing as routing_mod
+        doc = (routing_mod.__doc__ or "")
+        # ADR-0002 폐기 조항: "CPO 가 인사팀장을 chain 호출하지 않는다 (ADR-0002 §1 금지)"
+        # ADR-0004 §3 이 폐기. docstring 에 그대로 재등장 금지.
+        self.assertNotIn(
+            "인사팀장을 chain 호출하지 않는다", doc,
+            "ADR-0002 의 폐기 조항이 docstring 에 재유입됨 (ADR-0004 §3 이 자동 채용 허용)",
+        )
+
+    def test_response_format_does_not_offload_hire_to_user(self) -> None:
+        """과거 양식 '사용자가 hr-lead 를 명시 호출' 안내가 살아있으면 회귀."""
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            ctx = build_cpo_routing_context(adapter, user_request="x")
+            self.assertNotIn(
+                "CPO 는 인사팀장을 직접 호출하지 않는다", ctx,
+                "ADR-0002 폐기 조항 재유입",
+            )
+            self.assertNotIn(
+                "신규 채용 요청 — role=", ctx,
+                "ADR-0002 시대의 사용자 명시 호출 안내가 재유입됨",
+            )
 
 
 class TemplateRenderingTests(unittest.TestCase):
