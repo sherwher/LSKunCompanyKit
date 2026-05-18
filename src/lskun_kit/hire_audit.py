@@ -47,8 +47,36 @@ class HireRateLimited(LSKunKitError):
 
 
 @dataclass(frozen=True)
+class AuditEvent:
+    """P45 (#16) — 일반화된 audit log 이벤트.
+
+    ``event_type`` 으로 hire/fire/evaluate 등을 구분, payload 에 타입별 필드 보관.
+    HR 평가·해고 등 향후 audit 이벤트를 같은 ``.audit.jsonl`` 에 통합 보관 가능.
+    """
+
+    at: datetime
+    actor: str
+    event_type: str  # "hire" | "fire" | "evaluate" | ...
+    payload: dict
+
+    def to_dict(self) -> dict:
+        return {
+            "at": self.at.isoformat(),
+            "actor": self.actor,
+            "event_type": self.event_type,
+            "payload": dict(self.payload),
+        }
+
+
+@dataclass(frozen=True)
 class HireEvent:
-    """audit log 의 한 줄을 표현."""
+    """audit log 의 hire 이벤트 (backward-compatible 표현).
+
+    P45 이전의 평탄 스키마 (at/actor/name/role/domain/model/reason) 를 유지하되
+    내부적으로는 :class:`AuditEvent` 와 상호 변환 가능. JSONL 에 저장될 때는
+    평탄 형태 (기존 포맷) 와 새 형태 (``event_type="hire"`` + ``payload``) 둘 다
+    read 시 정상 파싱된다.
+    """
 
     at: datetime
     actor: str  # "hr-lead" | "user" | "<other>"
@@ -59,6 +87,7 @@ class HireEvent:
     reason: str = ""
 
     def to_dict(self) -> dict:
+        # 기존 호환 — 평탄 키 유지
         return {
             "at": self.at.isoformat(),
             "actor": self.actor,
@@ -68,6 +97,20 @@ class HireEvent:
             "model": self.model,
             "reason": self.reason,
         }
+
+    def to_audit_event(self) -> AuditEvent:
+        return AuditEvent(
+            at=self.at,
+            actor=self.actor,
+            event_type="hire",
+            payload={
+                "name": self.name,
+                "role": self.role,
+                "domain": self.domain,
+                "model": self.model,
+                "reason": self.reason,
+            },
+        )
 
 
 def audit_path(company_root: Path | str) -> Path:
@@ -86,29 +129,72 @@ def append_event(company_root: Path | str, event: HireEvent) -> Path:
 
 
 def read_events(company_root: Path | str) -> list[HireEvent]:
-    """audit log 전체를 파싱. 손상된 줄은 silent skip."""
+    """hire 이벤트만 추려 :class:`HireEvent` 목록으로 반환. 손상 / 다른 event_type 은 skip.
+
+    P45 — 평탄 스키마 (P32) 와 일반화 스키마 (``event_type=hire`` + ``payload``)
+    모두 호환. ``read_audit_events`` 로 모든 이벤트 일반 형태로 읽을 수도 있다.
+    """
+
+    out: list[HireEvent] = []
+    for ev in read_audit_events(company_root):
+        if ev.event_type != "hire":
+            continue
+        p = ev.payload
+        try:
+            out.append(
+                HireEvent(
+                    at=ev.at, actor=ev.actor,
+                    name=p["name"], role=p["role"], domain=p["domain"],
+                    model=p.get("model"), reason=p.get("reason", ""),
+                )
+            )
+        except KeyError:
+            continue
+    return out
+
+
+def read_audit_events(company_root: Path | str) -> list[AuditEvent]:
+    """P45 (#16) — 모든 audit 이벤트를 일반 형태로 읽는다.
+
+    JSONL 에 평탄 스키마 (구) 와 일반화 스키마 (신) 가 섞여 있어도 둘 다 정상 파싱.
+    손상된 줄은 silent skip.
+    """
 
     path = audit_path(company_root)
     if not path.exists():
         return []
-    out: list[HireEvent] = []
+    out: list[AuditEvent] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
             continue
         try:
             data = json.loads(line)
-            out.append(
-                HireEvent(
-                    at=datetime.fromisoformat(data["at"]),
-                    actor=data["actor"],
-                    name=data["name"],
-                    role=data["role"],
-                    domain=data["domain"],
-                    model=data.get("model"),
-                    reason=data.get("reason", ""),
+            at = datetime.fromisoformat(data["at"])
+            actor = data["actor"]
+            if "event_type" in data and "payload" in data:
+                # 신규 일반화 스키마
+                out.append(
+                    AuditEvent(
+                        at=at, actor=actor,
+                        event_type=data["event_type"],
+                        payload=dict(data["payload"]),
+                    )
                 )
-            )
+            else:
+                # P32 평탄 스키마 — hire 로 간주
+                out.append(
+                    AuditEvent(
+                        at=at, actor=actor, event_type="hire",
+                        payload={
+                            "name": data["name"],
+                            "role": data["role"],
+                            "domain": data["domain"],
+                            "model": data.get("model"),
+                            "reason": data.get("reason", ""),
+                        },
+                    )
+                )
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
     return out
@@ -183,10 +269,12 @@ __all__ = [
     "AUDIT_FILENAME",
     "DEFAULT_COOLDOWN_SECONDS",
     "HireRateLimited",
+    "AuditEvent",
     "HireEvent",
     "audit_path",
     "append_event",
     "read_events",
+    "read_audit_events",
     "check_rate_limit",
     "record_hire",
 ]

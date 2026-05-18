@@ -241,6 +241,96 @@ class WorkerNameValidationTests(unittest.TestCase):
                 self.adapter.read_worker(good)
 
 
+class CreateWorkerTests(unittest.TestCase):
+    """P45 — StorageAdapter.create_worker 동작."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        self.adapter = LocalAdapter(self.root)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_creates_worker_with_frontmatter(self) -> None:
+        self.adapter.create_worker(
+            name="alice",
+            frontmatter_dict={
+                "name": "alice",
+                "role": "backend-engineer",
+                "domain": "payments",
+                "hired_at": "2026-05-18",
+                "storage_backend": "local",
+                "display_name": "Alice",
+            },
+            body="# alice\n\n## Project History\n",
+        )
+        worker = self.adapter.read_worker("alice")
+        self.assertEqual(worker.name, "alice")
+        self.assertEqual(worker.role, "backend-engineer")
+
+    def test_create_existing_raises(self) -> None:
+        self.adapter.create_worker(
+            "alice",
+            {"name": "alice", "role": "r", "domain": "meta",
+             "hired_at": "2026-05-18", "storage_backend": "local",
+             "display_name": "A"},
+            "# alice\n",
+        )
+        with self.assertRaises(FileExistsError):
+            self.adapter.create_worker(
+                "alice",
+                {"name": "alice", "role": "r", "domain": "meta",
+                 "hired_at": "2026-05-18", "storage_backend": "local",
+                 "display_name": "A"},
+                "# alice\n",
+            )
+
+    def test_create_rejects_invalid_name(self) -> None:
+        with self.assertRaises(ValueError):
+            self.adapter.create_worker(
+                "../escape", {"name": "x", "role": "r", "domain": "meta",
+                 "hired_at": "2026-05-18", "storage_backend": "local",
+                 "display_name": "A"}, "body",
+            )
+
+
+class ArchiveWorkerTests(unittest.TestCase):
+    """P45 — StorageAdapter.archive_worker 동작 (해고)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        (self.root / "hired" / "alice.md").write_text(WORKER_MD, encoding="utf-8")
+        self.adapter = LocalAdapter(self.root)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_moves_to_archived_directory(self) -> None:
+        self.adapter.archive_worker("alice")
+        self.assertFalse((self.root / "hired" / "alice.md").exists())
+        archived = self.root / "archived" / "alice.md"
+        self.assertTrue(archived.exists())
+        # history 보존 — 파일 내용 살아있음
+        self.assertIn("stripe-key-as-idem", archived.read_text(encoding="utf-8"))
+
+    def test_archive_missing_raises(self) -> None:
+        with self.assertRaises(WorkerNotFoundError):
+            self.adapter.archive_worker("ghost")
+
+    def test_archive_does_not_delete_existing_archived_duplicate(self) -> None:
+        archived_dir = self.root / "archived"
+        archived_dir.mkdir()
+        (archived_dir / "alice.md").write_text("기존 archive", encoding="utf-8")
+        with self.assertRaises(FileExistsError):
+            self.adapter.archive_worker("alice")
+        # hired/ 원본은 보존 — 안전 가드
+        self.assertTrue((self.root / "hired" / "alice.md").exists())
+
+
 class AppendHistoryHelperTests(unittest.TestCase):
     """순수 함수 _append_history_line 의 엣지케이스."""
 
