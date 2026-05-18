@@ -70,6 +70,14 @@ def _decide(stdin_text: str) -> tuple[str, str]:
         return "allow", ""
 
     if os.environ.get(ENV_ALLOW_CHAIN, "").strip() == "1":
+        # P38 (#18) — bypass 활성 시 사용자에게 stderr 로 가시화 (Claude Code 는
+        # stderr 를 그대로 표시). 무음 bypass 가 보안 사각지대를 만드는 것을 방지.
+        print(
+            "lskun-kit: WARNING — LSKUN_ALLOW_WORKER_CHAIN=1 활성. "
+            "워커 → 워커 chain 차단이 우회되고 있다 (ADR-0004 §8). "
+            "디버깅이 끝나면 해당 환경변수를 unset 하라.",
+            file=sys.stderr,
+        )
         return "allow", "LSKUN_ALLOW_WORKER_CHAIN=1 — chain enforcement bypass"
 
     root = os.environ.get(ENV_SSOT_ROOT, "").strip()
