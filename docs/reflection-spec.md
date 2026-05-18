@@ -103,26 +103,11 @@ Claude Code Stop hook 이 `python3 -m lskun_kit.hooks.stop_reflect` 를 호출. 
 
 `LSKUN_PROJECT` 등은 사용자가 워크플로 시작 시 export 하거나, 별도 hook 으로 자동 채울 수 있다 (v0.2+ 확장 영역).
 
-## 6. Reflection 인용율 측정 (KPI)
+## 6. Reflection 인용율 측정 — **deprecated** (ADR-0002 §5, P46 removed)
 
-`lskun_kit.metrics.estimate_citation_rate(adapter, worker, responses, recent=10)` 가
-:class:`CitationReport` 를 반환:
-
-| 필드 | 의미 |
-|---|---|
-| `worker` | 측정 대상 워커 이름 |
-| `sampled_responses` | 검사한 응답 수 |
-| `cited_responses` | 키워드가 한 번이라도 등장한 응답 수 |
-| `keywords` | history 의 최근 N줄에서 추출된 토큰 |
-| `rate` (property) | cited / sampled |
-
-알고리즘 (v0.1):
-
-1. `history` 의 최근 N줄에서 `topic`, `pattern` 셀의 토큰 추출 (영문 ≥3자, stopword 제외)
-2. 각 응답에서 키워드 등장 여부를 binary 로 측정
-3. 등장 비율을 인용율로 추정
-
-v1.0+ 에서는 LLM-as-judge 로 의미 인용 여부를 판정하는 방식으로 교체 예정. v0.1 에서는 60%+ KPI 의 달성 여부를 가늠하는 것이 목표.
+이전 `lskun_kit.metrics.estimate_citation_rate` 기반의 KPI 측정 모듈은 ADR-0002 §5 의
+"P8/P9 KPI 측정 폐기" 정책에 따라 P46 에서 코드와 테스트가 제거됐다. 인용율은
+일상 사용 중 사용자가 정성적으로 판단하며, 자동 측정은 도입하지 않는다.
 
 ## 7. 한계 (v0.1 의도적 미지원)
 

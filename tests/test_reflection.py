@@ -1,4 +1,4 @@
-"""Reflection 자동화 — session / context / reflection.record / metrics 테스트."""
+"""Reflection 자동화 — session / context / reflection.record 테스트."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import HistoryEntry, LocalAdapter  # noqa: E402
-from lskun_kit import context, metrics, reflection, session  # noqa: E402
+from lskun_kit import context, reflection, session  # noqa: E402
 
 
 WORKER_MD = dedent(
@@ -220,58 +220,6 @@ class ReflectionRecordTests(unittest.TestCase):
         )
         text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
         self.assertIn("proj-x", text)
-
-
-class MetricsTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        _, self.adapter = _setup_local(Path(self.tmp.name))
-
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
-
-    def test_extract_keywords_from_history(self) -> None:
-        kws = metrics.extract_keywords(self.adapter, "alice")
-        self.assertIn("idempotency", kws)
-        self.assertIn("webhook", kws)
-        # kebab-case 패턴 이름은 한 토큰으로 추출 — 응답에서 정확히 같은 표현을
-        # 써야 "인용" 으로 친다 (의도적 엄격함, v1.0 의 LLM judge 로 완화 예정)
-        self.assertIn("stripe-key-as-idem", kws)
-        self.assertIn("signature-verify", kws)
-
-    def test_estimate_citation_rate_counts_responses(self) -> None:
-        responses = [
-            "I'll reuse the stripe idempotency pattern here.",
-            "This is unrelated text about cats.",
-            "Webhook signature verify is the way.",
-            "Just a hello.",
-        ]
-        report = metrics.estimate_citation_rate(self.adapter, "alice", responses)
-        self.assertEqual(report.sampled_responses, 4)
-        self.assertEqual(report.cited_responses, 2)
-        self.assertAlmostEqual(report.rate, 0.5)
-
-    def test_empty_keywords_returns_zero_rate(self) -> None:
-        # history 없는 워커
-        blank = dedent(
-            """\
-            ---
-            name: carol
-            role: designer
-            domain: meta
-            hired_at: 2026-05-15
-            storage_backend: local
-            display_name: Carol Kim
-            ---
-
-            # carol
-            """
-        )
-        (self.adapter.root / "hired" / "carol.md").write_text(blank, encoding="utf-8")
-        report = metrics.estimate_citation_rate(
-            self.adapter, "carol", ["anything"]
-        )
-        self.assertEqual(report.rate, 0.0)
 
 
 if __name__ == "__main__":
