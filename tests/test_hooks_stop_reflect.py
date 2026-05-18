@@ -90,6 +90,42 @@ class StopReflectHookTests(unittest.TestCase):
         # 세션은 정리되어야 함
         self.assertIsNone(session.read(self.root))
 
+    def test_outcome_aborted_skips_history_and_clears_session(self) -> None:
+        """P30 — LSKUN_OUTCOME=aborted 면 박제 skip 후 세션만 정리."""
+        session.start(self.root, "alice")
+        before = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        rc = self._run_with_env(
+            {
+                "LSKUN_SSOT_ROOT": str(self.root),
+                "LSKUN_PROJECT": "p",
+                "LSKUN_TOPIC": "t",
+                "LSKUN_PATTERN": "x",
+                "LSKUN_FIRST_PASS": "100",
+                "LSKUN_OUTCOME": "aborted",
+            }
+        )
+        self.assertEqual(rc, 0)
+        after = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertEqual(before, after, "aborted 면 워커 파일 변경 없음")
+        self.assertIsNone(session.read(self.root), "세션은 정리되어야 함")
+
+    def test_outcome_success_default_appends(self) -> None:
+        """default (env 누락) 는 success — 기존 동작 보존."""
+        session.start(self.root, "alice")
+        rc = self._run_with_env(
+            {
+                "LSKUN_SSOT_ROOT": str(self.root),
+                "LSKUN_PROJECT": "music-pay",
+                "LSKUN_TOPIC": "refund",
+                "LSKUN_PATTERN": "saga",
+                "LSKUN_FIRST_PASS": "88",
+                # LSKUN_OUTCOME 부재 → success default
+            }
+        )
+        self.assertEqual(rc, 0)
+        text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertIn("music-pay", text)
+
     def test_invalid_score_returns_2(self) -> None:
         session.start(self.root, "alice")
         rc = self._run_with_env(
