@@ -22,6 +22,14 @@ CPO 가 Task tool 로 본 워커를 호출할 때 다음 정보가 주어진다:
 
 본 워커는 다음을 순차 수행:
 
+0. **Rate-limit 가드 (P32, ADR-0004 §3)** — `lskun_kit.hire_audit.check_rate_limit`
+   호출. 같은 `role + domain` 으로 30분 내 자동 채용 이력이 있으면
+   `HireRateLimited` 예외 발생 → CPO 에게 다음 응답 반환:
+   ```
+   rate-limited: 동일 role+domain 으로 최근 자동 채용 이력 있음 (last=<iso>)
+   권장: 기존 워커 dispatch 또는 사용자 명시 /lskun-kit:hire 요청
+   ```
+   `lskun_kit.hire_audit.record_hire(actor="hr-lead", ...)` 가 가드 통과 후 audit 로그를 함께 기록한다.
 1. **중복 검사**
    - `hired/` 디렉토리 스캔 → 동일 `role` + `domain` 워커 존재?
    - 있음 → 신규 채용 대신 기존 워커 추천 응답:
