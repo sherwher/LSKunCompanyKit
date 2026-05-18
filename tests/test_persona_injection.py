@@ -166,6 +166,68 @@ class HandEditBackupTests(unittest.TestCase):
             self.assertTrue(str(result.backup_path).endswith(BACKUP_SUFFIX))
 
 
+class MarkerInCodeBlockTests(unittest.TestCase):
+    """P42 (#19) — marker 텍스트가 코드 블록 안에 예시로 있어도 오매칭하지 않음."""
+
+    def test_marker_inside_fenced_block_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / CLAUDE_MD_FILENAME
+            user_text = (
+                "# Project\n\n"
+                "예시:\n\n"
+                "```markdown\n"
+                f"{PERSONA_MARKER_START}\n"
+                "예시 본문\n"
+                f"{PERSONA_MARKER_END}\n"
+                "```\n\n"
+                "사용자 본문\n"
+            )
+            path.write_text(user_text, encoding="utf-8")
+            # marker 가 코드 블록 안에만 있으므로 find_marker_span 은 None.
+            result = inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            self.assertEqual(result.action, "updated")
+            self.assertFalse(result.had_existing_marker)
+            new_text = path.read_text(encoding="utf-8")
+            # 사용자가 적은 예시 코드 블록은 손상 없이 보존
+            self.assertIn("예시 본문", new_text)
+            # 실제 plugin marker 가 파일 끝에 새로 박제됨 → marker 가 총 2쌍
+            self.assertEqual(new_text.count(PERSONA_MARKER_START), 2)
+            self.assertEqual(new_text.count(PERSONA_MARKER_END), 2)
+
+    def test_real_marker_outside_fence_still_recognized(self) -> None:
+        """진짜 marker (코드 블록 밖) 는 정상 인식 — fence 가드 회귀 방지."""
+        with tempfile.TemporaryDirectory() as tmp:
+            inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            result = inject(tmp, "Acme", "김지혜", CPO_BODY_SAMPLE)
+            self.assertTrue(result.had_existing_marker)
+            path = Path(tmp) / CLAUDE_MD_FILENAME
+            self.assertEqual(
+                path.read_text(encoding="utf-8").count(PERSONA_MARKER_START), 1
+            )
+
+
+class FenceAwareNormalizeTests(unittest.TestCase):
+    """P42 (#10) — _block_contains_cpo_body 가 코드 블록 indent 를 보존."""
+
+    def test_code_block_indent_does_not_cause_false_negative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            body_with_code = (
+                "# cpo\n\n"
+                "Example:\n\n"
+                "```python\n"
+                "    def f():\n"
+                "        return 1\n"
+                "```\n\n"
+                "끝.\n"
+            )
+            inject(tmp, "Acme", "이세근", body_with_code)
+            result = inject(tmp, "Acme", "김지혜", body_with_code)
+            self.assertIsNone(
+                result.backup_path,
+                "코드 블록 indent 가 동일한 재박제는 백업을 만들지 않아야 한다",
+            )
+
+
 class DetectTests(unittest.TestCase):
     def test_returns_false_when_no_claude_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
