@@ -112,6 +112,50 @@ class HireAuditTests(unittest.TestCase):
             now=self.t0 + timedelta(minutes=1),
         )
 
+    def test_rate_limit_blocks_at_exact_cooldown_boundary(self) -> None:
+        """P39 (#20) — `ev.at >= cutoff` 경계 검증."""
+        hire_audit.record_hire(
+            self.root, actor="hr-lead", name="alice",
+            role="backend-engineer", domain="payments", now=self.t0,
+        )
+        with self.assertRaises(hire_audit.HireRateLimited):
+            hire_audit.record_hire(
+                self.root, actor="hr-lead", name="alice-2",
+                role="backend-engineer", domain="payments",
+                now=self.t0 + timedelta(seconds=hire_audit.DEFAULT_COOLDOWN_SECONDS),
+            )
+
+    def test_rate_limit_passes_one_second_after_cooldown(self) -> None:
+        """경계 + 1초 → 통과."""
+        hire_audit.record_hire(
+            self.root, actor="hr-lead", name="alice",
+            role="backend-engineer", domain="payments", now=self.t0,
+        )
+        hire_audit.record_hire(
+            self.root, actor="hr-lead", name="alice-2",
+            role="backend-engineer", domain="payments",
+            now=self.t0 + timedelta(seconds=hire_audit.DEFAULT_COOLDOWN_SECONDS + 1),
+        )
+
+    def test_timestamp_regression_emits_stderr_warning(self) -> None:
+        """P39 (#11) — 새 이벤트 시각이 마지막보다 과거 → stderr WARNING."""
+        import io
+        from unittest.mock import patch
+
+        hire_audit.record_hire(
+            self.root, actor="hr-lead", name="alice",
+            role="r1", domain="d1", now=self.t0,
+        )
+        err = io.StringIO()
+        with patch("sys.stderr", err):
+            hire_audit.record_hire(
+                self.root, actor="hr-lead", name="bob",
+                role="r2", domain="d2",
+                now=self.t0 - timedelta(hours=1),  # 과거 timestamp
+            )
+        self.assertIn("WARNING", err.getvalue())
+        self.assertIn("timestamp regression", err.getvalue())
+
     def test_read_events_skips_corrupt_lines(self) -> None:
         path = hire_audit.audit_path(self.root)
         path.write_text(

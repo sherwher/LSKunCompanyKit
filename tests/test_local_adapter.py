@@ -208,6 +208,39 @@ class LocalAdapterTests(unittest.TestCase):
             LocalAdapter("/tmp/obsidian-vault/02_Projects/LSKunCompanyKit/oops")
 
 
+class WorkerNameValidationTests(unittest.TestCase):
+    """P39 (#5) — _worker_path allowlist 가드 검증."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        self.adapter = LocalAdapter(self.root)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_rejects_path_traversal_variants(self) -> None:
+        for bad in ("..", ".", "../escape", "a/b"):
+            with self.assertRaises(ValueError, msg=f"{bad!r} should be rejected"):
+                self.adapter.read_worker(bad)
+
+    def test_rejects_null_byte_and_unicode_variants(self) -> None:
+        for bad in ("alice\x00", r"alice\path", " alice", "alice ", "Alice"):
+            with self.assertRaises(ValueError, msg=f"{bad!r} should be rejected"):
+                self.adapter.read_worker(bad)
+
+    def test_rejects_overlong_name(self) -> None:
+        with self.assertRaises(ValueError):
+            self.adapter.read_worker("a" * 100)
+
+    def test_accepts_valid_kebab_case_names(self) -> None:
+        """규격 통과 시 ValueError 가 아니라 WorkerNotFoundError 가 나야 한다."""
+        for good in ("alice", "backend-engineer", "alice-2", "a_b-c"):
+            with self.assertRaises(WorkerNotFoundError):
+                self.adapter.read_worker(good)
+
+
 class AppendHistoryHelperTests(unittest.TestCase):
     """순수 함수 _append_history_line 의 엣지케이스."""
 
