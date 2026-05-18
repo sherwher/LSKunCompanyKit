@@ -88,7 +88,7 @@ class ResolveCompanyRootTests(unittest.TestCase):
 class RunLocalBackendTests(unittest.TestCase):
     def test_creates_company_and_workers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            result = run(Path(tmp), env={})
+            result = run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
 
             self.assertEqual(result.backend, "local")
             self.assertTrue(result.company_md_created)
@@ -111,6 +111,15 @@ class RunLocalBackendTests(unittest.TestCase):
             self.assertEqual(cpo.storage_backend, "local")
             # ADR-0003 §1 — CPO 는 항상 domain="meta"
             self.assertEqual(cpo.domain, "meta")
+            # ADR-0004 §5 — display_name 은 사용자 입력 그대로 박제
+            self.assertEqual(cpo.display_name, "이세근")
+            # ADR-0004 §4 — CPO 는 model 미설정 (메인 세션의 사용자 /model 사용)
+            self.assertIsNone(cpo.model)
+
+            hr = adapter.read_worker("hr-lead")
+            self.assertEqual(hr.display_name, "김지혜")
+            # ADR-0004 §4 — HR Lead 는 default model="sonnet"
+            self.assertEqual(hr.model, "sonnet")
 
     def test_preserves_existing_company_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,7 +128,7 @@ class RunLocalBackendTests(unittest.TestCase):
             original = "---\nname: PreExisting\n---\n\n# original content\n"
             (company_dir / "company.md").write_text(original, encoding="utf-8")
 
-            result = run(Path(tmp), env={})
+            result = run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
             self.assertFalse(result.company_md_created)
             self.assertEqual(
                 (company_dir / "company.md").read_text(encoding="utf-8"),
@@ -128,15 +137,34 @@ class RunLocalBackendTests(unittest.TestCase):
 
     def test_idempotent_rerun_skips_existing_workers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            run(Path(tmp), env={})
-            second = run(Path(tmp), env={})
+            run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            second = run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
             self.assertEqual(second.workers_created, [])
             self.assertEqual(sorted(second.workers_skipped), ["cpo", "hr-lead"])
+
+    def test_init_rejects_missing_cpo_name(self) -> None:
+        # ADR-0004 §5 — CPO 이름은 사용자 명시 입력 필수 (자동 생성 금지)
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError) as ctx:
+                run(Path(tmp), hr_name="김지혜", env={})
+            self.assertIn("cpo", str(ctx.exception).lower())
+
+    def test_init_rejects_missing_hr_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError) as ctx:
+                run(Path(tmp), cpo_name="이세근", env={})
+            self.assertIn("hr-lead", str(ctx.exception).lower())
 
     def test_company_md_records_domain(self) -> None:
         # ADR-0003 — company.md frontmatter 에 domain 박제
         with tempfile.TemporaryDirectory() as tmp:
-            run(Path(tmp), domain="의료 SaaS", env={})
+            run(
+                Path(tmp),
+                domain="의료 SaaS",
+                cpo_name="이세근",
+                hr_name="김지혜",
+                env={},
+            )
             company_md = Path(tmp, LOCAL_COMPANY_DIRNAME, "company.md")
             parsed = frontmatter.parse(company_md.read_text(encoding="utf-8"))
             self.assertEqual(parsed.frontmatter.get("domain"), "의료 SaaS")
@@ -144,7 +172,7 @@ class RunLocalBackendTests(unittest.TestCase):
     def test_company_md_empty_domain_when_not_specified(self) -> None:
         # ADR-0003 — domain 누락은 doctor 가 경고할 영역. init 는 강제하지 않음.
         with tempfile.TemporaryDirectory() as tmp:
-            run(Path(tmp), env={})
+            run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
             company_md = Path(tmp, LOCAL_COMPANY_DIRNAME, "company.md")
             parsed = frontmatter.parse(company_md.read_text(encoding="utf-8"))
             self.assertIn("domain", parsed.frontmatter)
@@ -158,6 +186,8 @@ class RunVaultBackendTests(unittest.TestCase):
                 Path("/nonexistent-project-root"),
                 company_name="Acme",
                 one_liner="Test compliance agents",
+                cpo_name="이세근",
+                hr_name="김지혜",
                 env={ENV_VAULT: vault},
             )
             self.assertEqual(result.backend, "vault")
@@ -177,6 +207,8 @@ class RunVaultBackendTests(unittest.TestCase):
                 Path("/p"),
                 company_name="Beta",
                 one_liner="hello world",
+                cpo_name="이세근",
+                hr_name="김지혜",
                 env={ENV_VAULT: vault},
             )
             body = Path(vault, "03_Companies", "Beta", "company.md").read_text(

@@ -29,6 +29,7 @@ def _worker_md(name: str, backend: str = "local") -> str:
         domain: meta
         hired_at: 2026-05-15
         storage_backend: {backend}
+        display_name: {name.title()}
         ---
 
         # {name}

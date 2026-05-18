@@ -26,6 +26,7 @@ WORKER_MD = dedent(
     domain: meta
     hired_at: 2026-05-15
     storage_backend: local
+    display_name: Alice Park
     ---
 
     # alice

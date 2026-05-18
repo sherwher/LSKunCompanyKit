@@ -13,18 +13,21 @@ from importlib import resources
 from typing import Iterable
 
 from lskun_kit.adapters import frontmatter
-from lskun_kit.models import META_DOMAIN
+from lskun_kit.models import DEFAULT_WORKER_MODEL, META_DOMAIN
 
-#: ``(worker_name, role, template_filename)`` 튜플 — init 가 순회.
+#: ``(worker_name, role, template_filename, default_model)`` 튜플 — init 가 순회.
+#:
 #: ADR-0003 §1 — CPO / HR Lead 는 ``domain="meta"`` 로 hire (도메인 무관).
-DEFAULT_WORKERS: tuple[tuple[str, str, str], ...] = (
-    ("cpo", "chief-product-officer", "cpo.md"),
-    ("hr-lead", "hr-lead", "hr-lead.md"),
+#: ADR-0004 §4 — CPO 는 메인 세션이므로 frontmatter ``model`` 미설정 (None).
+#:               HR Lead 는 ``"sonnet"`` 명시 (단순 채용/해고 작업).
+DEFAULT_WORKERS: tuple[tuple[str, str, str, str | None], ...] = (
+    ("cpo", "chief-product-officer", "cpo.md", None),
+    ("hr-lead", "hr-lead", "hr-lead.md", "sonnet"),
 )
 
 
 def list_default_worker_names() -> list[str]:
-    return [name for name, _role, _file in DEFAULT_WORKERS]
+    return [name for name, _role, _file, _model in DEFAULT_WORKERS]
 
 
 def render_default_worker(
@@ -32,37 +35,53 @@ def render_default_worker(
     role: str,
     template_filename: str,
     storage_backend: str,
+    display_name: str,
     hired_at: date_cls | None = None,
     domain: str = META_DOMAIN,
+    model: str | None = None,
 ) -> str:
-    """템플릿 파일을 읽어 frontmatter 5 필수 필드를 채워 반환한다.
+    """템플릿 파일을 읽어 frontmatter 6 필수 필드 (+ optional model) 를 채워 반환한다.
 
     Args:
         name: 워커 이름 (파일명 stem 과 일치해야 함)
         role: 워커 역할
         template_filename: ``src/lskun_kit/templates/<filename>`` 의 본문 파일명
         storage_backend: ``"local"`` | ``"vault"``
+        display_name: ADR-0004 §5 — 사람 이름 (자유 입력, 필수).
+                      CPO/HR 의 경우 init 인터뷰에서 사용자가 직접 입력한 값을 받는다.
         hired_at: 채용일 (기본값: 오늘)
         domain: ADR-0003 — 회사 도메인 또는 예약값 ``"meta"`` (기본값 = ``"meta"``,
                 CPO/HR Lead 등 도메인 무관 워커용).
+        model: ADR-0004 §4 — ``"sonnet" | "opus"`` 또는 모델 ID. ``None`` 이면
+               frontmatter 에 ``model`` 키를 emit 하지 않음 (= default 적용).
 
     Returns:
         frontmatter + 본문이 결합된 markdown 문자열. 그대로
         ``hired/<name>.md`` 로 쓰면 된다.
+
+    Raises:
+        ValueError: ``display_name`` 이 빈 문자열일 때.
     """
 
-    body = _read_template(template_filename)
-    fm = {
+    if not display_name or not display_name.strip():
+        raise ValueError(
+            "display_name is required (ADR-0004 §5 — CPO/HR 자동 생성 금지)"
+        )
+
+    fm: dict[str, str] = {
         "name": name,
         "role": role,
         "domain": domain,
         "hired_at": (hired_at or date_cls.today()).isoformat(),
         "storage_backend": storage_backend,
+        "display_name": display_name,
     }
-    return frontmatter.dump(fm, body)
+    if model is not None:
+        fm["model"] = model
+    return frontmatter.dump(fm, _read_template(template_filename))
 
 
-def iter_default_workers() -> Iterable[tuple[str, str, str]]:
+def iter_default_workers() -> Iterable[tuple[str, str, str, str | None]]:
     return iter(DEFAULT_WORKERS)
 
 

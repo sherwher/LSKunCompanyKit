@@ -37,6 +37,7 @@ WORKER_MD = dedent(
     domain: payments
     hired_at: 2026-05-15
     storage_backend: local
+    display_name: Alice Park
     specialty: payments
     ---
 
@@ -85,6 +86,8 @@ class LocalAdapterTests(unittest.TestCase):
         self.assertEqual(worker.domain, "payments")
         self.assertEqual(worker.hired_at, date(2026, 5, 15))
         self.assertEqual(worker.storage_backend, "local")
+        self.assertEqual(worker.display_name, "Alice Park")
+        self.assertIsNone(worker.model)  # frontmatter 에 model 키 없으면 None
         self.assertEqual(worker.extra.get("specialty"), "payments")
         self.assertIn("## Project History", worker.body)
 
@@ -109,6 +112,7 @@ class LocalAdapterTests(unittest.TestCase):
         self.assertIn("domain", str(ctx.exception))
         self.assertIn("hired_at", str(ctx.exception))
         self.assertIn("storage_backend", str(ctx.exception))
+        self.assertIn("display_name", str(ctx.exception))
 
     def test_read_worker_rejects_path_traversal(self) -> None:
         with self.assertRaises(ValueError):
@@ -143,6 +147,7 @@ class LocalAdapterTests(unittest.TestCase):
             domain: meta
             hired_at: 2026-05-15
             storage_backend: local
+            display_name: Carol Kim
             ---
 
             # carol
