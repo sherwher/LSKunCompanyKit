@@ -188,8 +188,8 @@ LSKunCompanyKit/
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
 │   ├── context.py            # build_worker_context (history 컨텍스트 주입)
 │   ├── reflection.py         # record (history 1줄 append)
-│   ├── metrics.py            # estimate_citation_rate (deprecated, ADR-0002 §5)
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
+│   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log (P32/P45)
 │   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
 │   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
 │   └── routing.py            # CPO 라우팅 컨텍스트 빌더 (P14)

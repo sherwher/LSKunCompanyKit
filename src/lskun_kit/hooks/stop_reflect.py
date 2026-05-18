@@ -25,6 +25,10 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover — type hint only
+    from lskun_kit.adapters.base import StorageAdapter
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,8 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _make_adapter(root: Path):
-    """root 가 ``03_Companies/<co>`` 모양이면 VaultAdapter, 아니면 LocalAdapter."""
+def _make_adapter(root: Path) -> "StorageAdapter":
+    """root 가 ``03_Companies/<co>`` 모양이면 VaultAdapter, 아니면 LocalAdapter.
+
+    P46 (#22) — 반환 타입 힌트 명시 (StorageAdapter ABC).
+    """
 
     from lskun_kit.adapters.local import LocalAdapter
     from lskun_kit.adapters.vault import COMPANIES_DIRNAME, VaultAdapter
