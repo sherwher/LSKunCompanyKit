@@ -171,6 +171,22 @@ class SessionStartHookTests(unittest.TestCase):
             ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("hijack", ctx)
 
+    def test_session_start_context_refers_to_claude_md_as_ssot(self) -> None:
+        """P44 (#14) — hook 의 행동 지시 블록이 CLAUDE.md 참조 포인터로 축소된다.
+
+        과거에는 hook 이 hired/cpo.md 본문과 별개로 행동 지시 문구를 하드코딩해
+        시간이 지나면 어긋날 위험이 있었다. 단일 SSOT (CLAUDE.md 박제) 명시.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            init_run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            rc, out, _ = _capture(session_start.main, env={}, cwd=Path(tmp))
+            self.assertEqual(rc, 0)
+            ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("CLAUDE.md", ctx)
+            self.assertIn("cpo.md SSOT", ctx)
+            # 과거 하드코딩 라우팅 절차 문구는 더 이상 등장하지 않는다.
+            self.assertNotIn("HR Lead 를 Task tool 로 호출해 채용 → 신규 워커 dispatch", ctx)
+
     def test_git_root_blocks_parent_search(self) -> None:
         """P38 (#17) — monorepo 의 .git 경계를 넘지 않는다.
 
