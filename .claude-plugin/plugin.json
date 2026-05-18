@@ -1,7 +1,7 @@
 {
   "name": "LSKunCompanyKit",
-  "version": "0.2.0-dev",
-  "description": "AI workers that remember their work — Stateful Workers with Reflection and pluggable storage backends for Claude Code.",
+  "version": "0.3.0-dev",
+  "description": "AI workers that remember their work — main session = CPO (Leader-Worker) with domain-aware stateful workers, Reflection, and pluggable storage backends for Claude Code.",
   "author": {
     "name": "이성근",
     "email": "sherwher@sherwher.org",
@@ -14,6 +14,9 @@
     "stateful-workers",
     "reflection",
     "storage-abstraction",
+    "leader-worker",
+    "cpo",
+    "domain-aware-workers",
     "claude-code"
   ]
 }
