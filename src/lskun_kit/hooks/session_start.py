@@ -33,6 +33,13 @@ import re
 import sys
 from pathlib import Path
 
+# P48 — Claude Code 가 본 hook 을 `python3 <plugin>/src/lskun_kit/hooks/...py` 로
+# 직접 경로 호출하면 ``from lskun_kit...`` import 가 깨진다. ``src/`` 를 sys.path 에
+# 삽입해 self-bootstrap. ``-m`` 진입점에서는 부작용 없이 idempotent.
+_SRC_DIR = str(Path(__file__).resolve().parents[2])
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+
 # stdlib only — plugin 정책
 
 MAX_PARENT_DEPTH = 5

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -m lskun_kit.hooks.session_start"
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/src/lskun_kit/hooks/session_start.py"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -m lskun_kit.hooks.stop_reflect"
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/src/lskun_kit/hooks/stop_reflect.py"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -m lskun_kit.hooks.pre_tool_use"
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/src/lskun_kit/hooks/pre_tool_use.py"
           }
         ]
       }

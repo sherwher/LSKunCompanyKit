@@ -27,6 +27,12 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# P48 — `python3 <plugin>/src/lskun_kit/hooks/stop_reflect.py` 직접 호출 시
+# from lskun_kit... import 가 깨지는 것을 방지.
+_SRC_DIR = str(Path(__file__).resolve().parents[2])
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+
 if TYPE_CHECKING:  # pragma: no cover — type hint only
     from lskun_kit.adapters.base import StorageAdapter
 
