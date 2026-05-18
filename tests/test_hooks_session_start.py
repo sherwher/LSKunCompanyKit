@@ -189,6 +189,26 @@ class SessionStartHookTests(unittest.TestCase):
             # 상위 .company/ 가 잡히면 안 됨 → silent no-op
             self.assertEqual(out, "")
 
+    def test_frontmatter_parser_strips_quotes_like_adapters_module(self) -> None:
+        """P40 — session_start 의 frontmatter 파싱이 adapters.frontmatter 와 일관.
+
+        이전 인라인 구현은 따옴표 strip 을 하지 않아 display_name: "이세근" 같은
+        값이 ctx 에 따옴표 포함으로 등장했다. 통합 후 따옴표가 벗겨져야 한다.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            init_run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            cpo_md = Path(tmp) / ".company" / "hired" / "cpo.md"
+            text = cpo_md.read_text(encoding="utf-8")
+            text = text.replace("display_name: 이세근", 'display_name: "이세근"')
+            cpo_md.write_text(text, encoding="utf-8")
+
+            rc, out, _ = _capture(session_start.main, env={}, cwd=Path(tmp))
+            self.assertEqual(rc, 0)
+            ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("이세근", ctx)
+            # 따옴표가 ctx 에 그대로 출력되면 안 됨 (통합 전 회귀)
+            self.assertNotIn('"이세근"', ctx)
+
     def test_does_not_crash_on_broken_company_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             company_dir = Path(tmp) / ".company"

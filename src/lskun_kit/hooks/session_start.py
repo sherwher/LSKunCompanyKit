@@ -190,6 +190,9 @@ def _list_workers_with_meta(company_root: Path) -> list[dict[str, str]]:
     for p in sorted(hired.glob("*.md")):
         if not p.is_file():
             continue
+        # P39 (#5) 의 allowlist 와 호환되지 않는 파일명 (예: .audit.jsonl 등) 제외.
+        if p.name.startswith("."):
+            continue
         try:
             text = p.read_text(encoding="utf-8")
         except OSError:
@@ -220,27 +223,16 @@ def _read_cpo_recent_history(company_root: Path, n: int) -> list[str]:
 
 
 def _parse_frontmatter_dict(text: str) -> dict[str, str]:
-    """YAML 의존 없이 ``key: value`` 단순 frontmatter 만 파싱.
+    """LSKunCompanyKit 공식 frontmatter 파서로 위임 (P40).
 
-    list / nested 는 지원하지 않음 — LSKunCompanyKit frontmatter 는 모두 scalar.
+    이전 인라인 구현은 따옴표 strip / CRLF 처리 등에서 ``adapters.frontmatter.parse``
+    와 미묘하게 달랐다. 단일 진입점으로 통합해 동작 불일치를 제거한다.
+    지연 import 로 hooks 모듈의 직접 import 의존성은 그대로 회피.
     """
 
-    if not text.startswith("---\n"):
-        return {}
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        return {}
-    block = text[4:end]
-    out: dict[str, str] = {}
-    for line in block.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" not in line:
-            continue
-        k, v = line.split(":", 1)
-        out[k.strip()] = v.strip()
-    return out
+    from lskun_kit.adapters.frontmatter import parse  # 지연 import
+
+    return dict(parse(text).frontmatter)
 
 
 if __name__ == "__main__":  # pragma: no cover
