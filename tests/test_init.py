@@ -24,6 +24,7 @@ from lskun_kit.init import (  # noqa: E402
     ENV_VAULT,
     LOCAL_COMPANY_DIRNAME,
     detect_backend,
+    detect_dual_backend,
     resolve_company_root,
     run,
 )
@@ -32,6 +33,64 @@ from lskun_kit.persona_injection import (  # noqa: E402
     PERSONA_MARKER_START,
     detect as detect_persona,
 )
+
+
+class DetectDualBackendTests(unittest.TestCase):
+    """P33 — Local + Vault 양쪽에 company.md 가 있을 때 감지."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.proj = Path(self.tmp.name) / "proj"
+        self.proj.mkdir()
+        self.vault = Path(self.tmp.name) / "vault"
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _make_company(self, root: Path) -> None:
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "company.md").write_text("---\nname: x\n---\n# x\n", encoding="utf-8")
+
+    def test_local_only_returns_none(self) -> None:
+        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
+        self.assertIsNone(detect_dual_backend(self.proj, env={}))
+
+    def test_vault_only_returns_none(self) -> None:
+        self._make_company(self.vault / "03_Companies" / "Acme")
+        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
+        self.assertIsNone(detect_dual_backend(self.proj, env=env))
+
+    def test_both_present_returns_paths(self) -> None:
+        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
+        self._make_company(self.vault / "03_Companies" / "Acme")
+        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
+        result = detect_dual_backend(self.proj, env=env)
+        self.assertIsNotNone(result)
+        assert result is not None
+        local_co, vault_co = result
+        self.assertTrue(local_co.exists())
+        self.assertTrue(vault_co.exists())
+
+    def test_vault_env_without_company_returns_none(self) -> None:
+        """LSKUN_COMPANY 누락 시 vault 경로 결정 불가 → 안전하게 None."""
+        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
+        env = {ENV_VAULT: str(self.vault)}
+        self.assertIsNone(detect_dual_backend(self.proj, env=env))
+
+    def test_run_emits_dual_backend_note(self) -> None:
+        """init.run 이 dual-backend 감지 시 InitResult.notes 에 경고 1줄."""
+        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
+        self._make_company(self.vault / "03_Companies" / "Acme")
+        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
+        result = run(
+            self.proj, company_name="Acme",
+            cpo_name="L", hr_name="H",
+            inject_persona=False, env=env,
+        )
+        self.assertTrue(
+            any("dual-backend" in n for n in result.notes),
+            f"expected dual-backend note, got: {result.notes}",
+        )
 
 
 class DetectBackendTests(unittest.TestCase):
