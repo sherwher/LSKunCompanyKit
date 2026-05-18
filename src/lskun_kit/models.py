@@ -33,6 +33,31 @@ META_DOMAIN = "meta"
 #: ADR-0004 §4 — ``model`` 미지정 시 워커 기본 모델 (CPO 는 메인 세션의 사용자 ``/model`` 설정).
 DEFAULT_WORKER_MODEL = "sonnet"
 
+#: ADR-0004 §4 — alias → 모델 ID (2026-05-18 기준 최신 Claude).
+#: hire/work 의 ``--model`` 옵션이 받는 alias 를 표준화. 모델 ID 직접 입력도 그대로 허용.
+MODEL_ALIASES: dict[str, str] = {
+    "sonnet": "claude-sonnet-4-6",
+    "opus": "claude-opus-4-7",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+
+
+def resolve_model(value: str | None) -> str | None:
+    """alias → 모델 ID. 이미 ID 면 그대로 반환. ``None`` 이면 ``None``.
+
+    Examples:
+        >>> resolve_model("opus")
+        'claude-opus-4-7'
+        >>> resolve_model("claude-opus-4-7")
+        'claude-opus-4-7'
+        >>> resolve_model(None) is None
+        True
+    """
+
+    if value is None:
+        return None
+    return MODEL_ALIASES.get(value, value)
+
 
 @dataclass(frozen=True)
 class HistoryEntry:
