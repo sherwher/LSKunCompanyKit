@@ -89,6 +89,41 @@ def detect_backend(
     return "local", Path(project_root).expanduser()
 
 
+def detect_dual_backend(
+    project_root: Path | str,
+    env: dict[str, str] | None = None,
+) -> tuple[Path, Path] | None:
+    """P33 — Local + Vault 양쪽에 회사 데이터가 동시에 존재하는지 감지.
+
+    Returns:
+        ``(local_company_root, vault_company_root)`` 둘 다 ``company.md`` 를
+        포함하고 있으면 두 경로 반환. 아니면 ``None``.
+
+    감지 의도: ``LSKUN_VAULT`` 가 설정돼 Vault backend 가 선택되더라도,
+    예전에 만든 Local ``.company/`` 가 남아있으면 사용자가 모르는 사이에
+    history 박제가 한쪽에만 누적될 수 있다. doctor / init 가 본 함수로
+    경고를 emit 한다 (자동 마이그레이션은 하지 않음 — ADR-0001 §5 SSOT 정책).
+    """
+
+    env = env if env is not None else os.environ.copy()
+    proj = Path(project_root).expanduser()
+    local_co = proj / LOCAL_COMPANY_DIRNAME
+    if not (local_co / "company.md").exists():
+        return None
+
+    vault = env.get(ENV_VAULT, "").strip()
+    if not vault:
+        return None
+    company = env.get(ENV_COMPANY, "").strip()
+    if not company:
+        return None
+    vault_co = Path(vault).expanduser() / COMPANIES_DIRNAME / company
+    if not (vault_co / "company.md").exists():
+        return None
+
+    return local_co, vault_co
+
+
 def resolve_company_root(
     project_root: Path | str,
     company_name: str | None = None,
@@ -170,6 +205,17 @@ def run(
     )
 
     notes: list[str] = []
+
+    # P33 — dual-backend 경고 (자동 마이그레이션은 ADR-0001 §5 위반이므로 금지).
+    dual = detect_dual_backend(project_root, env=env)
+    if dual is not None:
+        local_co, vault_co = dual
+        notes.append(
+            f"dual-backend 감지: Local({local_co}) + Vault({vault_co}) 둘 다 "
+            f"company.md 보유. 활성 backend={backend} 만 갱신된다. "
+            f"양쪽 동기화가 필요하면 `/lskun-kit:migrate` 사용."
+        )
+
     company_root.mkdir(parents=True, exist_ok=True)
     hired_dir = company_root / "hired"
     hired_dir.mkdir(parents=True, exist_ok=True)
@@ -269,6 +315,7 @@ __all__ = [
     "ENV_COMPANY",
     "LOCAL_COMPANY_DIRNAME",
     "detect_backend",
+    "detect_dual_backend",
     "resolve_company_root",
     "run",
 ]
