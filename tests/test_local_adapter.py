@@ -34,6 +34,7 @@ WORKER_MD = dedent(
     ---
     name: alice
     role: backend-engineer
+    domain: payments
     hired_at: 2026-05-15
     storage_backend: local
     specialty: payments
@@ -81,6 +82,7 @@ class LocalAdapterTests(unittest.TestCase):
         self.assertIsInstance(worker, Worker)
         self.assertEqual(worker.name, "alice")
         self.assertEqual(worker.role, "backend-engineer")
+        self.assertEqual(worker.domain, "payments")
         self.assertEqual(worker.hired_at, date(2026, 5, 15))
         self.assertEqual(worker.storage_backend, "local")
         self.assertEqual(worker.extra.get("specialty"), "payments")
@@ -104,6 +106,7 @@ class LocalAdapterTests(unittest.TestCase):
         (self.root / "hired" / "bob.md").write_text(broken, encoding="utf-8")
         with self.assertRaises(InvalidWorkerSchemaError) as ctx:
             self.adapter.read_worker("bob")
+        self.assertIn("domain", str(ctx.exception))
         self.assertIn("hired_at", str(ctx.exception))
         self.assertIn("storage_backend", str(ctx.exception))
 
@@ -137,6 +140,7 @@ class LocalAdapterTests(unittest.TestCase):
             ---
             name: carol
             role: designer
+            domain: meta
             hired_at: 2026-05-15
             storage_backend: local
             ---

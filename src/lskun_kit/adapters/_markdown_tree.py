@@ -54,6 +54,7 @@ class MarkdownTreeAdapter(StorageAdapter):
         return Worker(
             name=parsed.frontmatter["name"],
             role=parsed.frontmatter["role"],
+            domain=parsed.frontmatter["domain"],
             hired_at=_parse_date(parsed.frontmatter["hired_at"]),
             storage_backend=parsed.frontmatter["storage_backend"],
             body=parsed.body,

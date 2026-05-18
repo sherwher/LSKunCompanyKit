@@ -109,6 +109,8 @@ class RunLocalBackendTests(unittest.TestCase):
             cpo = adapter.read_worker("cpo")
             self.assertEqual(cpo.role, "chief-product-officer")
             self.assertEqual(cpo.storage_backend, "local")
+            # ADR-0003 §1 — CPO 는 항상 domain="meta"
+            self.assertEqual(cpo.domain, "meta")
 
     def test_preserves_existing_company_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,6 +132,23 @@ class RunLocalBackendTests(unittest.TestCase):
             second = run(Path(tmp), env={})
             self.assertEqual(second.workers_created, [])
             self.assertEqual(sorted(second.workers_skipped), ["cpo", "hr-lead"])
+
+    def test_company_md_records_domain(self) -> None:
+        # ADR-0003 — company.md frontmatter 에 domain 박제
+        with tempfile.TemporaryDirectory() as tmp:
+            run(Path(tmp), domain="의료 SaaS", env={})
+            company_md = Path(tmp, LOCAL_COMPANY_DIRNAME, "company.md")
+            parsed = frontmatter.parse(company_md.read_text(encoding="utf-8"))
+            self.assertEqual(parsed.frontmatter.get("domain"), "의료 SaaS")
+
+    def test_company_md_empty_domain_when_not_specified(self) -> None:
+        # ADR-0003 — domain 누락은 doctor 가 경고할 영역. init 는 강제하지 않음.
+        with tempfile.TemporaryDirectory() as tmp:
+            run(Path(tmp), env={})
+            company_md = Path(tmp, LOCAL_COMPANY_DIRNAME, "company.md")
+            parsed = frontmatter.parse(company_md.read_text(encoding="utf-8"))
+            self.assertIn("domain", parsed.frontmatter)
+            self.assertEqual(parsed.frontmatter["domain"], "")
 
 
 class RunVaultBackendTests(unittest.TestCase):

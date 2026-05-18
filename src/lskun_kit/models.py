@@ -2,6 +2,8 @@
 
 ADR-0001 §3 (Reflection) 와 §4 (Storage Backend 추상화) 에서 정의된
 4-method interface 가 다루는 데이터 구조.
+
+ADR-0003 — Worker frontmatter 필수 필드 4개 → 5개 (``domain`` 추가).
 """
 
 from __future__ import annotations
@@ -10,7 +12,11 @@ from dataclasses import dataclass, field
 from datetime import date
 
 
-REQUIRED_WORKER_FIELDS = ("name", "role", "hired_at", "storage_backend")
+#: ADR-0003 — ``domain`` 은 회사 도메인 (예: "의료 SaaS") 또는 예약값 ``"meta"`` (CPO/HR).
+REQUIRED_WORKER_FIELDS = ("name", "role", "domain", "hired_at", "storage_backend")
+
+#: ADR-0003 §1 — CPO / HR Lead 등 도메인 무관 워커의 ``domain`` 예약값.
+META_DOMAIN = "meta"
 
 
 @dataclass(frozen=True)
@@ -35,10 +41,15 @@ class HistoryEntry:
 
 @dataclass
 class Worker:
-    """hired/<name>.md 를 메모리에 표현한 객체."""
+    """hired/<name>.md 를 메모리에 표현한 객체.
+
+    ADR-0003 — ``domain`` 은 회사 도메인 (예: "의료 SaaS") 을 상속하거나
+    예약값 ``"meta"`` (CPO/HR Lead 등 도메인 무관 워커) 를 가진다.
+    """
 
     name: str
     role: str
+    domain: str
     hired_at: date
     storage_backend: str
     body: str = ""  # frontmatter 이후 markdown 본문 전체

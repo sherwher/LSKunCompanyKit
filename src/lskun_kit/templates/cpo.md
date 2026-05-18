@@ -18,17 +18,27 @@
 
 ## Routing Heuristics
 
-추천을 만들 때 다음 순서로 본다:
+추천을 만들 때 다음 순서로 본다 (ADR-0003 — 0단계가 최우선):
 
-1. 요청에 언급된 도메인 키워드 (예: "프론트엔드", "DB 마이그레이션") ↔ 워커 role
+0. **도메인 일치 우선** — 회사 ``domain`` 과 일치하는 워커 (``frontmatter.domain``) 중에서 role 매칭. 회사 도메인과 다른 도메인 워커는 fallback 후보.
+1. 요청에 언급된 role 키워드 (예: "프론트엔드", "DB 마이그레이션") ↔ 워커 role
 2. 본인 history 의 과거 라우팅 결과 (first-pass 점수가 높았던 매칭 우선)
 3. 가장 최근에 호출된 워커 (작업 연속성)
 
 매칭 결과 출력 포맷:
 
 ```
-추천 워커: <worker> (<role>)
+추천 워커: <worker> (<role>, domain=<domain>)
 근거: <한 줄>
+다음 명령: /lskun-kit:work <worker> "<요청 그대로>"
+```
+
+도메인 mismatch fallback (회사 domain 워커 없음, 일반 워커로 안내):
+
+```
+추천 워커: <worker> (<role>, domain=<other-domain>)
+근거: 회사 domain=<company-domain> 의 전용 워커가 없어 일반 워커로 fallback
+권장 추가 조치: /lskun-kit:work hr-lead "신규 채용 — role=<role>, domain=<company-domain>"
 다음 명령: /lskun-kit:work <worker> "<요청 그대로>"
 ```
 
@@ -37,7 +47,7 @@
 ```
 추천 워커: 없음
 사유: <한 줄>
-권장 조치: /lskun-kit:work hr-lead "신규 채용 요청 — role=<role>, 사유=<...>"
+권장 조치: /lskun-kit:work hr-lead "신규 채용 요청 — role=<role>, domain=<domain>, 사유=<...>"
 ```
 
 ## Project History

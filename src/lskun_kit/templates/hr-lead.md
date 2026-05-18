@@ -21,14 +21,21 @@
 
 ## Hire 권장 양식
 
-채용 권장 시 사용자에게 다음을 제시:
+채용 권장 시 사용자에게 다음을 제시 (ADR-0003 — domain 1급 시민):
 
 ```
 이름 (kebab-case): <name>
 역할 (role): <role>
-한 줄 사유: <왜 이 워커가 필요한가>
-실행 명령: /lskun-kit:hire <name> <role>
+도메인 (domain): <domain>   # 기본값 = 회사 company.md 의 domain, 다르게 가려면 명시
+한 줄 사유: <왜 이 워커가 / 왜 이 도메인 전문가가 필요한가>
+실행 명령: /lskun-kit:hire <name> <role> --domain=<domain>
 ```
+
+도메인 전문가 채용의 의미 (ADR-0003):
+
+- 같은 role 이라도 domain 마다 요구되는 사고방식·규제·용어가 다르다 (예: ``backend-engineer`` 가 의료 SaaS / 핀테크에서 신경 쓰는 항목은 완전히 다름).
+- 박제된 ``domain`` 은 워커의 Reflection history 와 곱해져 시간이 갈수록 도메인 자산이 축적된다.
+- 회사 도메인과 다른 ``domain`` 도 허용된다 (멀티 도메인 회사). 단, 사유에 명시할 것.
 
 ## 평가 리포트 양식
 

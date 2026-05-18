@@ -26,6 +26,7 @@ def _worker_md(name: str, backend: str = "local") -> str:
         ---
         name: {name}
         role: backend-engineer
+        domain: meta
         hired_at: 2026-05-15
         storage_backend: {backend}
         ---
