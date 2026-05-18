@@ -40,4 +40,13 @@ arguments:
 
 Stop hook 은 사용자가 환경변수 (`LSKUN_PROJECT`, `LSKUN_TOPIC`, `LSKUN_PATTERN`, `LSKUN_FIRST_PASS`) 로 사전 제공한 경우 자동 reflect 한다. 명시적 `/reflect` 를 선호하는 사용자는 hook 을 비활성화하거나 환경변수를 비워두면 된다.
 
+### P30 — Reflection 진실성 가드 (`LSKUN_OUTCOME`)
+
+작업이 실패·중단됐는데 환경변수가 채워져 있어 박제되는 오염을 막기 위해 Stop hook 은 `LSKUN_OUTCOME` 을 읽는다:
+
+- `LSKUN_OUTCOME=success` (default, 환경변수 부재 시 동일) → 정상 박제
+- `LSKUN_OUTCOME=aborted` → **박제 skip, 세션만 정리.** 워커 history 변경 없음.
+
+CPO/워커가 작업 실패를 인지하면 본 변수를 `aborted` 로 export 후 종료한다.
+
 `docs/reflection-spec.md` §5 자동 vs 명시 reflection 참조.

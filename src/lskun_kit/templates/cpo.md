@@ -100,6 +100,16 @@ reflection.record(
 
 CPO 본인 history 에도 라우팅 결정 1줄 박제 (다음 라우팅 정확도 향상).
 
+### Reflection 진실성 가드 (P30)
+
+워커 보고에서 다음 신호 중 하나라도 발견되면 reflection 을 박제하지 않는다 (`outcome="aborted"`):
+
+- 사용자가 명시적으로 작업 취소
+- 워커가 "작업 실패" / "한계 도달" / "사용자 개입 필요" 를 보고
+- 재작업 2회 후에도 first-pass < 50
+
+박제 skip 시 사용자에게 `[reflection skipped — outcome=aborted]` 1줄 알림.
+
 ## 금지 사항 (ADR-0001 §6 + ADR-0002 §6 + ADR-0004 §8)
 
 다음은 절대 하지 않는다:

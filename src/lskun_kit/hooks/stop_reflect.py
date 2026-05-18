@@ -12,6 +12,8 @@
     LSKUN_TOPIC         이번 작업 주제 (필수)
     LSKUN_PATTERN       적용한 핵심 패턴 (필수)
     LSKUN_FIRST_PASS    1차 통과율 0..100 (필수)
+    LSKUN_OUTCOME       "success" (default) | "aborted" — P30 진실성 가드.
+                        "aborted" 면 history 박제 skip 후 세션만 정리.
 
 종료 코드:
     0  reflection 기록됨 또는 의도적 no-op (조용히 종료)
@@ -33,11 +35,22 @@ def main(argv: list[str] | None = None) -> int:
     from lskun_kit import session  # 지연 import
     from lskun_kit.adapters.local import LocalAdapter
     from lskun_kit.adapters.vault import VaultAdapter
-    from lskun_kit.reflection import record
+    from lskun_kit.reflection import (
+        OUTCOME_ABORTED,
+        OUTCOME_SUCCESS,
+        ReflectionSkipped,
+        record,
+    )
 
     sess = session.read(root)
     if sess is None:
         return 0  # 활성 워커 없음
+
+    outcome = (os.environ.get("LSKUN_OUTCOME") or OUTCOME_SUCCESS).strip().lower()
+    if outcome == OUTCOME_ABORTED:
+        # P30 — 진실성 가드: 작업 중단·실패시 박제 skip 하고 세션만 정리.
+        session.clear(root)
+        return 0
 
     project = os.environ.get("LSKUN_PROJECT")
     topic = os.environ.get("LSKUN_TOPIC")
@@ -57,7 +70,14 @@ def main(argv: list[str] | None = None) -> int:
 
     adapter = _make_adapter(Path(root))
     try:
-        record(adapter, sess.active_worker, project, topic, pattern, score)
+        record(
+            adapter, sess.active_worker, project, topic, pattern, score,
+            outcome=outcome,
+        )
+    except ReflectionSkipped:
+        # outcome 검증을 위 if 에서 처리하므로 정상 흐름상 도달 불가.
+        # 방어적 가드만 유지 — 세션 정리하고 silent exit.
+        pass
     except Exception as exc:
         print(f"lskun-kit: reflection failed: {exc}", file=sys.stderr)
         return 2

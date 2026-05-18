@@ -157,6 +157,32 @@ class ReflectionRecordTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 reflection.record(self.adapter, "alice", "p", "t", "x", bad)
 
+    def test_outcome_aborted_skips_history(self) -> None:
+        """P30 — outcome=aborted 면 history 박제 skip + ReflectionSkipped raise."""
+        before = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        with self.assertRaises(reflection.ReflectionSkipped):
+            reflection.record(
+                self.adapter, "alice", "p", "t", "x", 100,
+                outcome=reflection.OUTCOME_ABORTED,
+            )
+        after = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertEqual(before, after, "aborted outcome 은 파일을 변경하지 않아야 한다")
+
+    def test_outcome_invalid_raises_value_error(self) -> None:
+        with self.assertRaises(ValueError):
+            reflection.record(
+                self.adapter, "alice", "p", "t", "x", 50, outcome="maybe",
+            )
+
+    def test_outcome_success_default_appends(self) -> None:
+        """default outcome 은 'success' — 기존 동작 보존."""
+        reflection.record(
+            self.adapter, "alice", "proj-x", "topic-x", "pattern-x", 70,
+            when=date(2026, 5, 18),
+        )
+        text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertIn("proj-x", text)
+
 
 class MetricsTests(unittest.TestCase):
     def setUp(self) -> None:
