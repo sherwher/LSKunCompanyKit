@@ -7,6 +7,7 @@ root 경로 결정 + SSOT guard 만 다르다. 따라서 본 기반 클래스가
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from pathlib import Path
 
@@ -29,6 +30,10 @@ HISTORY_HEADING = "## Project History"
 
 # ADR-0001 §5 — 개발자 SSOT 경로 단편. root 에 포함되면 거부.
 DEVELOPER_SSOT_MARKERS = ("02_Projects/LSKunCompanyKit",)
+
+# P39 (#5) — 워커 이름 허용 문자 allowlist. kebab-case + 숫자, 시작은 영문/숫자.
+# null byte, backslash, dotted 경로, 유니코드 변종 등 path traversal 표면 차단.
+_WORKER_NAME_PAT = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
 class MarkdownTreeAdapter(StorageAdapter):
@@ -99,9 +104,25 @@ class MarkdownTreeAdapter(StorageAdapter):
         )
 
     def _worker_path(self, name: str) -> Path:
-        if "/" in name or name in ("", ".", ".."):
-            raise ValueError(f"invalid worker name: {name!r}")
-        return self._hired_dir / f"{name}.md"
+        # P39 (#5) — allowlist 검증. 기존 deny-list (``/``, ``.``, ``..``) 만으로는
+        # null byte / backslash / 유니코드 변종 / dotted path 를 못 잡았다.
+        if not isinstance(name, str) or not _WORKER_NAME_PAT.match(name):
+            raise ValueError(
+                f"invalid worker name: {name!r} "
+                f"(허용: ^[a-z0-9][a-z0-9_-]{{0,63}}$)"
+            )
+        candidate = self._hired_dir / f"{name}.md"
+        # 추가 가드 — 정규식을 통과해도 resolve 결과가 hired/ 밖으로 새면 거부.
+        try:
+            resolved = candidate.resolve(strict=False)
+            hired_resolved = self._hired_dir.resolve(strict=False)
+            if not str(resolved).startswith(str(hired_resolved)):
+                raise ValueError(
+                    f"worker path escapes hired/: {resolved}"
+                )
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"failed to resolve worker path: {name!r} ({e})")
+        return candidate
 
     @staticmethod
     def _guard_against_developer_ssot(root: Path) -> None:

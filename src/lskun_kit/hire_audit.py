@@ -16,6 +16,7 @@ HR Lead persona 는 본 모듈을 호출해 채용 직전 가드를 통과해야
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -146,9 +147,25 @@ def record_hire(
     cooldown_seconds: int = DEFAULT_COOLDOWN_SECONDS,
     now: datetime | None = None,
 ) -> HireEvent:
-    """rate-limit 검사 + audit 기록을 한 번에. ``actor='user'`` 는 검사 skip."""
+    """rate-limit 검사 + audit 기록을 한 번에. ``actor='user'`` 는 검사 skip.
+
+    P39 (#11) — timestamp tampering 가드:
+        직전 audit 이벤트의 ``at`` 보다 ``now`` 가 과거이면 stderr 로 경고 emit.
+        공유 Vault 환경에서 다른 사용자가 JSONL 을 손편집해 rate-limit 우회
+        시도하는 것을 가시화한다.
+    """
 
     now = now or datetime.now(timezone.utc)
+
+    previous = read_events(company_root)
+    if previous and now < previous[-1].at:
+        print(
+            f"lskun-kit: WARNING — audit timestamp regression detected "
+            f"(new={now.isoformat()} < last={previous[-1].at.isoformat()}). "
+            f"공유 SSOT 환경에서 .audit.jsonl 손편집 가능성. 검토 필요.",
+            file=sys.stderr,
+        )
+
     if actor != "user":
         check_rate_limit(company_root, role, domain, cooldown_seconds, now=now)
     event = HireEvent(
