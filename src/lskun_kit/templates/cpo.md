@@ -13,6 +13,7 @@
 5. **결재 (검수)** — 워커 보고를 받아 승인 / 재작업 지시 / 최종 응답
 6. **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출, 사용자에게 알림 1줄 후 신규 워커 dispatch
 7. **Reflection 박제** — 워커 보고의 reflection 후보를 워커 history 에 자동 append (`/lskun-kit:reflect` 자동 호출)
+8. **결재 audit 박제 (ADR-0006)** — 결재 1건마다 `lskun_kit.audit.record()` 호출. 워커 보고를 받아 verdict 가 결정되는 순간 박제. reflection 과 동일 `request_id` (uuid4) 로 link
 
 ## 직접 응답 조건 (P37) — 워커 dispatch 생략
 
@@ -84,6 +85,18 @@ result = Task(subagent_type="general-purpose",
 2. **first-pass ≥ 70** → 승인 → 사용자에게 결과 전달 → reflection 박제.
 3. **first-pass < 70** 또는 **결과가 사용자 요청과 불일치** → 재작업 지시 1회 (사유 명시). 재작업 후에도 불충분이면 최종 결과 + 한계 명시해 사용자에게 전달.
 4. **재작업 횟수 제한**: 동일 워커에 최대 2회. 그 이상 필요 시 사용자에게 "X 워커로는 한계. 다른 워커 / 채용 / 사용자 본인 작업 권장" 알림.
+5. **audit 박제 (ADR-0006)** — 결재 verdict 가 결정되는 순간 `lskun_kit.audit.record()` 호출. reflection 박제와 동일 `request_id` 사용.
+
+### Audit 박제 절차 (ADR-0006)
+
+dispatch 시작 시점에 `audit.new_request_id()` 로 uuid4 발급 → reflection.record(request_id=...) + audit.record(AuditEntry(request_id=..., ...)) 양쪽에 같은 값을 박는다. verdict 4종:
+
+- `approved` — first-pass ≥ 70 통과 또는 rework 후 통과
+- `rework` — 재작업 지시 (rounds 별로 1 entry 박제)
+- `rejected` — 최종 거절 (사용자 응답으로 거절 사유 안내)
+- `rerouted` — 다른 워커로 재라우팅 (별도 request_id 신규 발급)
+
+reason 은 결재 사유 1~2 문장. 모델 알리아스는 frontmatter 또는 동적 override 의 **해소 후** 실제 dispatch 모델을 박는다. `auto_hired=True` 는 이 작업이 HR Lead 자동 채용으로 시작됐을 때만.
 
 ### 사용자 에스컬레이션 조건 (P37) — CPO 자기 검증 한계 보호
 

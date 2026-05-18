@@ -5,6 +5,31 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [Unreleased] — 0.6.0-dev
+
+### Added — CPO 결재 audit log ([ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md))
+- `lskun_kit.audit` 모듈 — `AuditEntry` dataclass + `record()` + `new_request_id()`
+- `.audit/decisions.jsonl` (append-only JSONL) 에 CPO 결재 1건당 1줄 박제
+- verdict enum 4종 — `approved` / `rework` / `rejected` / `rerouted`
+- `StorageAdapter.append_audit()` 확장 (default `NotImplementedError`, `MarkdownTreeAdapter` 구현 제공)
+- `reflection.record(request_id=...)` optional kwarg — audit ↔ reflection link
+- `/lskun-kit:doctor` 항목 14 신설 — `.audit/decisions.jsonl` schema 검증 + dual-backend 가드
+- CPO persona (`templates/cpo.md`) — 결재 직후 `audit.record()` 호출 의무 (책임 8 + Approval Loop step 5)
+
+### Guarantees (불변, ADR-0006 §6)
+- append-only (overwrite / delete 금지)
+- 1줄 1 JSON object (single-line)
+- `request_id` 필수
+- `verdict` enum 외 거부
+- `.audit/` 자동 생성
+
+### Changed
+- CLAUDE.md §6 폐기 목록 — ADR-0006 의 5개 금지 추가 (자동 분석 / 자동 평가·해고 / 자동 회고 / 위원회 / 외부 전송)
+- CLAUDE.md §1 정체성 + §7 디렉토리 트리 — audit.py 박제
+
+### Tests
+- `tests/test_audit.py` 신규 — schema 검증 + append-only + dual newline 거부 + request_id 유일성 + reflection link kwarg (16 tests)
+
 ## [0.5.0] — 2026-05-18
 
 ### Added

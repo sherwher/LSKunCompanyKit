@@ -46,6 +46,7 @@ def record(
     first_pass_score: int,
     when: date_cls | None = None,
     outcome: str = OUTCOME_SUCCESS,
+    request_id: str | None = None,  # noqa: ARG001 — ADR-0006 link; caller pairs audit+reflection
 ) -> HistoryEntry:
     """워커 history 에 1줄을 append 하고 :class:`HistoryEntry` 를 반환한다.
 
@@ -53,6 +54,11 @@ def record(
         - project / topic / pattern 에 ``/`` 가 들어가면 ValueError (구분자 충돌)
         - first_pass_score 는 0..100 범위
         - outcome 는 ``"success" | "aborted"`` (그 외는 ValueError)
+
+    ``request_id`` (ADR-0006) 는 audit log 와의 link 보장용. ``HistoryEntry`` 본문
+    format 은 변경하지 않으며 (markdown line format 불변), CPO 가 audit+reflection
+    1쌍을 동일 uuid 로 record 호출하는 caller-side pairing 만 보장한다. line format
+    에 박제하려면 별도 ADR 필요.
 
     Raises:
         ReflectionSkipped: ``outcome=aborted`` 일 때. caller 가 silent 처리해야 한다.
