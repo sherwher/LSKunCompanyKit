@@ -92,6 +92,46 @@ class DetectDualBackendTests(unittest.TestCase):
             f"expected dual-backend note, got: {result.notes}",
         )
 
+    def test_dual_backend_with_hand_edited_marker(self) -> None:
+        """P43 (#13) — dual-backend + CLAUDE.md marker 손편집 통합 시나리오.
+
+        두 가드 (dual-backend 경고 + marker 백업) 가 동시 발생해도 상호 간섭
+        없이 모두 동작해야 한다.
+        """
+        from lskun_kit.persona_injection import (
+            BACKUP_SUFFIX, CLAUDE_MD_FILENAME, inject,
+        )
+        proj_root = self.proj
+        # 1차 박제 후 사용자 손편집
+        inject(proj_root, "Acme", "이세근", "# cpo\n\nbody.\n")
+        claude_md = proj_root / CLAUDE_MD_FILENAME
+        text = claude_md.read_text(encoding="utf-8")
+        claude_md.write_text(text.replace("body.", "edited."), encoding="utf-8")
+
+        # dual-backend 환경 셋업 (양쪽 다 company.md)
+        self._make_company(proj_root / LOCAL_COMPANY_DIRNAME)
+        self._make_company(self.vault / "03_Companies" / "Acme")
+        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
+
+        result = run(
+            proj_root, company_name="Acme",
+            cpo_name="L", hr_name="H",
+            inject_persona=True, env=env,
+        )
+
+        # (a) dual-backend 경고 emit
+        self.assertTrue(
+            any("dual-backend" in n for n in result.notes),
+            f"dual-backend note missing: {result.notes}",
+        )
+        # (b) marker 손편집 백업 생성
+        backup = claude_md.with_suffix(claude_md.suffix + BACKUP_SUFFIX)
+        self.assertTrue(
+            backup.exists(),
+            f"marker 손편집 백업이 생성되지 않음: {backup}",
+        )
+        self.assertIn("edited.", backup.read_text(encoding="utf-8"))
+
 
 class DetectBackendTests(unittest.TestCase):
     def test_no_env_returns_local(self) -> None:
