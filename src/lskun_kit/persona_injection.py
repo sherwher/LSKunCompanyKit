@@ -70,22 +70,53 @@ def render_persona_block(
 def find_marker_span(text: str) -> tuple[int, int] | None:
     """기존 marker 구간의 (start_idx, end_idx_exclusive) 반환. 없으면 ``None``.
 
+    P42 (#19) — marker 가 **줄의 첫 글자에서 시작** 하는 경우에만 인식한다.
+    사용자가 markdown 코드 블록 (``` ... ```) 안에 marker 텍스트를 예시로
+    적어 놓아도 실제 marker 로 오인하지 않는다. 줄 시작 매칭 + 펜스 깊이
+    추적으로 fenced block 내부의 marker 도 제외.
+
     end_idx 는 ``PERSONA_MARKER_END`` 줄 끝 다음 newline 까지 포함.
     """
 
-    start = text.find(PERSONA_MARKER_START)
+    start = _find_line_start_marker(text, PERSONA_MARKER_START)
     if start == -1:
         return None
-    end = text.find(PERSONA_MARKER_END, start)
+    # start 이후에서 END marker 도 줄 시작에서 찾는다.
+    end = _find_line_start_marker(text, PERSONA_MARKER_END, search_from=start)
     if end == -1:
-        # marker 손상 — start 만 있고 end 없음. caller 가 doctor 에서 경고 처리.
         return None
     end_line_close = text.find("\n", end + len(PERSONA_MARKER_END))
     if end_line_close == -1:
         end_line_close = len(text)
     else:
-        end_line_close += 1  # newline 포함
+        end_line_close += 1
     return start, end_line_close
+
+
+def _find_line_start_marker(text: str, marker: str, search_from: int = 0) -> int:
+    """marker 가 줄의 첫 글자에서 시작하면서 fenced code block 밖에 있는 위치 반환.
+
+    못 찾으면 ``-1``. fenced block 은 ``` 또는 ~~~ 라인 페어로 추적.
+    """
+
+    in_fence = False
+    fence_char = ""
+    pos = 0  # 줄 시작 인덱스
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
+        # fenced code block 감지 (``` 또는 ~~~ 로 시작하는 줄)
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            this_char = stripped[0]
+            if not in_fence:
+                in_fence = True
+                fence_char = this_char
+            elif fence_char == this_char:
+                in_fence = False
+                fence_char = ""
+        elif not in_fence and pos >= search_from and line.startswith(marker):
+            return pos
+        pos += len(line)
+    return -1
 
 
 def inject(
@@ -163,18 +194,42 @@ def inject(
 def _block_contains_cpo_body(block: str, cpo_body: str) -> bool:
     """marker 구간 본문이 현재 cpo.md body 를 (헤더·trailing whitespace 제외) 포함하는지.
 
-    여러 줄 비교 시 줄 단위로 ``strip`` 한 다음 빈 줄을 제거하고 substring 검사.
-    완전히 정확한 비교가 아니라 "최근 inject 가 그대로 살아있는가" 의 보수적 가드.
+    P42 (#10) — fenced code block (``` ... ```) 안의 indentation 은 strip 하지
+    않는다. 코드 블록 indent 가 의미를 가지는 cpo.md (예: Python 예제) 가 단순
+    strip 으로 깨져 false-negative (정상 재박제를 손편집으로 오감지) 가 나는
+    것을 방지. 보수적 가드 — 일치하면 손편집 아님, 일치 안 하면 손편집 가능성.
     """
 
     def normalize(text: str) -> str:
-        return "\n".join(
-            ln.strip() for ln in text.splitlines() if ln.strip()
-        )
+        out: list[str] = []
+        in_fence = False
+        fence_char = ""
+        for ln in text.splitlines():
+            stripped = ln.lstrip()
+            is_fence_line = (
+                stripped.startswith("```") or stripped.startswith("~~~")
+            )
+            if is_fence_line:
+                this_char = stripped[0]
+                if not in_fence:
+                    in_fence = True
+                    fence_char = this_char
+                elif fence_char == this_char:
+                    in_fence = False
+                    fence_char = ""
+                out.append(ln.rstrip())  # fence 라인 자체는 trailing 만 제거
+                continue
+            if in_fence:
+                out.append(ln.rstrip())  # 코드 블록 내부 — leading whitespace 보존
+            else:
+                s = ln.strip()
+                if s:
+                    out.append(s)
+        return "\n".join(out)
 
     body = normalize(cpo_body)
     if not body:
-        return True  # 비교 대상이 없으면 보수적으로 손편집 아님 처리
+        return True
     return body in normalize(block)
 
 
