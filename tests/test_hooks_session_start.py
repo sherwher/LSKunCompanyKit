@@ -171,6 +171,24 @@ class SessionStartHookTests(unittest.TestCase):
             ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
             self.assertNotIn("hijack", ctx)
 
+    def test_git_root_blocks_parent_search(self) -> None:
+        """P38 (#17) — monorepo 의 .git 경계를 넘지 않는다.
+
+        상위에 .company/ 가 있어도 현재 디렉토리에 .git 가 있으면 그 위의 회사를
+        잡지 않아야 한다.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            # 상위에 회사 셋업
+            init_run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
+            # 하위 서브프로젝트에 자체 .git 만 있는 환경
+            sub = Path(tmp) / "subproj"
+            sub.mkdir()
+            (sub / ".git").mkdir()
+            rc, out, _ = _capture(session_start.main, env={}, cwd=sub)
+            self.assertEqual(rc, 0)
+            # 상위 .company/ 가 잡히면 안 됨 → silent no-op
+            self.assertEqual(out, "")
+
     def test_does_not_crash_on_broken_company_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             company_dir = Path(tmp) / ".company"

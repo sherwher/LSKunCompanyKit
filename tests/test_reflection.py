@@ -80,6 +80,25 @@ class SessionTests(unittest.TestCase):
     def test_clear_missing_is_safe(self) -> None:
         session.clear(self.root)  # 예외 없어야 함
 
+    def test_read_returns_none_and_clears_stale_session(self) -> None:
+        """P38 — TTL 초과 세션은 stale 로 보고 None 반환 + 파일 삭제."""
+        from datetime import datetime, timedelta, timezone
+        session.start(self.root, "alice")
+        future = datetime.now(timezone.utc) + timedelta(hours=25)
+        result = session.read(self.root, now=future)
+        self.assertIsNone(result)
+        self.assertFalse(session.session_path(self.root).exists())
+
+    def test_fresh_session_within_ttl_returned(self) -> None:
+        """TTL 안의 세션은 정상 반환."""
+        from datetime import datetime, timedelta, timezone
+        session.start(self.root, "alice")
+        future = datetime.now(timezone.utc) + timedelta(hours=23)
+        result = session.read(self.root, now=future)
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result.active_worker, "alice")
+
 
 class ContextTests(unittest.TestCase):
     def setUp(self) -> None:

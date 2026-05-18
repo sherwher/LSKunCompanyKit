@@ -24,10 +24,21 @@ from lskun_kit.hooks import pre_tool_use  # noqa: E402
 def _run(stdin_text: str, env: dict[str, str]) -> dict:
     with patch.dict(os.environ, env, clear=True), \
          patch("sys.stdin", io.StringIO(stdin_text)), \
-         patch("sys.stdout", io.StringIO()) as out:
+         patch("sys.stdout", io.StringIO()) as out, \
+         patch("sys.stderr", io.StringIO()):
         rc = pre_tool_use.main([])
     assert rc == 0
     return json.loads(out.getvalue())
+
+
+def _run_capture_stderr(stdin_text: str, env: dict[str, str]) -> tuple[dict, str]:
+    with patch.dict(os.environ, env, clear=True), \
+         patch("sys.stdin", io.StringIO(stdin_text)), \
+         patch("sys.stdout", io.StringIO()) as out, \
+         patch("sys.stderr", io.StringIO()) as err:
+        rc = pre_tool_use.main([])
+    assert rc == 0
+    return json.loads(out.getvalue()), err.getvalue()
 
 
 class PreToolUseHookTests(unittest.TestCase):
@@ -75,6 +86,20 @@ class PreToolUseHookTests(unittest.TestCase):
             },
         )
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
+
+    def test_bypass_emits_stderr_warning(self) -> None:
+        """P38 (#18) — bypass 활성 시 사용자에게 stderr 경고로 가시화."""
+        session.start(self.root, "alice")
+        out, err = _run_capture_stderr(
+            json.dumps({"tool_name": "Task"}),
+            {
+                "LSKUN_SSOT_ROOT": str(self.root),
+                "LSKUN_ALLOW_WORKER_CHAIN": "1",
+            },
+        )
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
+        self.assertIn("WARNING", err)
+        self.assertIn("LSKUN_ALLOW_WORKER_CHAIN", err)
 
     def test_no_ssot_root_allows(self) -> None:
         """plugin 비활성 환경 — chain 검사 skip."""

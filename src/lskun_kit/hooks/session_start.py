@@ -158,6 +158,10 @@ def _find_active_company_root() -> Path | None:
         candidate = cwd / ".company"
         if (candidate / "company.md").exists():
             return candidate
+        # P38 (#17) — git repo root 를 넘지 않는다. monorepo 의 하위 프로젝트에서
+        # 세션을 열었을 때 상위의 다른 회사 .company/ 가 잘못 잡히는 것을 방지.
+        if (cwd / ".git").exists():
+            break
         if cwd.parent == cwd:  # filesystem root
             break
         cwd = cwd.parent
