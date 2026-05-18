@@ -15,7 +15,7 @@ from lskun_kit.errors import (
 )
 from lskun_kit.models import Company, HistoryEntry, Worker
 
-__version__ = "0.2.0-dev"
+__version__ = "0.4.0-dev"
 
 __all__ = [
     "__version__",
