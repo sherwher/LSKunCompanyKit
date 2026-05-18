@@ -35,13 +35,29 @@ class HooksManifestTests(unittest.TestCase):
         commands = [h["command"] for e in entries for h in e["hooks"]]
         self.assertIn("python3 -m lskun_kit.hooks.stop_reflect", commands)
 
-    def test_all_hook_matchers_are_wildcards(self) -> None:
+    def test_hook_matchers_are_expected(self) -> None:
+        """SessionStart / Stop 은 '*'. PreToolUse 는 'Task' 로 좁힘 (P31)."""
+        expected = {
+            "SessionStart": "*",
+            "Stop": "*",
+            "PreToolUse": "Task",
+        }
         for event, entries in self.manifest["hooks"].items():
             for e in entries:
                 self.assertEqual(
-                    e.get("matcher"), "*",
-                    f"{event} hook matcher 는 '*' 여야 한다 (현재: {e.get('matcher')!r})",
+                    e.get("matcher"), expected.get(event, "*"),
+                    f"{event} hook matcher 불일치 (현재: {e.get('matcher')!r})",
                 )
+
+    def test_pre_tool_use_registered(self) -> None:
+        """P31 — 워커 → 워커 chain 차단 hook 이 박제돼있어야 한다."""
+        self.assertIn("PreToolUse", self.manifest["hooks"])
+        commands = [
+            h["command"]
+            for e in self.manifest["hooks"]["PreToolUse"]
+            for h in e["hooks"]
+        ]
+        self.assertIn("python3 -m lskun_kit.hooks.pre_tool_use", commands)
 
 
 if __name__ == "__main__":
