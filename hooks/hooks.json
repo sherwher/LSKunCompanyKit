@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -m lskun_kit.hooks.stop_reflect"
+          }
+        ]
+      }
     ]
   }
 }
