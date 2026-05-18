@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit.persona_injection import (  # noqa: E402
+    BACKUP_SUFFIX,
     CLAUDE_MD_FILENAME,
     PERSONA_MARKER_END,
     PERSONA_MARKER_START,
@@ -119,6 +120,50 @@ class InjectTests(unittest.TestCase):
         # ADR-0004 §1 의 graceful — 비존재 project_root 에서 박제 skip
         result = inject("/nonexistent-path-for-test", "X", "Y", "body")
         self.assertEqual(result.action, "skipped-no-project-root")
+
+
+class HandEditBackupTests(unittest.TestCase):
+    """P34 — 사용자가 marker 안을 손편집한 경우 백업 후 교체."""
+
+    def test_pristine_reinject_no_backup(self) -> None:
+        """plugin 이 만든 그대로의 구간은 손편집 아님 → 백업 X."""
+        with tempfile.TemporaryDirectory() as tmp:
+            inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            # 같은 cpo_body 로 재박제 — display_name 만 바꿔도 손편집 아님
+            result = inject(tmp, "Acme", "김지혜", CPO_BODY_SAMPLE)
+            self.assertIsNone(result.backup_path)
+
+    def test_hand_edited_marker_creates_backup(self) -> None:
+        """사용자가 marker 안 본문을 수정 → 백업 생성."""
+        with tempfile.TemporaryDirectory() as tmp:
+            inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            path = Path(tmp) / CLAUDE_MD_FILENAME
+            current = path.read_text(encoding="utf-8")
+            # 사용자가 marker 안 본문을 임의로 수정 (cpo_body 의 핵심 줄을 지움)
+            hand_edited = current.replace("라우팅.", "내 마음대로 수정.")
+            path.write_text(hand_edited, encoding="utf-8")
+            # 재박제 → 손편집 감지 → 백업 생성
+            result = inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            self.assertIsNotNone(result.backup_path)
+            assert result.backup_path is not None
+            self.assertTrue(result.backup_path.exists())
+            backup_text = result.backup_path.read_text(encoding="utf-8")
+            self.assertIn("내 마음대로 수정", backup_text)
+            # 본 파일은 새 블록으로 교체됨
+            new_text = path.read_text(encoding="utf-8")
+            self.assertIn("라우팅.", new_text)
+            self.assertNotIn("내 마음대로 수정", new_text)
+
+    def test_backup_suffix_format(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            path = Path(tmp) / CLAUDE_MD_FILENAME
+            current = path.read_text(encoding="utf-8")
+            path.write_text(current.replace("라우팅.", "edit."), encoding="utf-8")
+            result = inject(tmp, "Acme", "이세근", CPO_BODY_SAMPLE)
+            self.assertIsNotNone(result.backup_path)
+            assert result.backup_path is not None
+            self.assertTrue(str(result.backup_path).endswith(BACKUP_SUFFIX))
 
 
 class DetectTests(unittest.TestCase):

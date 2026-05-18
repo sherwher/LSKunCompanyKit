@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CLAUDE_MD_FILENAME = "CLAUDE.md"
+BACKUP_SUFFIX = ".lskun.bak"
 
 #: ADR-0004 §1 — plugin 관리 구간 marker. 본 marker 사이는 사용자 수정 금지.
 PERSONA_MARKER_START = "<!-- LSKUN-CPO:START - DO NOT EDIT INSIDE. Managed by LSKunCompanyKit -->"
@@ -30,6 +31,7 @@ class InjectionResult:
     claude_md_path: Path
     action: str  # "created" | "updated" | "unchanged"
     had_existing_marker: bool
+    backup_path: Path | None = None  # P34 — 사용자 손편집 감지 시 백업 경로
 
 
 def render_persona_block(
@@ -142,10 +144,38 @@ def inject(
         return InjectionResult(
             claude_md_path=path, action="unchanged", had_existing_marker=True
         )
+
+    # P34 — 사용자가 marker 구간을 손편집했는지 감지: 기존 구간의 body 가 cpo.md
+    # body 의 정규화 텍스트를 포함하지 않으면 손편집 가능성으로 보고 백업한다.
+    backup_path: Path | None = None
+    existing_block = current[start:end]
+    if not _block_contains_cpo_body(existing_block, cpo_body):
+        backup_path = path.with_suffix(path.suffix + BACKUP_SUFFIX)
+        backup_path.write_text(current, encoding="utf-8")
+
     path.write_text(new_text, encoding="utf-8")
     return InjectionResult(
-        claude_md_path=path, action="updated", had_existing_marker=True
+        claude_md_path=path, action="updated", had_existing_marker=True,
+        backup_path=backup_path,
     )
+
+
+def _block_contains_cpo_body(block: str, cpo_body: str) -> bool:
+    """marker 구간 본문이 현재 cpo.md body 를 (헤더·trailing whitespace 제외) 포함하는지.
+
+    여러 줄 비교 시 줄 단위로 ``strip`` 한 다음 빈 줄을 제거하고 substring 검사.
+    완전히 정확한 비교가 아니라 "최근 inject 가 그대로 살아있는가" 의 보수적 가드.
+    """
+
+    def normalize(text: str) -> str:
+        return "\n".join(
+            ln.strip() for ln in text.splitlines() if ln.strip()
+        )
+
+    body = normalize(cpo_body)
+    if not body:
+        return True  # 비교 대상이 없으면 보수적으로 손편집 아님 처리
+    return body in normalize(block)
 
 
 def detect(project_root: Path | str) -> bool:
@@ -159,6 +189,7 @@ def detect(project_root: Path | str) -> bool:
 
 __all__ = [
     "CLAUDE_MD_FILENAME",
+    "BACKUP_SUFFIX",
     "PERSONA_MARKER_START",
     "PERSONA_MARKER_END",
     "InjectionResult",

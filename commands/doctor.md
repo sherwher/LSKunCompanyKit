@@ -80,6 +80,7 @@ ADR-0002 §1~§2 의 2명 자동 hire 워커가 backend 에 있는지 확인:
 - 없음 → ⚠️ "CPO persona 미박제 — 메인 세션이 CPO 로 동작하지 않음. `/lskun-kit:init` 재실행 (또는 향후 `/lskun-kit:doctor --reinject-cpo` 추가 예정) 으로 재박제"
 - 손상 (start 만 있고 end 없음) → ⚠️ "marker 손상 — 수동 수정 또는 재박제 필요"
 - 정상 → ✅
+- **P34 — 백업 파일 감지**: `CLAUDE.md.lskun.bak` 가 존재하면 ⚠️ "직전 init 가 marker 내 사용자 손편집을 감지해 백업했다. 내용 비교 후 백업 제거 권장."
 
 ### 12. **CPO 모델 권장 (ADR-0004 §4, P23 신설)**
 
