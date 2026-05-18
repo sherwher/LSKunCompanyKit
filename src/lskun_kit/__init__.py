@@ -7,6 +7,11 @@ from lskun_kit.adapters.vault import (
     VaultCompanyNotFoundError,
     list_companies,
 )
+from lskun_kit.audit import (
+    AuditEntry,
+    AuditError,
+    new_request_id,
+)
 from lskun_kit.errors import (
     InvalidWorkerSchemaError,
     LSKunKitError,
@@ -15,7 +20,7 @@ from lskun_kit.errors import (
 )
 from lskun_kit.models import Company, HistoryEntry, Worker
 
-__version__ = "0.5.0-dev"
+__version__ = "0.6.0-dev"
 
 __all__ = [
     "__version__",
@@ -31,4 +36,7 @@ __all__ = [
     "SSOTContaminationError",
     "WorkerNotFoundError",
     "InvalidWorkerSchemaError",
+    "AuditEntry",
+    "AuditError",
+    "new_request_id",
 ]

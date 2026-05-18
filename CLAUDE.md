@@ -7,6 +7,7 @@
 > - [ADR-0003](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0003-2026-05-18-domain-aware-workers.md) — 도메인 인지 워커 (`role × domain`)
 > - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — **메인 세션 = CPO (Leader-Worker, 자동 채용)**
 > - [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md) — Schema 마이그레이션 (`/lskun-kit:migrate-schema`)
+> - [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md) — CPO 결재 audit log (`.audit/decisions.jsonl`)
 >
 > Developer SSOT hub: `obsidian-vault/02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md`
 
@@ -16,7 +17,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.5.0 (Phase 5 — schema 마이그레이션 도입, ADR-0005)
+- **버전:** 0.6.0-dev (Phase 6 — CPO 결재 audit log 도입, ADR-0006)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -131,7 +132,7 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 
 ---
 
-## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 누적)
+## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 + ADR-0006 §"폐기/금지" 누적)
 
 다음을 도입하려는 충동이 들면 **즉시 멈추고 ADR 우선 작성:**
 
@@ -147,6 +148,11 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **워커 → 워커 chain (sub-leader 출현)** — chain 권한은 CPO 단독 (ADR-0004 §8)
 - **결재 라인 확장** — 부 결재자 / 위원회 / 다단계 승인 (CPO 단독)
 - ~~CPO 가 인사팀장을 자동 chain 호출 (사용자 승인 1단계 필수)~~ — **ADR-0004 §3 로 폐기**, 자동 채용 허용
+- **audit log 위에 자동 분석 / 대시보드 / KPI / 통계 시각화** — ADR-0006 + ADR-0002 §5 위반
+- **audit log 기반 워커 자동 평가·해고** — HR Lead 사용자 명시 호출 원칙 위반 (ADR-0006)
+- **분기 / 월간 audit 자동 회고 보고서** — persona evolution narrative 금지와 동일 결 (ADR-0006)
+- **결재 위원회 / 다단계 승인 / 부 결재자** — ADR-0004 §8 + ADR-0006 위반
+- **audit log 외부 자동 전송** — 사용자 명시 동의 없는 외부 전송 금지 (ADR-0006)
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
@@ -196,6 +202,7 @@ LSKunCompanyKit/
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
 │   ├── context.py            # build_worker_context (history 컨텍스트 주입)
 │   ├── reflection.py         # record (history 1줄 append)
+│   ├── audit.py              # CPO 결재 audit log (ADR-0006, P52) — AuditEntry/record/new_request_id
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
 │   ├── schema_migration.py   # v0.2/v0.3 → v0.4 frontmatter 보강 (P50/ADR-0005)
 │   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log (P32/P45)

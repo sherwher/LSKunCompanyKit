@@ -4,7 +4,7 @@
 
 **LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 자동으로 채용합니다. 도메인 (의료/금융/교육 등) 별 전문가 채용으로 reflection 자산이 도메인 단위로 축적됩니다.
 
-- **Status:** `0.5.0` · Phase 5 (schema migration — [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md))
+- **Status:** `0.6.0-dev` · Phase 6 (CPO decision audit log — [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md))
 - **License:** MIT
 - **Namespace:** `/lskun-kit:*`
 
@@ -257,11 +257,21 @@ P46~P48 ✅ dead code 제거 + hook bootstrap ($CLAUDE_PLUGIN_ROOT 직접 경로
 P49     ✅ version bump 0.3.0-dev → 0.4.0-dev
 ```
 
-### Phase 5 (현재 — 0.5.0)
+### Phase 5 (P50~P51 완료)
 
 ```
 P50 ✅ ADR-0005 박제 + /lskun-kit:migrate-schema (v0.2/v0.3 → v0.4 자동 보강, history 보존)
 P51 ✅ 0.5.0 릴리스 컷 (README / CHANGELOG / version bump)
+```
+
+### Phase 6 (현재 — 0.6.0-dev)
+
+```
+P52 ✅ ADR-0006 박제 + lskun_kit/audit.py (CPO 결재 audit log)
+       — .audit/decisions.jsonl, AuditEntry, verdict enum 4종 (approved/rework/rejected/rerouted)
+       — StorageAdapter.append_audit() ABC 확장 + reflection.record(request_id=...) link
+       — doctor 항목 14 신설
+       — raw 로그만 박제, 자동 분석/대시보드/KPI 금지 (ADR-0002 §5 유지)
 ```
 
 ---
@@ -275,6 +285,7 @@ P51 ✅ 0.5.0 릴리스 컷 (README / CHANGELOG / version bump)
 - [ADR-0003](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0003-2026-05-18-domain-aware-workers.md) — 도메인 인지 워커 (`role × domain`)
 - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — 메인 세션 = CPO (Leader-Worker, 자동 채용, 모델 라우팅)
 - [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md) — Schema 마이그레이션 (`/lskun-kit:migrate-schema`)
+- [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md) — CPO 결재 audit log (`.audit/decisions.jsonl`)
 
 이전 [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md) 는 deprecated. 역사적 참조용으로만 보존됩니다.
 

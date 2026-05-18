@@ -50,6 +50,30 @@ class MarkdownTreeAdapter(StorageAdapter):
     def root(self) -> Path:
         return self._root
 
+    # --- ADR-0006: audit log ---
+
+    @property
+    def audit_path(self) -> Path:
+        """``.audit/decisions.jsonl`` 절대 경로. 디렉토리 자동 생성 X (write 시점에)."""
+        return self._root / ".audit" / "decisions.jsonl"
+
+    def append_audit(self, json_line: str) -> Path:
+        """``.audit/decisions.jsonl`` 에 1줄 append. 디렉토리 부재 시 자동 생성.
+
+        ADR-0006 §6 — append-only. 기존 줄 수정·삭제 금지. 호출자는
+        :func:`lskun_kit.audit.record` 를 통해 schema 검증 후 본 메서드 호출.
+        """
+
+        if "\n" in json_line:
+            raise ValueError(
+                "audit json_line must be single-line (no embedded newline)"
+            )
+        path = self.audit_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json_line + "\n")
+        return path
+
     def read_worker(self, name: str) -> Worker:
         path = self._worker_path(name)
         if not path.exists():

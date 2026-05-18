@@ -75,3 +75,18 @@ class StorageAdapter(ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement archive_worker"
         )
+
+    # --- ADR-0006: audit log (default NotImplementedError, override 권장) ---
+
+    def append_audit(self, json_line: str):
+        """``.audit/decisions.jsonl`` 에 1줄 append. 디렉토리 부재 시 자동 생성.
+
+        ``json_line`` 은 :meth:`lskun_kit.audit.AuditEntry.to_json_line` 의 결과 —
+        검증된 single-line JSON. 본 ABC 는 path 책임만 갖고 schema 검증은 위임한다.
+
+        하위 구현이 override 한다. MarkdownTreeAdapter 가 file 기반 구현 제공.
+        """
+
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement append_audit"
+        )
