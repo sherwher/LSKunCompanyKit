@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import date as date_cls
 
 from lskun_kit.adapters.base import StorageAdapter
+from lskun_kit.errors import LSKunKitError
 from lskun_kit.models import HistoryEntry
 
 #: P30 — outcome 가 본 값이면 박제 skip (호출은 성공으로 처리).
@@ -24,9 +25,10 @@ OUTCOME_ABORTED = "aborted"
 _VALID_OUTCOMES = frozenset({OUTCOME_SUCCESS, OUTCOME_ABORTED})
 
 
-class ReflectionSkipped(Exception):
+class ReflectionSkipped(LSKunKitError):
     """outcome=aborted 에 의해 박제가 의도적으로 skip 됐음을 caller 에 알린다.
 
+    P41 — ``LSKunKitError`` 를 상속해 ``except LSKunKitError`` 일괄 catch 가 동작.
     caller (Stop hook / slash command) 는 본 예외를 catch 해 silent 처리한다.
     """
 

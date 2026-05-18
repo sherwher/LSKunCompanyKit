@@ -25,6 +25,11 @@ class HireAuditTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_hire_rate_limited_is_lskunkit_error(self) -> None:
+        """P41 — HireRateLimited 가 LSKunKitError 를 상속한다."""
+        from lskun_kit.errors import LSKunKitError
+        self.assertTrue(issubclass(hire_audit.HireRateLimited, LSKunKitError))
+
     def test_first_hire_succeeds_and_writes_jsonl(self) -> None:
         ev = hire_audit.record_hire(
             self.root, actor="hr-lead", name="alice",

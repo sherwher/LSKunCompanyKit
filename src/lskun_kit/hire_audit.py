@@ -21,13 +21,16 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from lskun_kit.errors import LSKunKitError
+
 AUDIT_FILENAME = ".audit.jsonl"
 DEFAULT_COOLDOWN_SECONDS = 30 * 60  # 30분
 
 
-class HireRateLimited(Exception):
+class HireRateLimited(LSKunKitError):
     """동일 ``role + domain`` 채용 쿨다운 중일 때 raise.
 
+    P41 — ``LSKunKitError`` 를 상속해 ``except LSKunKitError`` 일괄 catch 가 동작.
     caller (HR Lead) 는 본 예외를 catch 해 CPO 에게 "기존 워커 추천" 응답으로
     전환해야 한다.
     """
