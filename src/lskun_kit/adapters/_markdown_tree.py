@@ -17,7 +17,13 @@ from lskun_kit.errors import (
     SSOTContaminationError,
     WorkerNotFoundError,
 )
-from lskun_kit.models import REQUIRED_WORKER_FIELDS, Company, HistoryEntry, Worker
+from lskun_kit.models import (
+    OPTIONAL_WORKER_FIELDS,
+    REQUIRED_WORKER_FIELDS,
+    Company,
+    HistoryEntry,
+    Worker,
+)
 
 HISTORY_HEADING = "## Project History"
 
@@ -51,17 +57,20 @@ class MarkdownTreeAdapter(StorageAdapter):
                 f"hired/{name}.md missing required fields: {', '.join(missing)}"
             )
 
+        known_fields = REQUIRED_WORKER_FIELDS + OPTIONAL_WORKER_FIELDS
         return Worker(
             name=parsed.frontmatter["name"],
             role=parsed.frontmatter["role"],
             domain=parsed.frontmatter["domain"],
             hired_at=_parse_date(parsed.frontmatter["hired_at"]),
             storage_backend=parsed.frontmatter["storage_backend"],
+            display_name=parsed.frontmatter["display_name"],
+            model=parsed.frontmatter.get("model"),
             body=parsed.body,
             extra={
                 k: v
                 for k, v in parsed.frontmatter.items()
-                if k not in REQUIRED_WORKER_FIELDS
+                if k not in known_fields
             },
         )
 

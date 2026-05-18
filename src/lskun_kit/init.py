@@ -126,6 +126,8 @@ def run(
     company_name: str | None = None,
     one_liner: str = "",
     domain: str = "",
+    cpo_name: str = "",
+    hr_name: str = "",
     env: dict[str, str] | None = None,
     today: date_cls | None = None,
 ) -> InitResult:
@@ -141,6 +143,13 @@ def run(
                 ``company.md`` 의 ``domain:`` frontmatter 에 박제된다.
                 빈 문자열이면 ``""`` 로 박제 (doctor 가 경고로 안내).
                 CPO / HR Lead 는 본 값과 무관하게 항상 ``domain="meta"`` 로 hire.
+        cpo_name: ADR-0004 §5 — CPO 의 ``display_name`` (사람 이름, 사용자가 직접 입력).
+                  CPO 가 이미 hired 되어 있지 않은 상태에서는 필수. 빈 문자열이면 ``ValueError``.
+                  이미 hired 인 경우는 무시.
+        hr_name:  ADR-0004 §5 — HR Lead 의 ``display_name``. 동일 규칙.
+
+    Raises:
+        ValueError: 신규 CPO/HR hire 가 필요한데 ``cpo_name`` / ``hr_name`` 이 비어 있을 때.
     """
 
     env = env if env is not None else os.environ.copy()
@@ -167,21 +176,31 @@ def run(
         )
         company_md_created = True
 
-    # CPO / HR auto-hire
+    # CPO / HR auto-hire — ADR-0004 §5: display_name 은 사용자가 직접 입력.
+    display_name_by_worker = {"cpo": cpo_name, "hr-lead": hr_name}
     workers_created: list[str] = []
     workers_skipped: list[str] = []
-    for worker_name, role, template_filename in iter_default_workers():
+    for worker_name, role, template_filename, default_model in iter_default_workers():
         worker_path = hired_dir / f"{worker_name}.md"
         if worker_path.exists():
             workers_skipped.append(worker_name)
             continue
+        display_name = (display_name_by_worker.get(worker_name) or "").strip()
+        if not display_name:
+            raise ValueError(
+                f"{worker_name} 의 display_name 이 비어 있다 "
+                f"(ADR-0004 §5 — CPO/HR 이름은 사용자가 직접 입력). "
+                f"`run(..., {'cpo_name' if worker_name == 'cpo' else 'hr_name'}='...')` 로 전달하라."
+            )
         worker_path.write_text(
             render_default_worker(
                 name=worker_name,
                 role=role,
                 template_filename=template_filename,
                 storage_backend=backend,
+                display_name=display_name,
                 hired_at=today,
+                model=default_model,
             ),
             encoding="utf-8",
         )

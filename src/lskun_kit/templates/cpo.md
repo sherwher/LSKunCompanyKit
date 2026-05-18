@@ -53,3 +53,9 @@
 ## Project History
 
 _(empty — 첫 라우팅 결과부터 자동 append)_
+
+---
+
+> **TODO (P25, ADR-0004 §2 §3):** 본 persona 본문은 P25 에서 다음 항목으로 재작성 예정 —
+> Leader-Worker 결재 알고리즘, Task tool dispatch instruction, 워커 보고 양식 검증, 자동 채용 플로우, 모델 동적 override 기준.
+> 현재 (P22) 는 frontmatter 필드 확장 (`display_name`, optional `model`) 만 적용된 상태.

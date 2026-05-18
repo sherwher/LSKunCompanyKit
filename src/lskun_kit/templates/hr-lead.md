@@ -51,3 +51,10 @@ first-pass 평균: <avg>%
 ## Project History
 
 _(empty — 첫 인사 결정부터 자동 append)_
+
+---
+
+> **TODO (P25, ADR-0004 §3):** 본 persona 본문은 P25 에서 다음 항목으로 재작성 예정 —
+> CPO 의 자동 채용 요청을 받아 `/lskun-kit:hire` 를 코드로 실행하는 dispatch 사양,
+> role+domain 중복 감지 기존 워커 추천, 해고/평가 명령 수점 구조.
+> 현재 (P22) 는 frontmatter 필드 확장 (`display_name`, default `model="sonnet"`) 만 적용된 상태.

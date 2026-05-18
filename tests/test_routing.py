@@ -29,13 +29,17 @@ from lskun_kit.templates import render_default_worker  # noqa: E402
 
 
 def _init_local(tmp: Path) -> LocalAdapter:
-    run(tmp, env={})
+    run(tmp, cpo_name="이세근", hr_name="김지혜", env={})
     return LocalAdapter(tmp / LOCAL_COMPANY_DIRNAME)
 
 
 def _hire_extra(adapter: LocalAdapter, name: str, role: str) -> None:
     rendered = render_default_worker(
-        name=name, role=role, template_filename="cpo.md", storage_backend="local"
+        name=name,
+        role=role,
+        template_filename="cpo.md",
+        storage_backend="local",
+        display_name=name.title(),
     )
     # 위에서 cpo.md 본문을 빌리지만 frontmatter 의 name/role 은 새 워커 것.
     # 본문 내용은 테스트 목적상 무관.
@@ -127,12 +131,45 @@ class TemplateRenderingTests(unittest.TestCase):
             role="chief-product-officer",
             template_filename="cpo.md",
             storage_backend="vault",
+            display_name="이세근",
         )
-        for field in ("name:", "role:", "domain:", "hired_at:", "storage_backend:"):
+        for field in (
+            "name:",
+            "role:",
+            "domain:",
+            "hired_at:",
+            "storage_backend:",
+            "display_name:",
+        ):
             self.assertIn(field, rendered)
         self.assertIn("storage_backend: vault", rendered)
         # default domain = "meta" (ADR-0003 §1)
         self.assertIn("domain: meta", rendered)
+        # display_name 그대로 박제 (ADR-0004 §5)
+        self.assertIn("display_name: 이세근", rendered)
+        # model 미지정 시 frontmatter 에 emit 안 함 (ADR-0004 §6)
+        self.assertNotIn("model:", rendered)
+
+    def test_render_emits_model_when_specified(self) -> None:
+        rendered = render_default_worker(
+            name="hr-lead",
+            role="hr-lead",
+            template_filename="hr-lead.md",
+            storage_backend="local",
+            display_name="김지혜",
+            model="sonnet",
+        )
+        self.assertIn("model: sonnet", rendered)
+
+    def test_render_rejects_empty_display_name(self) -> None:
+        with self.assertRaises(ValueError):
+            render_default_worker(
+                name="x",
+                role="x",
+                template_filename="cpo.md",
+                storage_backend="local",
+                display_name="",
+            )
 
 
 if __name__ == "__main__":  # pragma: no cover
