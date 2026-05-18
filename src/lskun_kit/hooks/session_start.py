@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -36,6 +37,31 @@ from pathlib import Path
 
 MAX_PARENT_DEPTH = 5
 RECENT_HISTORY_LINES = 5
+
+# P36 — Prompt injection 가드 (Vault 공유 환경의 악성 markdown 차단).
+#: HTML comment 패턴 — <!-- system: ... --> 류 hijack 시도 제거.
+_HTML_COMMENT_PAT = re.compile(r"<!--.*?-->", re.DOTALL)
+#: 한 줄 / 필드 최대 길이 — 비정상적으로 긴 입력 차단.
+MAX_LINE_LENGTH = 500
+MAX_FIELD_LENGTH = 200
+
+
+def _sanitize_inline(value: str, max_len: int = MAX_FIELD_LENGTH) -> str:
+    """frontmatter value / history line 등 컨텍스트 inject 직전 sanitize.
+
+    - HTML comment 제거 (LSKUN-CPO marker 포함 — 가짜 marker 주입 방지)
+    - 줄바꿈 제거 (첫 줄만 취함)
+    - ``max_len`` 초과 시 잘라냄
+    """
+
+    if not value:
+        return value
+    s = _HTML_COMMENT_PAT.sub("", value)
+    lines = s.splitlines()
+    s = lines[0] if lines else s
+    if len(s) > max_len:
+        s = s[: max_len - 3] + "..."
+    return s
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,31 +95,40 @@ def _build_context() -> str:
     workers = _list_workers_with_meta(company_root)
     cpo_history = _read_cpo_recent_history(company_root, RECENT_HISTORY_LINES)
 
+    # P36 — 모든 외부 입력 (frontmatter / history line) 을 inject 전에 sanitize.
+    company_name = _sanitize_inline(company_meta.get("name", "(이름 미박제)"))
+    company_domain = _sanitize_inline(company_meta.get("domain", ""))
+
     lines = [
         "## LSKunCompanyKit — 활성 회사",
         "",
-        f"- 회사: **{company_meta.get('name', '(이름 미박제)')}**"
-        + (f" (domain={company_meta['domain']})" if company_meta.get("domain") else ""),
+        f"- 회사: **{company_name}**"
+        + (f" (domain={company_domain})" if company_domain else ""),
         f"- 회사 root: `{company_root}`",
         "",
         "### Hired 워커",
     ]
     if workers:
         for w in workers:
-            role = w.get("role", "?")
-            domain = w.get("domain", "?")
-            display = w.get("display_name", w["name"])
-            model = w.get("model")
+            name = _sanitize_inline(w.get("name", "?"), max_len=80)
+            role = _sanitize_inline(w.get("role", "?"), max_len=80)
+            domain = _sanitize_inline(w.get("domain", "?"), max_len=80)
+            display = _sanitize_inline(
+                w.get("display_name", w.get("name", "?")), max_len=80
+            )
+            model = _sanitize_inline(w.get("model", ""), max_len=80)
             model_part = f", model={model}" if model else ""
             lines.append(
-                f"- `{w['name']}` — {display} ({role}, domain={domain}{model_part})"
+                f"- `{name}` — {display} ({role}, domain={domain}{model_part})"
             )
     else:
         lines.append("_(없음)_")
 
     if cpo_history:
         lines.extend(["", f"### CPO 최근 history ({len(cpo_history)} lines)"])
-        lines.extend(cpo_history)
+        lines.extend(
+            _sanitize_inline(ln, max_len=MAX_LINE_LENGTH) for ln in cpo_history
+        )
 
     lines.extend(
         [
