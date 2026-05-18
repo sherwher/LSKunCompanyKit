@@ -1,0 +1,208 @@
+"""신규 회사 셋업 — ``/lskun-kit:init`` 의 백엔드 로직.
+
+ADR-0002 §3 — 단일 진입점.
+
+동작 순서:
+    1. 활성 backend 결정 (``LSKUN_VAULT`` 환경변수 우선, 없으면 Local)
+    2. 회사 루트 경로 결정 + 디렉토리 생성 (사용자의 기존 회사 디렉토리 보존)
+    3. ``company.md`` 박제 (이미 있으면 **덮어쓰지 않음** — ADR-0002 §3 보존 정책)
+    4. ``hired/`` 디렉토리 생성 후 CPO + HR 자동 hire (둘 다 이미 있으면 skip)
+    5. 진단 리포트 dataclass 반환 — caller (slash command) 가 사용자에게 출력
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from datetime import date as date_cls
+from pathlib import Path
+
+from lskun_kit.adapters import frontmatter
+from lskun_kit.adapters.vault import COMPANIES_DIRNAME
+from lskun_kit.templates import iter_default_workers, render_default_worker
+
+#: ``$LSKUN_VAULT`` 환경변수 키 — Vault backend 선택 trigger.
+ENV_VAULT = "LSKUN_VAULT"
+#: ``$LSKUN_COMPANY`` 환경변수 키 — Vault 안 회사 이름. CLI 인자가 우선.
+ENV_COMPANY = "LSKUN_COMPANY"
+
+LOCAL_COMPANY_DIRNAME = ".company"
+
+
+@dataclass
+class InitResult:
+    """``init.run()`` 의 결과 — slash command 가 사용자에게 출력할 진단."""
+
+    backend: str  # "local" | "vault"
+    company_root: Path
+    company_name: str
+    company_md_created: bool
+    company_md_path: Path
+    workers_created: list[str] = field(default_factory=list)
+    workers_skipped: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    def render(self) -> str:
+        """사람이 읽는 진단 리포트."""
+
+        lines = [
+            f"LSKunCompanyKit init",
+            f"================================================",
+            f"backend       : {self.backend}",
+            f"company       : {self.company_name}",
+            f"company root  : {self.company_root}",
+            f"company.md    : {'created' if self.company_md_created else 'preserved (already exists)'} → {self.company_md_path}",
+            f"workers hired : {', '.join(self.workers_created) if self.workers_created else '(none)'}",
+        ]
+        if self.workers_skipped:
+            lines.append(f"workers kept  : {', '.join(self.workers_skipped)}")
+        for note in self.notes:
+            lines.append(f"note          : {note}")
+        return "\n".join(lines) + "\n"
+
+
+def detect_backend(
+    project_root: Path | str,
+    env: dict[str, str] | None = None,
+) -> tuple[str, Path]:
+    """``LSKUN_VAULT`` 가 있으면 Vault, 없으면 Local.
+
+    Returns:
+        ``(backend, backend_root)`` —
+        Vault: ``(vault_path, ...)`` 에서 vault path 반환
+        Local: project root 자체 반환
+    """
+
+    env = env if env is not None else os.environ.copy()
+    vault = env.get(ENV_VAULT, "").strip()
+    if vault:
+        return "vault", Path(vault).expanduser()
+    return "local", Path(project_root).expanduser()
+
+
+def resolve_company_root(
+    project_root: Path | str,
+    company_name: str | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[str, str, Path]:
+    """backend + 회사명을 받아 회사 루트 디렉토리 경로 결정.
+
+    Args:
+        project_root: 현재 프로젝트 루트 (Local backend 시 ``<root>/.company``)
+        company_name: 명시 지정. Vault 에서만 의미 있음. ``None`` 이면 ``$LSKUN_COMPANY``
+        env: 환경변수 dict (테스트용 주입)
+
+    Returns:
+        ``(backend, company_name, company_root_path)``
+
+    Raises:
+        ValueError: Vault backend 인데 회사명이 결정되지 않을 때.
+    """
+
+    env = env if env is not None else os.environ.copy()
+    backend, backend_root = detect_backend(project_root, env=env)
+
+    if backend == "local":
+        # Local backend 는 회사명을 굳이 받지 않는다 — project root 1개 = 1 회사.
+        # company.md 의 name 만 의미를 가지므로, 명시 안 됐으면 디렉토리 이름을 쓴다.
+        resolved_company = (company_name or env.get(ENV_COMPANY, "").strip()
+                            or Path(project_root).expanduser().resolve().name)
+        return backend, resolved_company, backend_root / LOCAL_COMPANY_DIRNAME
+
+    # vault
+    resolved_company = (company_name or env.get(ENV_COMPANY, "").strip()).strip()
+    if not resolved_company:
+        raise ValueError(
+            f"Vault backend 가 선택됐지만 회사명이 비어 있다. "
+            f"`{ENV_COMPANY}` 환경변수를 설정하거나 init 인자로 회사명을 넘겨라."
+        )
+    if "/" in resolved_company or resolved_company in (".", ".."):
+        raise ValueError(f"invalid company name: {resolved_company!r}")
+    return backend, resolved_company, backend_root / COMPANIES_DIRNAME / resolved_company
+
+
+def run(
+    project_root: Path | str,
+    company_name: str | None = None,
+    one_liner: str = "",
+    env: dict[str, str] | None = None,
+    today: date_cls | None = None,
+) -> InitResult:
+    """회사 초기 셋업 실행.
+
+    멱등 (idempotent) 동작:
+        - 회사 디렉토리 이미 있으면 그대로 재사용
+        - ``company.md`` 이미 있으면 절대 덮어쓰지 않음
+        - 워커가 이미 hired 되어 있으면 skip
+    """
+
+    env = env if env is not None else os.environ.copy()
+    today = today or date_cls.today()
+
+    backend, resolved_company, company_root = resolve_company_root(
+        project_root, company_name=company_name, env=env
+    )
+
+    notes: list[str] = []
+    company_root.mkdir(parents=True, exist_ok=True)
+    hired_dir = company_root / "hired"
+    hired_dir.mkdir(parents=True, exist_ok=True)
+
+    # company.md — 이미 있으면 보존, 없으면 신규 박제
+    company_md = company_root / "company.md"
+    if company_md.exists():
+        company_md_created = False
+        notes.append("기존 company.md 보존 — 내용 변경 안 함")
+    else:
+        company_md.write_text(
+            _render_company_md(resolved_company, today, one_liner), encoding="utf-8"
+        )
+        company_md_created = True
+
+    # CPO / HR auto-hire
+    workers_created: list[str] = []
+    workers_skipped: list[str] = []
+    for worker_name, role, template_filename in iter_default_workers():
+        worker_path = hired_dir / f"{worker_name}.md"
+        if worker_path.exists():
+            workers_skipped.append(worker_name)
+            continue
+        worker_path.write_text(
+            render_default_worker(
+                name=worker_name,
+                role=role,
+                template_filename=template_filename,
+                storage_backend=backend,
+                hired_at=today,
+            ),
+            encoding="utf-8",
+        )
+        workers_created.append(worker_name)
+
+    return InitResult(
+        backend=backend,
+        company_root=company_root,
+        company_name=resolved_company,
+        company_md_created=company_md_created,
+        company_md_path=company_md,
+        workers_created=workers_created,
+        workers_skipped=workers_skipped,
+        notes=notes,
+    )
+
+
+def _render_company_md(name: str, founded: date_cls, one_liner: str) -> str:
+    body_intro = one_liner.strip() if one_liner else "(회사 한 줄 소개)"
+    body = f"# {name}\n\n{body_intro}\n"
+    return frontmatter.dump({"name": name, "founded": founded.isoformat()}, body)
+
+
+__all__ = [
+    "InitResult",
+    "ENV_VAULT",
+    "ENV_COMPANY",
+    "LOCAL_COMPANY_DIRNAME",
+    "detect_backend",
+    "resolve_company_root",
+    "run",
+]
