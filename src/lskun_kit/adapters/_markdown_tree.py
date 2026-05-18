@@ -103,6 +103,43 @@ class MarkdownTreeAdapter(StorageAdapter):
             extra={k: v for k, v in parsed.frontmatter.items() if k != "name"},
         )
 
+    # --- P45: write-path 구현 ---
+
+    def create_worker(
+        self,
+        name: str,
+        frontmatter_dict: dict[str, str],
+        body: str,
+    ) -> None:
+        """``hired/<name>.md`` 신규 박제. 존재하면 ``FileExistsError`` raise."""
+
+        path = self._worker_path(name)  # allowlist 가드 통과
+        if path.exists():
+            raise FileExistsError(
+                f"worker already exists: hired/{name}.md ({path})"
+            )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        text = frontmatter.dump(frontmatter_dict, body)
+        path.write_text(text, encoding="utf-8")
+
+    def archive_worker(self, name: str) -> None:
+        """``hired/<name>.md`` → ``archived/<name>.md`` 이동. 삭제 금지."""
+
+        path = self._worker_path(name)
+        if not path.exists():
+            raise WorkerNotFoundError(
+                f"cannot archive: hired/{name}.md not found under {self._root}"
+            )
+        archive_dir = self._root / "archived"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        dest = archive_dir / f"{name}.md"
+        if dest.exists():
+            raise FileExistsError(
+                f"archived worker already exists: {dest} "
+                f"(이미 archive 된 동명 워커가 있음 — 수동 정리 필요)"
+            )
+        path.rename(dest)
+
     def _worker_path(self, name: str) -> Path:
         # P39 (#5) — allowlist 검증. 기존 deny-list (``/``, ``.``, ``..``) 만으로는
         # null byte / backslash / 유니코드 변종 / dotted path 를 못 잡았다.

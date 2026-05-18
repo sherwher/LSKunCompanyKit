@@ -70,25 +70,32 @@ _(empty — first task will append the first line)_
 - ADR-0004 §5 — `display_name` 필수 (자동 생성 시에도 빈 문자열 금지)
 - ADR-0004 §6 — frontmatter 6 필수 + optional model
 
-## Python 진입점
+## Python 진입점 (P45 — adapter write-path)
 
 ```python
 from datetime import date
-from lskun_kit.adapters import frontmatter
+from lskun_kit.adapters.local import LocalAdapter
 
-fm = {
-    "name": "alice",
-    "role": "backend-engineer",
-    "domain": "의료 SaaS",
-    "hired_at": date.today().isoformat(),
-    "storage_backend": "local",
-    "display_name": "앨리스 박",
-    # "model": "opus",  # optional
-}
-body = "# alice\n\n## Project History\n\n_(empty)_\n"
-text = frontmatter.dump(fm, body)
-# (root / "hired" / "alice.md").write_text(text, encoding="utf-8")
+adapter = LocalAdapter(".company")
+adapter.create_worker(
+    name="alice",
+    frontmatter_dict={
+        "name": "alice",
+        "role": "backend-engineer",
+        "domain": "의료 SaaS",
+        "hired_at": date.today().isoformat(),
+        "storage_backend": "local",
+        "display_name": "앨리스 박",
+        # "model": "opus",  # optional
+    },
+    body="# alice\n\n## Project History\n\n_(empty)_\n",
+)
+# 해고는 adapter.archive_worker("alice") — hired/ → archived/ 이동, 삭제 X
 ```
+
+P45 이전의 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 미래 backend
+(Notion 등) 가 파일 쓰기가 아닌 호출이 필요할 때 깨진다. adapter API 를
+경유해야 backend 추상화가 유지된다.
 
 ## CPO 자동 채용과의 관계 (ADR-0004 §3)
 

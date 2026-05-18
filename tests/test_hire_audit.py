@@ -161,6 +161,50 @@ class HireAuditTests(unittest.TestCase):
         self.assertIn("WARNING", err.getvalue())
         self.assertIn("timestamp regression", err.getvalue())
 
+    def test_audit_event_generalization_round_trip(self) -> None:
+        """P45 (#16) — AuditEvent 일반 스키마 와 평탄 스키마 모두 읽힌다."""
+        # 평탄 스키마 (P32) 1줄 + 신규 일반화 1줄 + 손상 1줄 혼합
+        path = hire_audit.audit_path(self.root)
+        path.write_text(
+            json.dumps({
+                "at": self.t0.isoformat(), "actor": "hr-lead", "name": "old-form",
+                "role": "r", "domain": "d", "model": None,
+            }) + "\n"
+            + json.dumps({
+                "at": self.t0.isoformat(), "actor": "hr-lead",
+                "event_type": "hire",
+                "payload": {
+                    "name": "new-form", "role": "r2", "domain": "d2",
+                    "model": "sonnet", "reason": "auto",
+                },
+            }) + "\n"
+            + json.dumps({
+                "at": self.t0.isoformat(), "actor": "hr-lead",
+                "event_type": "evaluate",
+                "payload": {"target": "alice", "score": 88},
+            }) + "\n",
+            encoding="utf-8",
+        )
+        # read_events 는 hire 만 추려 반환 — 평탄/일반 모두 인식
+        hires = hire_audit.read_events(self.root)
+        names = [e.name for e in hires]
+        self.assertEqual(sorted(names), ["new-form", "old-form"])
+        # read_audit_events 는 모든 이벤트 (evaluate 포함)
+        all_events = hire_audit.read_audit_events(self.root)
+        self.assertEqual(len(all_events), 3)
+        types = sorted(e.event_type for e in all_events)
+        self.assertEqual(types, ["evaluate", "hire", "hire"])
+
+    def test_hire_event_to_audit_event(self) -> None:
+        ev = hire_audit.HireEvent(
+            at=self.t0, actor="hr-lead", name="alice", role="r", domain="d",
+            model="sonnet", reason="x",
+        )
+        audit = ev.to_audit_event()
+        self.assertEqual(audit.event_type, "hire")
+        self.assertEqual(audit.payload["name"], "alice")
+        self.assertEqual(audit.payload["reason"], "x")
+
     def test_read_events_skips_corrupt_lines(self) -> None:
         path = hire_audit.audit_path(self.root)
         path.write_text(
