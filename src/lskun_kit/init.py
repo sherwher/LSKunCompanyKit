@@ -125,6 +125,7 @@ def run(
     project_root: Path | str,
     company_name: str | None = None,
     one_liner: str = "",
+    domain: str = "",
     env: dict[str, str] | None = None,
     today: date_cls | None = None,
 ) -> InitResult:
@@ -134,6 +135,12 @@ def run(
         - 회사 디렉토리 이미 있으면 그대로 재사용
         - ``company.md`` 이미 있으면 절대 덮어쓰지 않음
         - 워커가 이미 hired 되어 있으면 skip
+
+    Args:
+        domain: ADR-0003 — 회사 도메인 (예: "의료 SaaS"). 자유 입력.
+                ``company.md`` 의 ``domain:`` frontmatter 에 박제된다.
+                빈 문자열이면 ``""`` 로 박제 (doctor 가 경고로 안내).
+                CPO / HR Lead 는 본 값과 무관하게 항상 ``domain="meta"`` 로 hire.
     """
 
     env = env if env is not None else os.environ.copy()
@@ -155,7 +162,8 @@ def run(
         notes.append("기존 company.md 보존 — 내용 변경 안 함")
     else:
         company_md.write_text(
-            _render_company_md(resolved_company, today, one_liner), encoding="utf-8"
+            _render_company_md(resolved_company, today, one_liner, domain),
+            encoding="utf-8",
         )
         company_md_created = True
 
@@ -191,10 +199,19 @@ def run(
     )
 
 
-def _render_company_md(name: str, founded: date_cls, one_liner: str) -> str:
+def _render_company_md(
+    name: str, founded: date_cls, one_liner: str, domain: str
+) -> str:
     body_intro = one_liner.strip() if one_liner else "(회사 한 줄 소개)"
     body = f"# {name}\n\n{body_intro}\n"
-    return frontmatter.dump({"name": name, "founded": founded.isoformat()}, body)
+    return frontmatter.dump(
+        {
+            "name": name,
+            "founded": founded.isoformat(),
+            "domain": domain,
+        },
+        body,
+    )
 
 
 __all__ = [

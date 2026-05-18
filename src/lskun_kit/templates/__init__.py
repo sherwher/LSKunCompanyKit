@@ -13,8 +13,10 @@ from importlib import resources
 from typing import Iterable
 
 from lskun_kit.adapters import frontmatter
+from lskun_kit.models import META_DOMAIN
 
 #: ``(worker_name, role, template_filename)`` 튜플 — init 가 순회.
+#: ADR-0003 §1 — CPO / HR Lead 는 ``domain="meta"`` 로 hire (도메인 무관).
 DEFAULT_WORKERS: tuple[tuple[str, str, str], ...] = (
     ("cpo", "chief-product-officer", "cpo.md"),
     ("hr-lead", "hr-lead", "hr-lead.md"),
@@ -31,8 +33,9 @@ def render_default_worker(
     template_filename: str,
     storage_backend: str,
     hired_at: date_cls | None = None,
+    domain: str = META_DOMAIN,
 ) -> str:
-    """템플릿 파일을 읽어 frontmatter 4 필수 필드를 채워 반환한다.
+    """템플릿 파일을 읽어 frontmatter 5 필수 필드를 채워 반환한다.
 
     Args:
         name: 워커 이름 (파일명 stem 과 일치해야 함)
@@ -40,6 +43,8 @@ def render_default_worker(
         template_filename: ``src/lskun_kit/templates/<filename>`` 의 본문 파일명
         storage_backend: ``"local"`` | ``"vault"``
         hired_at: 채용일 (기본값: 오늘)
+        domain: ADR-0003 — 회사 도메인 또는 예약값 ``"meta"`` (기본값 = ``"meta"``,
+                CPO/HR Lead 등 도메인 무관 워커용).
 
     Returns:
         frontmatter + 본문이 결합된 markdown 문자열. 그대로
@@ -50,6 +55,7 @@ def render_default_worker(
     fm = {
         "name": name,
         "role": role,
+        "domain": domain,
         "hired_at": (hired_at or date_cls.today()).isoformat(),
         "storage_backend": storage_backend,
     }

@@ -29,6 +29,7 @@ WORKER_MD = dedent(
     ---
     name: alice
     role: backend-engineer
+    domain: payments
     hired_at: 2026-05-15
     storage_backend: vault
     ---

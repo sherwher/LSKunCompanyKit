@@ -21,6 +21,7 @@ WORKER_MD = dedent(
     ---
     name: alice
     role: backend-engineer
+    domain: payments
     hired_at: 2026-05-15
     storage_backend: local
     ---
@@ -110,6 +111,7 @@ class ContextTests(unittest.TestCase):
             ---
             name: bob
             role: pm
+            domain: meta
             hired_at: 2026-05-15
             storage_backend: local
             ---
@@ -190,6 +192,7 @@ class MetricsTests(unittest.TestCase):
             ---
             name: carol
             role: designer
+            domain: meta
             hired_at: 2026-05-15
             storage_backend: local
             ---

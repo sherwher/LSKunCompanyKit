@@ -128,9 +128,11 @@ class TemplateRenderingTests(unittest.TestCase):
             template_filename="cpo.md",
             storage_backend="vault",
         )
-        for field in ("name:", "role:", "hired_at:", "storage_backend:"):
+        for field in ("name:", "role:", "domain:", "hired_at:", "storage_backend:"):
             self.assertIn(field, rendered)
         self.assertIn("storage_backend: vault", rendered)
+        # default domain = "meta" (ADR-0003 §1)
+        self.assertIn("domain: meta", rendered)
 
 
 if __name__ == "__main__":  # pragma: no cover
