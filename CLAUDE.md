@@ -4,6 +4,8 @@
 > 상위 결정문:
 > - [ADR-0001](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0001-2026-05-15-stateful-workers-clean-slate.md) — 창설
 > - [ADR-0002](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md) — CPO/HR pivot (Phase 2 진입)
+> - [ADR-0003](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0003-2026-05-18-domain-aware-workers.md) — 도메인 인지 워커 (`role × domain`)
+> - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — **메인 세션 = CPO (Leader-Worker, 자동 채용)**
 >
 > Developer SSOT hub: `obsidian-vault/02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md`
 
@@ -13,7 +15,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.2.0-dev (Phase 2 — CPO/HR pivot, ADR-0002)
+- **버전:** 0.3.0-dev (Phase 3 — Leader-Worker pivot, ADR-0004)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -21,7 +23,8 @@
 
 ### 한 줄 정체성
 
-> "Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템.
+> "Claude Code 의 메인 세션 자체가 회사의 CPO 로 동작하여, AI 직원이 작업을 기억하며 자라는 시스템.
+> 사용자 요청 → CPO 자동 라우팅 → 워커 dispatch → 결재 → 응답. 부재 워커는 자동 채용.
 > 저장 위치는 사용자 선택, 마이그레이션은 LSKunCompanyKit 책임."
 
 ### Slash commands (현재)
@@ -37,9 +40,9 @@
 
 ---
 
-## 2. 핵심 메커니즘 — 단 1개
+## 2. 핵심 메커니즘 — 3개 (ADR-0001 + ADR-0003 + ADR-0004)
 
-**Reflection — 작업 종료 시 자동 기록.**
+### 2.1 Reflection — 작업 종료 시 자동 기록 (ADR-0001)
 
 ```
 작업 종료 hook → storage backend 에 자동 append:
@@ -48,7 +51,25 @@
 다음 작업 → 워커 자기 history 자동 주입 → 과거 패턴 인용
 ```
 
-원칙: 시작/종료에 `.md` 1줄씩만. **ceremony 0.** 추가 단계 만들지 말 것.
+원칙: 시작/종료에 `.md` 1줄씩만. **ceremony 0.**
+
+### 2.2 Leader–Worker, 메인 세션 = CPO (ADR-0004)
+
+```
+사용자
+  ↓
+메인 세션 = CPO persona (CLAUDE.md inline 박제 + SessionStart hook 으로 회사 컨텍스트)
+  ↓ Task tool
+워커 (frontmatter.model = sonnet|opus, persona = hired/<name>.md)
+  ↑ 보고 (작업 결과 / first-pass / reflection 후보 3섹션)
+메인 세션 = CPO 가 결재 → 사용자 응답
+```
+
+CPO 는 **결재 라인 + 단독 채용 권한**. 부재 워커 발견 시 HR Lead 를 Task tool 로 호출하여 자동 채용, 사용자에게 알림 1줄. 워커 → 워커 chain 은 금지 (sub-leader 출현 방지).
+
+### 2.3 Role × Domain — 도메인 인지 워커 (ADR-0003)
+
+같은 `role` 이라도 회사 `domain` 별로 reflection history 가 분리 → 시간이 갈수록 도메인 자산 (예: HIPAA PHI 마스킹, HL7 FHIR 함정) 누적. CPO 라우팅 0순위 = 도메인 일치. 사전 enum 강제 X (자유 입력).
 
 ---
 
@@ -108,28 +129,37 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 
 ---
 
-## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 부분 폐기 반영)
+## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 누적)
 
 다음을 도입하려는 충동이 들면 **즉시 멈추고 ADR 우선 작성:**
 
-- PRD 사이클 강제
-- persona evolution / 분기 회고
+- PRD 사이클 강제 / 분기 회고 자동 생성
+- persona evolution narrative (워커가 시간에 따라 자동 진화하는 서사)
 - CLI (`company` 명령) — slash command 만 허용
 - cmux / tmux / sequential runner harness
-- 정적 26 워커 정의
+- 정적 26 워커 사전 정의 (자동 채용은 CPO 의 실시간 판단 기반, 사전 정의 X)
 - scaffold 의 11 디렉토리 강제
 - Workload Budget 강제
-- CLAUDE.md 에 leader-worker 강제 규칙
-- "회사 운영 OS" / "Growing Company" 같은 비대화 narrative
-- COO / Brainstormer / Strategist / PM 등 임원 자동 추가
-- CPO 가 인사팀장을 자동 chain 호출 (사용자 승인 1단계 필수)
+- "회사 운영 OS" / "Growing Company" 같은 비대화 슬로건 narrative
+- COO / CTO / Brainstormer / Strategist / PM 등 임원 자동 추가 (CPO/HR 외)
+- **워커 → 워커 chain (sub-leader 출현)** — chain 권한은 CPO 단독 (ADR-0004 §8)
+- **결재 라인 확장** — 부 결재자 / 위원회 / 다단계 승인 (CPO 단독)
+- ~~CPO 가 인사팀장을 자동 chain 호출 (사용자 승인 1단계 필수)~~ — **ADR-0004 §3 로 폐기**, 자동 채용 허용
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
-- **CPO** — `/lskun-kit:work` 의 워커 이름 생략 시 라우터로 동작
-- **인사팀장 (HR Lead)** — 사용자 명시 호출 시 채용·해고·평가 동작
+- **CPO** — 메인 세션 자체가 CPO persona 로 동작 (ADR-0004 §1). 결재 라인 + 단독 채용 권한.
+- **인사팀장 (HR Lead)** — CPO 가 Task tool 로 호출 시 자동 채용 진행. 사용자 명시 호출은 해고·평가 전용.
 
-> 이 2명 외의 임원 컨셉을 추가하려면 새 ADR 박제 필요. 본 예외는 ADR-0002 §1~§2 가 정의한다.
+> 이 2명 외의 임원 컨셉을 추가하려면 새 ADR 박제 필요. 본 예외는 ADR-0002 §1~§2 및 ADR-0004 §1~§3 이 정의한다.
+
+### ADR-0004 가 폐기한 ADR-0002 단서 조항
+
+ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
+
+- ~~"CPO 가 인사팀장을 chain 호출하지 않는다 / 사용자 승인 1단계 필수"~~ → CPO 자동 채용 허용 (사용자 알림만)
+- ~~"CPO 는 결재 라인이 아니다 / 다른 워커의 작업 결과를 검수·승인하지 않는다"~~ → CPO 가 결재 라인
+- ~~"HR Lead 는 사용자 명시 호출만 받는다"~~ → CPO 의 Task dispatch 도 수용 (해고만 명시 요청 유지)
 
 ---
 
@@ -138,34 +168,37 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json
+│   ├── plugin.json           # version: 0.3.0-dev
 │   └── marketplace.json
+├── hooks/
+│   └── hooks.json            # SessionStart hook 등록 (P24)
 ├── commands/                  # 6개 slash command
-│   ├── init.md               # /lskun-kit:init       (P13)
-│   ├── doctor.md             # /lskun-kit:doctor
-│   ├── hire.md               # /lskun-kit:hire
-│   ├── work.md               # /lskun-kit:work       (라우팅, P14)
+│   ├── init.md               # /lskun-kit:init      (P13/P23 — 5-step 인터뷰 + CLAUDE.md 박제)
+│   ├── doctor.md             # /lskun-kit:doctor    (P15/P23 — 13개 진단 항목)
+│   ├── hire.md               # /lskun-kit:hire      (P26 — --domain --model 옵션)
+│   ├── work.md               # /lskun-kit:work      (P14/P26 — 메인 세션 = CPO, --model)
 │   ├── reflect.md            # /lskun-kit:reflect
 │   └── migrate.md            # /lskun-kit:migrate
 ├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
 │   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
-│   ├── hooks/                # Claude Code hook 진입점 (stop_reflect)
-│   ├── templates/            # CPO / HR 워커 markdown 템플릿 (P12)
-│   ├── models.py             # Worker / HistoryEntry / Company
+│   ├── hooks/                # stop_reflect (P6) + session_start (P24)
+│   ├── templates/            # CPO / HR persona markdown — P25 본문 (Leader-Worker dispatch)
+│   ├── models.py             # Worker / HistoryEntry / Company + REQUIRED_WORKER_FIELDS (6) + MODEL_ALIASES
 │   ├── errors.py             # LSKunKitError 계층
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
 │   ├── context.py            # build_worker_context (history 컨텍스트 주입)
 │   ├── reflection.py         # record (history 1줄 append)
 │   ├── metrics.py            # estimate_citation_rate (deprecated, ADR-0002 §5)
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
-│   ├── init.py               # 회사 셋업 + CPO/HR auto-hire (P13)
+│   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
+│   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
 │   └── routing.py            # CPO 라우팅 컨텍스트 빌더 (P14)
-├── tests/                     # stdlib unittest
+├── tests/                     # stdlib unittest, 110+ tests
 ├── docs/                      # storage-adapter-spec, reflection-spec, migration-spec
 │                              # (p8-dogfooding-guide.md → deprecated, ADR-0002 §5)
 ├── CLAUDE.md                 # 본 문서
 ├── LICENSE                   # MIT
-└── README.md
+└── README.md                 # P27 — Phase 3 갱신
 ```
 
 **hired/ 같은 회사 운영 데이터는 본 repo 에 절대 작성 금지.**
@@ -178,49 +211,63 @@ LSKunCompanyKit/
 ### Phase 1 (P0~P7 완료, P8/P9 폐기 by ADR-0002)
 
 ```
-P0 ✅ ADR-0001 박제
-P1 ✅ 옛 plugin / CLI 정리
-P2 ✅ GitHub repo + 로컬 작업 위치 + LICENSE
-P3 ✅ Plugin manifest + namespace + /lskun-kit:doctor             (#1)
-P4 ✅ StorageAdapter 인터페이스 + LocalAdapter                    (#2)
-P5 ✅ VaultAdapter + MarkdownTreeAdapter 공통 베이스              (#3)
-P6 ✅ Reflection 자동화 (session/context/metrics/hook + 3 명령)   (#4)
-P7 ✅ Migration tool (/lskun-kit:migrate)                         (#5)
-P8 ❌ Dogfooding — 폐기 (ADR-0002 §5)
-P9 ❌ KPI 측정 — 폐기 (ADR-0002 §5)
+P0~P7 ✅ ADR-0001 → manifest → storage adapter → reflection → migration
+P8/P9 ❌ Dogfooding / KPI 측정 — 폐기 (ADR-0002 §5)
 ```
 
-### Phase 2 (현재)
+### Phase 2 (P10~P16 완료)
 
 ```
-P10 ✅ ADR-0002 박제 (CPO/HR pivot, 2026-05-18)
-P11 ⏳ CLAUDE.md 갱신 (본 문서)                                   ← 진행 중
-P12    CPO / HR 워커 템플릿 (src/lskun_kit/templates/)
-P13    /lskun-kit:init 구현
-P14    /lskun-kit:work 라우팅 로직
-P15    /lskun-kit:doctor 갱신 (init 미실행 / CPO·HR 존재 점검)
-P16    README / docs 갱신
-P17 -  일상 사용. KPI 검증 없음.
+P10 ✅ ADR-0002 박제
+P11 ✅ CLAUDE.md 갱신
+P12 ✅ CPO / HR 워커 템플릿
+P13 ✅ /lskun-kit:init
+P14 ✅ /lskun-kit:work 라우팅
+P15 ✅ /lskun-kit:doctor 갱신
+P16 ✅ README 갱신
+```
+
+### Phase 3 (완료)
+
+```
+P17 ✅ ADR-0003 박제 (도메인 인지 워커)
+P18 ✅ ADR-0003 코드 (domain 필드 + CPO 라우팅 0단계)        (#12)
+P21 ✅ ADR-0004 박제 (메인 세션 = CPO, Leader-Worker)
+P22 ✅ display_name + model 필드                            (#13)
+P23 ✅ init 인터뷰 + CLAUDE.md inline CPO persona 박제       (#14)
+P24 ✅ SessionStart hook 으로 활성 회사 dynamic context 주입 (#15)
+P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
+P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
+P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
+P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
 ```
 
 ---
 
-## 9. CPO / 인사팀장 동작 사양 (ADR-0002)
+## 9. CPO / 인사팀장 동작 사양 (ADR-0002 + ADR-0004)
 
 ### CPO (Chief Product Officer)
 
-- **호출 모델:** `/lskun-kit:work` 의 워커 이름 **생략 시에만** CPO 라우팅 (Q1=ii)
-  - `/lskun-kit:work backend-engineer "..."` → 직통, CPO 경유 안 함
-  - `/lskun-kit:work "..."` → CPO 가 받아 적절한 워커 추천
+- **호출 모델:** 메인 Claude Code 세션 자체가 CPO persona 로 동작 (ADR-0004 §1, CLAUDE.md inline 박제)
+  - `/lskun-kit:work "..."` (이름 생략) → CPO 가 받아 라우팅 → 결재 → 응답
+  - `/lskun-kit:work backend-engineer "..."` → 직통, CPO 결재 생략 (cheap path)
   - `/lskun-kit:work cpo "..."` → CPO 와 전략 대화
-- **책임:** 요청 분석 → 워커 라우팅 / 적합 워커 없으면 "인사팀장에게 X 채용 요청 권장" 메시지 출력
-- **금지:** 인사팀장 자동 호출 (사용자 승인 1단계 필수), 결재 라인 구성, 자동 PRD/로드맵
+- **책임:**
+  - 요청 분석 → 적합 워커 라우팅 (도메인 일치 우선)
+  - Task tool 로 워커 dispatch (model 결정 = frontmatter / 동적 override / default sonnet)
+  - 워커 보고 결재 (first-pass ≥ 70 승인 / 재작업 최대 2회)
+  - **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출 + 사용자 알림 1줄 (차단 X)
+  - Reflection 자동 박제 (워커 보고의 후보 → reflection.record)
+- **금지:** 워커 → 워커 chain, PRD/분기 회고 자동 생성, persona evolution narrative, CPO/HR 외 임원 자동 추가
 
 ### 인사팀장 (HR Lead)
 
-- **호출 모델:** `/lskun-kit:work hr-lead "..."` 사용자 명시 호출만 (Q2=i)
-- **책임:** 채용 (`/lskun-kit:hire` wrapping), 해고 (워커 archive), 평가 (history 분석 리포트)
-- **금지:** CPO 응답을 받아 자동 chain 실행, 사용자 미요청 정기 평가/리포트
+- **호출 모델:**
+  - CPO 의 Task tool 호출 → 자동 채용 진행 (ADR-0004 §3)
+  - `/lskun-kit:work hr-lead "..."` 사용자 명시 호출 → 해고 / 평가
+- **책임:** 채용 (중복 감지 후 신규 또는 기존 추천), 해고 (archived/ 이동, 사용자 명시 요청만), 평가 (사용자 명시 요청만)
+- **금지:** 사용자 미요청 정기 평가, 다른 워커 작업 결과 검수 (결재는 CPO 단독)
+- **default model:** `sonnet` (단순 박제·archive 작업)
 
 ---
 
@@ -231,4 +278,4 @@ P17 -  일상 사용. KPI 검증 없음.
 - **언어:** 코드 식별자는 영어, 주석/문서/커밋 메시지는 한국어 허용
 - **SRP** 준수
 - **금지:** `.env` 편집 / prod config 변경 / 코드 내 secrets / 옛 자산 복붙
-- **결정 변경:** ADR-0001 의 §1 정체성, §3 핵심 메커니즘, §4 Storage 추상화, §5 SSOT 분리, §6 Zero-Base, §7 폐기 목록 및 ADR-0002 의 결정 사항을 변경하려면 새 ADR 박제 필요. CLAUDE.md 만 고치지 말 것.
+- **결정 변경:** ADR-0001 의 §1 정체성, §3 핵심 메커니즘, §4 Storage 추상화, §5 SSOT 분리, §6 Zero-Base, §7 폐기 목록 및 ADR-0002 / ADR-0003 / ADR-0004 의 결정 사항을 변경하려면 새 ADR 박제 필요. CLAUDE.md 만 고치지 말 것.
