@@ -1,4 +1,12 @@
-# P8 Dogfooding Guide (v0.1.0-dev)
+# P8 Dogfooding Guide (v0.1.0-dev) — **DEPRECATED**
+
+> ⚠️ **본 가이드는 ADR-0002 (2026-05-18) 에 의해 폐기되었다.**
+> Phase 1 의 P8 (dogfooding 1주) / P9 (KPI 측정) 사이클 자체가 폐지됨.
+> 자세한 사유는 [ADR-0002 §5](../../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md) 참조.
+> 새 워크플로는 `/lskun-kit:init` → `/lskun-kit:work` 로 단순화되며, KPI 검증은 수행하지 않는다.
+> 본 파일은 역사적 참조용으로만 보존한다.
+
+---
 
 > Phase 1 의 마지막 검증 단계. 본인 환경에서 1주간 실제로 사용하면서
 > ADR-0001 §검증 KPI 5개를 측정한다. KPI 미달 시 컨셉 폐기 가능.
