@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -m lskun_kit.hooks.pre_tool_use"
+          }
+        ]
+      }
     ]
   }
 }

@@ -101,6 +101,8 @@ def _build_context() -> str:
             "> ADR-0004 §1 — 본 메인 세션은 CPO persona 로 동작 (CLAUDE.md 박제 참조).",
             "> 사용자 요청 처리 시: `hired/` 워커 검색 → 적합 워커가 있으면 Task tool 로 dispatch,",
             "> 없으면 HR Lead 를 Task tool 로 호출해 채용 → 신규 워커 dispatch. 사용자 알림 1줄.",
+            "> ADR-0004 §8 — **워커 세션 중 Task tool 호출은 PreToolUse hook 이 차단한다** "
+            "(워커 → 워커 chain 금지). 결재 필요 시 세션 종료 후 메인 세션 = CPO 가 처리.",
         ]
     )
     return "\n".join(lines) + "\n"
