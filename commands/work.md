@@ -1,26 +1,30 @@
 ---
 name: lskun-kit:work
-description: 워커 호출 — 자기 history 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 CPO 가 라우팅 (ADR-0002 §1).
+description: 워커 호출 — 자기 history 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 메인 세션 = CPO 가 직접 라우팅·자동 채용·결재 (ADR-0004 §1~§3).
 arguments:
   - name: worker
-    description: 호출할 워커 이름. 생략 시 CPO 가 적합 워커를 추천 (Q1=ii)
+    description: 호출할 워커 이름. 생략 시 메인 세션의 CPO persona 가 처리 (ADR-0004 §1)
     required: false
   - name: request
-    description: 사용자 요청 본문 (워커 이름 생략 시 CPO 라우팅 컨텍스트에 주입)
+    description: 사용자 요청 본문
+    required: false
+  - name: model
+    description: ADR-0004 §4 — 워커 dispatch 모델 override ("sonnet" / "opus" / 모델 ID). 생략 시 워커 frontmatter.model → CPO 동적 판단 → default(sonnet)
     required: false
 ---
 
 # /lskun-kit:work
 
-워커를 이번 세션의 활성 워커로 지정하고, 자기 history 를 컨텍스트로 주입한다.
+워커를 활성화하고 자기 history 를 컨텍스트로 주입한다. ADR-0004 진입 후 동작 사양이 변경됐다.
 
-## 분기 (ADR-0002 §1, Q1=ii)
+## 분기 (ADR-0004 §1~§3)
 
 | 호출 형태 | 동작 |
 |---|---|
-| `/lskun-kit:work backend-engineer "..."` | 직통 호출. CPO 경유 안 함. |
-| `/lskun-kit:work cpo "..."` | CPO 와 직접 전략 대화. |
-| `/lskun-kit:work "..."` (워커 이름 생략) | CPO 가 받아 적합 워커 추천 → 사용자가 다음 명령 실행 |
+| `/lskun-kit:work backend-engineer "..."` | **직통 호출.** 메인 세션 (CPO persona) 이 결재 생략하고 워커 직통 dispatch. cheap path. |
+| `/lskun-kit:work cpo "..."` | CPO 와 직접 전략 대화 (CPO 가 워커 dispatch 안 하고 직접 응답). |
+| `/lskun-kit:work hr-lead "..."` | HR Lead 직접 호출 (해고 / 평가 명시 요청용). |
+| `/lskun-kit:work "..."` (워커 이름 생략) | **메인 세션 = CPO** 가 받아 라우팅 → 결재 → 응답. 부재 워커 시 자동 채용. |
 
 ## 동작
 
@@ -29,21 +33,45 @@ arguments:
 1. 활성 backend 결정 (`/hire` 와 동일 규칙)
 2. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → 컨텍스트 주입
 3. `lskun_kit.session.start(<root>, <worker>)` 호출 → 세션 파일 작성
-4. 사용자가 자유롭게 일을 시킨다. 종료 시 Stop hook 또는 `/lskun-kit:reflect` 가 1줄 박제.
+4. `--model` 옵션이 있으면 해당 모델로 dispatch; 없으면 워커 frontmatter `model` → default(`sonnet`)
+5. 사용자가 자유롭게 일을 시킨다. 종료 시 Stop hook 또는 `/lskun-kit:reflect` 가 1줄 박제.
 
-### CPO 라우팅 (워커 이름 생략)
+### 메인 세션 CPO 라우팅 (워커 이름 생략, ADR-0004 §1~§3)
 
-1. `lskun_kit.routing.decide_target(adapter, requested_worker=None)` 호출
-2. CPO 가 hired 되어 있지 않으면 → `/lskun-kit:init` 실행 안내 후 종료
-3. `lskun_kit.routing.build_cpo_routing_context(adapter, user_request)` 의 markdown 을 컨텍스트로 주입
-4. 세션 활성 워커 = `cpo` 로 등록
-5. CPO 응답 안에 "다음 명령: /lskun-kit:work <worker> ..." 형식의 권장이 포함된다 — 사용자가 직접 실행
+1. 메인 세션은 **이미 CPO persona** 로 동작 중 (P23 의 CLAUDE.md 박제 + P24 의 SessionStart hook 으로 활성 회사 컨텍스트 주입)
+2. CPO 가 요청을 받아:
+   - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
+   - 적합 워커 있음 → `Task` tool 로 dispatch (model 결정 = frontmatter / CPO 판단 / default)
+   - 없음 → `Task` tool 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
+3. CPO 가 워커 보고를 받아 **결재** (first-pass ≥ 70 승인 / 재작업 최대 2회)
+4. 사용자에게 결재된 결과 전달
+5. Reflection 후보를 워커 history 에 자동 박제 (`reflection.record`)
+
+> 자동 채용은 **사용자 알림만** — 차단 없음 (ADR-0004 §3). 해고만 사용자 명시 요청 필수.
+
+## 사용 예
+
+```bash
+# CPO 라우팅 (default, 자동 채용 포함)
+/lskun-kit:work "병원 EMR 의 환자 검색 API 만들어줘"
+
+# 직통 + Opus override
+/lskun-kit:work security-architect "OAuth flow 리뷰" --model=opus
+
+# CPO 와 전략 대화
+/lskun-kit:work cpo "이번 분기에 어떤 워커가 더 필요해?"
+
+# HR Lead 명시 호출 (해고)
+/lskun-kit:work hr-lead "alice 해고 — 사유=role 중복"
+```
 
 ## 사양
 
-- ADR-0002 §1 — CPO 호출 모델 (Q1=ii)
-- ADR-0002 §6 — CPO 가 인사팀장 / 다른 워커를 chain 호출하지 않는다 (사용자 승인 1단계 필수)
-- `docs/reflection-spec.md` §4 컨텍스트 주입
+- ADR-0002 §1 — CPO 호출 모델 (워커 이름 생략 시 CPO 가 받음)
+- ADR-0004 §1 — 메인 세션 자체가 CPO persona (CLAUDE.md 박제 + SessionStart hook)
+- ADR-0004 §2 — Leader-Worker dispatch (Task tool + 보고 양식)
+- ADR-0004 §3 — CPO 자동 채용 (사용자 알림만, 차단 X)
+- ADR-0004 §4 — 모델 라우팅 (워커 default=sonnet, override=opus)
 
 ## Python 진입점
 
@@ -58,6 +86,7 @@ decision = decide_target(adapter, requested_worker=None)
 if decision.mode == "direct":
     ctx = build_worker_context(adapter, decision.target_worker)
 elif decision.mode == "cpo":
+    # 메인 세션이 이미 CPO 인 경우 (ADR-0004 §1) 본 컨텍스트는 보조용:
     ctx = build_cpo_routing_context(adapter, user_request="...")
 else:  # missing-cpo
     print(decision.reason)
