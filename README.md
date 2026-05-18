@@ -4,7 +4,7 @@
 
 **LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 자동으로 채용합니다. 도메인 (의료/금융/교육 등) 별 전문가 채용으로 reflection 자산이 도메인 단위로 축적됩니다.
 
-- **Status:** `0.3.0-dev` · Phase 3 (Leader-Worker pivot — [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md))
+- **Status:** `0.5.0` · Phase 5 (schema migration — [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md))
 - **License:** MIT
 - **Namespace:** `/lskun-kit:*`
 
@@ -129,7 +129,7 @@ Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (SHA-256 무결
 
 ## 설치
 
-> 0.3.0-dev 는 marketplace 정식 등록 전입니다. 본 repo 자체를 marketplace 로 등록해야 합니다.
+> 0.5.0 은 marketplace 정식 등록 전입니다. 본 repo 자체를 marketplace 로 등록해야 합니다.
 
 ### 옵션 A — GitHub repo 경유 (다른 PC 동기화에 유리)
 
@@ -201,7 +201,22 @@ Claude 가 5가지를 순차 질문:
 /lskun-kit:hire sec-arch security-architect "Sarah Chen" --domain=핀테크 --model=opus
 ```
 
-### 4) 회고 — `reflect` (또는 Stop hook)
+### 4) 기존 회사 schema 보강 — `migrate-schema` (ADR-0005)
+
+0.2 ~ 0.4 사이에 생성된 회사는 frontmatter 필수 필드가 부족할 수 있습니다. v0.4 schema (6 필드 + CLAUDE.md marker) 로 끌어올리는 사용자 confirm 기반 도구:
+
+```text
+/lskun-kit:migrate-schema --dry-run    # 변환 계획만 표시
+/lskun-kit:migrate-schema              # 인터뷰 후 실행 (자동 백업)
+```
+
+원칙 (불변):
+
+- `## Project History` 섹션은 한 줄도 변경하지 않음
+- 기존 frontmatter 키 절대 덮어쓰지 않음 (누락 키만 추가)
+- 변경 전 `<file>.lskun-pre-migrate.bak` 자동 백업
+
+### 5) 회고 — `reflect` (또는 Stop hook)
 
 CPO 가 워커 보고의 `reflection 후보` 섹션을 자동 박제. 수동 보강:
 
@@ -226,19 +241,27 @@ P8/P9 ❌ Dogfooding / KPI 측정 — 폐기 (ADR-0002 §5)
 P10~P16 ✅ ADR-0002 박제 → CPO/HR 템플릿 → /init → /work 라우팅 → /doctor 갱신 → README
 ```
 
-### Phase 3 (현재)
+### Phase 3 (P17~P27 완료)
 
 ```
-P17 ✅ ADR-0003 박제 (도메인 인지 워커)
-P18 ✅ ADR-0003 코드 (domain 필드 + CPO/HR persona 라우팅 0단계)
-P21 ✅ ADR-0004 박제 (메인 세션 = CPO, Leader-Worker, 자동 채용)
-P22 ✅ display_name + model 필드
-P23 ✅ /init 인터뷰 5단계 + CLAUDE.md inline 박제 (layer A)
-P24 ✅ SessionStart hook 으로 활성 회사 dynamic context 주입 (layer B)
-P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch / 자동 채용)
-P26 ✅ 모델 라우팅 (alias) + hire/work --model --domain 옵션
-P27 ✅ 본 README / docs / version bump (0.2.0-dev → 0.3.0-dev)
-P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+P17~P27 ✅ ADR-0003/0004 박제 → domain 필드 → CPO 라우팅 0단계 → display_name/model →
+          /init 5단계 인터뷰 + CLAUDE.md inline 박제 → SessionStart hook →
+          CPO/HR persona 재작성 → 모델 라우팅 alias → README 갱신
+```
+
+### Phase 4 (P28~P49 완료)
+
+```
+P28~P45 ✅ 일상 dogfooding, hire_audit, PreToolUse chain-guard hook, doctor 항목 확장
+P46~P48 ✅ dead code 제거 + hook bootstrap ($CLAUDE_PLUGIN_ROOT 직접 경로)
+P49     ✅ version bump 0.3.0-dev → 0.4.0-dev
+```
+
+### Phase 5 (현재 — 0.5.0)
+
+```
+P50 ✅ ADR-0005 박제 + /lskun-kit:migrate-schema (v0.2/v0.3 → v0.4 자동 보강, history 보존)
+P51 ✅ 0.5.0 릴리스 컷 (README / CHANGELOG / version bump)
 ```
 
 ---
@@ -251,6 +274,7 @@ P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
 - [ADR-0002](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0002-2026-05-18-cpo-hr-pivot.md) — CPO/HR 도입 (Phase 2)
 - [ADR-0003](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0003-2026-05-18-domain-aware-workers.md) — 도메인 인지 워커 (`role × domain`)
 - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — 메인 세션 = CPO (Leader-Worker, 자동 채용, 모델 라우팅)
+- [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md) — Schema 마이그레이션 (`/lskun-kit:migrate-schema`)
 
 이전 [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md) 는 deprecated. 역사적 참조용으로만 보존됩니다.
 

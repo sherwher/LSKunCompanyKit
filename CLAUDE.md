@@ -16,7 +16,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.5.0-dev (Phase 5 — schema 마이그레이션 도입, ADR-0005)
+- **버전:** 0.5.0 (Phase 5 — schema 마이그레이션 도입, ADR-0005)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -175,7 +175,7 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version: 0.4.0-dev
+│   ├── plugin.json           # version: 0.5.0
 │   └── marketplace.json
 ├── hooks/
 │   └── hooks.json            # SessionStart hook 등록 (P24)
