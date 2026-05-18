@@ -176,6 +176,16 @@ class ReflectionRecordTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 reflection.record(self.adapter, "alice", "p", "t", "x", bad)
 
+    def test_reflection_skipped_is_lskunkit_error(self) -> None:
+        """P41 — ReflectionSkipped 가 LSKunKitError 를 상속해 일괄 catch 가능."""
+        from lskun_kit.errors import LSKunKitError
+        self.assertTrue(issubclass(reflection.ReflectionSkipped, LSKunKitError))
+        with self.assertRaises(LSKunKitError):
+            reflection.record(
+                self.adapter, "alice", "p", "t", "x", 100,
+                outcome=reflection.OUTCOME_ABORTED,
+            )
+
     def test_outcome_aborted_skips_history(self) -> None:
         """P30 — outcome=aborted 면 history 박제 skip + ReflectionSkipped raise."""
         before = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
