@@ -9,21 +9,11 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/sherwher/LSKunCompanyKit",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/sherwher/LSKunCompanyKit.git"
-  },
+  "repository": "https://github.com/sherwher/LSKunCompanyKit",
   "keywords": [
     "stateful-workers",
     "reflection",
     "storage-abstraction",
     "claude-code"
-  ],
-  "commands": [
-    "commands/doctor.md",
-    "commands/hire.md",
-    "commands/work.md",
-    "commands/reflect.md",
-    "commands/migrate.md"
   ]
 }

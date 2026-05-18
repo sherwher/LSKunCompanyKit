@@ -1,5 +1,6 @@
 {
   "name": "LSKunCompanyKit",
+  "description": "이성근의 Claude Code plugin marketplace — Stateful Workers + Reflection 컨셉의 실험적 plugin 배포처.",
   "owner": {
     "name": "이성근",
     "email": "sherwher@sherwher.org",
