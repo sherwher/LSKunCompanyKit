@@ -140,5 +140,50 @@ class StopReflectHookTests(unittest.TestCase):
         self.assertEqual(rc, 2)
 
 
+class StopReflectVaultBackendTests(unittest.TestCase):
+    """P43 (#12) — Stop hook 의 _make_adapter Vault 분기 검증.
+
+    기존 테스트는 Local backend (.company/) 만 사용했고, root.parent.name ==
+    "03_Companies" 조건의 Vault 분기는 직접적인 통합 테스트가 없었다.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        from lskun_kit.adapters.vault import COMPANIES_DIRNAME
+        self.vault = Path(self.tmp.name) / "vault"
+        self.company_root = self.vault / COMPANIES_DIRNAME / "Acme"
+        (self.company_root / "hired").mkdir(parents=True)
+        (self.company_root / "hired" / "alice.md").write_text(
+            WORKER_MD.replace("storage_backend: local", "storage_backend: vault"),
+            encoding="utf-8",
+        )
+        (self.company_root / "company.md").write_text(
+            "---\nname: Acme\n---\n# Acme\n", encoding="utf-8"
+        )
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _run_with_env(self, env: dict[str, str]) -> int:
+        with patch.dict(os.environ, env, clear=True):
+            return stop_reflect.main([])
+
+    def test_full_reflection_appends_to_vault_worker(self) -> None:
+        session.start(self.company_root, "alice")
+        rc = self._run_with_env(
+            {
+                "LSKUN_SSOT_ROOT": str(self.company_root),
+                "LSKUN_PROJECT": "vault-proj",
+                "LSKUN_TOPIC": "topic",
+                "LSKUN_PATTERN": "pat",
+                "LSKUN_FIRST_PASS": "75",
+            }
+        )
+        self.assertEqual(rc, 0)
+        text = (self.company_root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertIn("vault-proj", text)
+        self.assertIsNone(session.read(self.company_root))
+
+
 if __name__ == "__main__":
     unittest.main()
