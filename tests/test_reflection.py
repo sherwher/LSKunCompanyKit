@@ -80,6 +80,15 @@ class SessionTests(unittest.TestCase):
     def test_clear_missing_is_safe(self) -> None:
         session.clear(self.root)  # 예외 없어야 함
 
+    def test_lock_file_created_alongside_session(self) -> None:
+        """P44 (#6) — file lock 파일이 세션과 같은 디렉토리에 생성된다."""
+        session.start(self.root, "alice")
+        from lskun_kit.session import lock_path
+        # POSIX 환경에서만 lock 파일이 생성된다.
+        from lskun_kit.session import _HAS_FLOCK
+        if _HAS_FLOCK:
+            self.assertTrue(lock_path(self.root).exists())
+
     def test_read_returns_none_and_clears_stale_session(self) -> None:
         """P38 — TTL 초과 세션은 stale 로 보고 None 반환 + 파일 삭제."""
         from datetime import datetime, timedelta, timezone
