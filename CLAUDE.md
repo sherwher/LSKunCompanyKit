@@ -8,6 +8,8 @@
 > - [ADR-0004](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0004-2026-05-18-leader-worker-pivot.md) — **메인 세션 = CPO (Leader-Worker, 자동 채용)**
 > - [ADR-0005](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0005-2026-05-18-schema-migration.md) — Schema 마이그레이션 (`/lskun-kit:migrate-schema`)
 > - [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md) — CPO 결재 audit log (`.audit/decisions.jsonl`)
+> - ~~[ADR-0007](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0007-2026-05-19-ssot-3axis-and-project-link.md)~~ — SSOT 3축 + `.claude/lskun-kit.json` (**superseded by ADR-0008**)
+> - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입 (ADR-0007 폐기, ADR-0001 §4 + ADR-0004 §1 유지)
 >
 > Developer SSOT hub: `obsidian-vault/02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md`
 
@@ -17,7 +19,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.6.0-dev (Phase 6 — CPO 결재 audit log 도입, ADR-0006)
+- **버전:** 0.7.0-dev (Phase 7 — ADR-0007 폐기 + ADR-0008 Local-first 유지)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -132,7 +134,7 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 
 ---
 
-## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 + ADR-0006 §"폐기/금지" 누적)
+## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 + ADR-0006 §"폐기/금지" + ADR-0008 §"폐기/금지" 누적)
 
 다음을 도입하려는 충동이 들면 **즉시 멈추고 ADR 우선 작성:**
 
@@ -153,6 +155,10 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **분기 / 월간 audit 자동 회고 보고서** — persona evolution narrative 금지와 동일 결 (ADR-0006)
 - **결재 위원회 / 다단계 승인 / 부 결재자** — ADR-0004 §8 + ADR-0006 위반
 - **audit log 외부 자동 전송** — 사용자 명시 동의 없는 외부 전송 금지 (ADR-0006)
+- **`.claude/lskun-kit.json` 등 프로젝트→회사 link 파일** — ADR-0007 실패 패턴. multi-project 단일 회사 케이스가 **실증된 후** 에만 새 ADR 박제 가능 (ADR-0008)
+- **CLAUDE.md marker 의 "캐시" 강등** — marker = 진실원 (ADR-0004 §1). drift 발생 시 자동 갱신 X, 사용자 알림만 (ADR-0008)
+- **SSOT 3축 모델** — 2축 (개발자 / 사용자 회사) 으로 충분. 사용자 프로젝트는 작업 위치이며 별도 SSOT 아님 (ADR-0008)
+- **vault default 격상** — Local 과 Vault 동등. vault 강제 금지 (ADR-0008)
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 

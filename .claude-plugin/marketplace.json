@@ -11,7 +11,7 @@
       "name": "LSKunCompanyKit",
       "source": "./",
       "description": "AI workers that remember their work — main session = CPO (Leader-Worker) with domain-aware stateful workers, Reflection, and pluggable storage backends.",
-      "version": "0.6.0-dev",
+      "version": "0.7.0-dev",
       "license": "MIT",
       "homepage": "https://github.com/sherwher/LSKunCompanyKit",
       "keywords": [
