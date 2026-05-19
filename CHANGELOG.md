@@ -5,7 +5,7 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
-## [Unreleased] — 0.7.0-dev
+## [0.7.0] — 2026-05-19
 
 ### Removed / Reverted — ADR-0007 폐기 ([ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md))
 - **`.claude/lskun-kit.json`** 프로젝트→회사 link 메커니즘 전체 revert (PR #20)

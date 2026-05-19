@@ -20,7 +20,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.7.0-dev (Phase 7 — ADR-0008 Local-first 유지 + ADR-0009 self-contained default)
+- **버전:** 0.7.0 (Phase 7 — ADR-0008 Local-first 유지 + ADR-0009 self-contained default)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
