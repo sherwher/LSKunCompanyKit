@@ -38,11 +38,11 @@ arguments:
 ## 사용 예
 
 ```bash
-# Local backend (가장 가벼움)
+# Local backend (default — self-contained, 외부 의존성 0)
 /lskun-kit:init
 
-# Vault backend
-export LSKUN_VAULT="$HOME/Documents/private-workspaces/obsidian-vault"
+# Vault backend (Optional Integration — 사용자가 명시 opt-in 한 경우)
+export LSKUN_VAULT="<your-vault-root>"   # 예: $HOME/path/to/your-vault
 /lskun-kit:init Acme "AI agents for SMB compliance"
 ```
 
@@ -53,10 +53,10 @@ LSKunCompanyKit init
 ================================================
 backend       : vault
 company       : Acme
-company root  : /Users/.../obsidian-vault/03_Companies/Acme
-company.md    : created → /Users/.../03_Companies/Acme/company.md
+company root  : <your-vault>/03_Companies/Acme
+company.md    : created → <your-vault>/03_Companies/Acme/company.md
 workers hired : cpo, hr-lead
-CPO persona   : created → /Users/.../my-project/CLAUDE.md
+CPO persona   : created → <your-project>/CLAUDE.md
 ```
 
 ## 구현

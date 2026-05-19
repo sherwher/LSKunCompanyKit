@@ -65,12 +65,12 @@ arguments:
 Migration Plan
 ================================================
 backend       : vault
-company root  : /Users/.../obsidian-vault/03_Companies/LSKun
+company root  : <your-vault>/03_Companies/<company>
 company.md    : detected schema=v0.2, missing=['domain']
 workers:
   - cpo: schema=v0.2, missing=['domain', 'display_name']
   - hr-lead: schema=v0.2, missing=['domain', 'display_name']
-CLAUDE.md     : /Users/.../AIMBTI/CLAUDE.md (marker 부재 — 박제 필요)
+CLAUDE.md     : <your-project>/CLAUDE.md (marker 부재 — 박제 필요)
 ```
 
 사용자 인터뷰 후:

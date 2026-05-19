@@ -15,6 +15,16 @@
 - `init.py` 의 link 박제 로직 제거
 - ADR-0007 status → `superseded by ADR-0008`
 
+### Decision — ADR-0009 (self-contained default)
+- Plugin core 는 외부 시스템 (Obsidian vault, Notion 등) 에 종속되지 않는다
+- Local backend 만으로 모든 핵심 메커니즘 완전 동작 (Reflection / Workers / CPO 결재 / audit)
+- Vault 는 명시 opt-in 통합 (`LSKUN_VAULT` env var 설정 시에만 활성화)
+- "future: Notion" 등 외부 통합 promise 폐기 — 실제 도입 시 별도 ADR + add-on package
+- plugin core 안에서 외부 SDK / API 호출 영원히 금지
+- 문서 디커플링: 사용자 vault 절대경로 → 추상 placeholder (`<your-vault>/`, `<your-project>/`)
+- adapters/__init__.py / base.py docstring 의 "(Notion API 등)" 일반화
+- CLAUDE.md 의 저자 개인 Developer SSOT hub 경로 박제 제거
+
 ### Decision — ADR-0008
 - ADR-0001 §4 backend 모델 그대로 유지 (Local default + Vault optional, 동등)
 - ADR-0004 §1 "CLAUDE.md marker = 진실원" 복원 (ADR-0007 §4 의 "캐시" 강등 철회)

@@ -4,14 +4,19 @@ ADR-0001 §4 — core 는 이 interface 만 알고 구현은 모른다.
 
 P45 — write-path 확장:
     원래 4-method (read_worker / append_history / list_workers / read_company) 만
-    있었고 hire/archive 는 slash command 가 파일을 직접 썼다. 미래 backend
-    (Notion API 등) 가 파일 쓰기가 아닌 호출이 필요하면 hire/fire 로직을
+    있었고 hire/archive 는 slash command 가 파일을 직접 썼다. 외부 add-on 이
+    파일 쓰기가 아닌 호출 기반 backend 를 구현해야 할 때 hire/fire 로직을
     다시 작성해야 하는 abstraction 누수가 있었다.
 
     create_worker / archive_worker 를 ABC 에 추가하되, 기존 4-method 와 달리
     ``@abstractmethod`` 가 아닌 default ``NotImplementedError`` raise 로 둔다.
     외부 구현자가 점진적으로 채택할 수 있다. ``MarkdownTreeAdapter`` 가 file
     기반 구현을 제공.
+
+ADR-0009 — Plugin core 는 외부 시스템 (Notion 등) 의 SDK / API 호출을 두지
+않는다. 본 ABC 가 정의하는 인터페이스는 file 기반 (Local / Vault) 외 다른
+구현체를 core 에 박는 것을 허용하지 않으며, 외부 통합은 별도 add-on package
+의 책임이다.
 """
 
 from __future__ import annotations
