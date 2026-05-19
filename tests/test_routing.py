@@ -237,5 +237,86 @@ class TemplateRenderingTests(unittest.TestCase):
             )
 
 
+class ProjectSummaryTests(unittest.TestCase):
+    """CPO 라우팅 컨텍스트가 후보 워커의 project 별 history 카운트를 요약."""
+
+    def test_summarize_empty_body(self) -> None:
+        from lskun_kit.routing import _summarize_projects
+        self.assertEqual(_summarize_projects(""), "")
+
+    def test_summarize_no_history_section(self) -> None:
+        from lskun_kit.routing import _summarize_projects
+        self.assertEqual(_summarize_projects("# alice\n본문만 있고 history 없음\n"), "")
+
+    def test_summarize_empty_history_section(self) -> None:
+        from lskun_kit.routing import _summarize_projects
+        body = "# alice\n\n## Project History\n\n_(empty)_\n"
+        self.assertEqual(_summarize_projects(body), "")
+
+    def test_summarize_counts_top_projects_with_overflow(self) -> None:
+        from lskun_kit.routing import _summarize_projects
+        body = (
+            "## Project History\n"
+            "- 2026-05-01 / DcodeJob / api / sentry-init / first-pass 88%\n"
+            "- 2026-05-02 / DcodeJob / api / payment / first-pass 92%\n"
+            "- 2026-05-03 / DcodeJob / api / cache / first-pass 90%\n"
+            "- 2026-05-04 / AIMBTI / web / ga4 / first-pass 80%\n"
+            "- 2026-05-05 / AIMBTI / web / cta / first-pass 78%\n"
+            "- 2026-05-06 / fitshot / web / og / first-pass 75%\n"
+            "- 2026-05-07 / ilsaek / android / login / first-pass 70%\n"
+        )
+        summary = _summarize_projects(body)
+        self.assertTrue(summary.startswith("history: "))
+        self.assertIn("DcodeJob 3건", summary)
+        self.assertIn("AIMBTI 2건", summary)
+        # 4번째 프로젝트는 "외 N" 으로 처리 (총 4개 distinct, top 3 → 외 1)
+        self.assertIn("(외 1)", summary)
+
+    def test_summarize_top_3_no_overflow(self) -> None:
+        from lskun_kit.routing import _summarize_projects
+        body = (
+            "## Project History\n"
+            "- 2026-05-01 / A / x / y / first-pass 80%\n"
+            "- 2026-05-02 / B / x / y / first-pass 80%\n"
+        )
+        summary = _summarize_projects(body)
+        self.assertIn("A 1건", summary)
+        self.assertIn("B 1건", summary)
+        self.assertNotIn("(외", summary)
+
+    def test_build_cpo_context_includes_project_summary_for_candidates(self) -> None:
+        """build_cpo_routing_context 가 각 후보의 project 요약을 라우팅 hint 로 주입."""
+        from lskun_kit.routing import build_cpo_routing_context
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".company"
+            (root / "hired").mkdir(parents=True)
+            (root / "company.md").write_text(
+                "---\nname: Acme\ndomain: web\n---\n# Acme\n", encoding="utf-8"
+            )
+            (root / "hired" / "cpo.md").write_text(
+                "---\nname: cpo\nrole: chief-product-officer\ndomain: meta\n"
+                "hired_at: 2026-01-01\nstorage_backend: local\ndisplay_name: 자비스\n---\n"
+                "# cpo\n## Project History\n\n_(empty)_\n",
+                encoding="utf-8",
+            )
+            (root / "hired" / "alice.md").write_text(
+                "---\nname: alice\nrole: backend-engineer\ndomain: web\n"
+                "hired_at: 2026-01-01\nstorage_backend: local\ndisplay_name: Alice\n---\n"
+                "# alice\n"
+                "## Project History\n\n"
+                "- 2026-05-01 / DcodeJob / api / x / first-pass 88%\n"
+                "- 2026-05-02 / DcodeJob / api / y / first-pass 90%\n"
+                "- 2026-05-03 / AIMBTI / web / z / first-pass 80%\n",
+                encoding="utf-8",
+            )
+            adapter = LocalAdapter(root)
+            ctx = build_cpo_routing_context(adapter, "DcodeJob API 작업 부탁")
+            self.assertIn("alice", ctx)
+            self.assertIn("backend-engineer", ctx)
+            self.assertIn("domain=web", ctx)
+            self.assertIn("history: DcodeJob 2건", ctx)
+            self.assertIn("AIMBTI 1건", ctx)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

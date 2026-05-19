@@ -1,24 +1,35 @@
 """CPO 라우팅 컨텍스트 빌더 — ``/lskun-kit:work`` 의 워커 이름 생략 경로.
 
-ADR-0002 §1 (Q1=ii) — 사용자가 워커 이름 없이 ``/lskun-kit:work "<요청>"`` 을
-호출하면 CPO 가 1차 수신자가 된다. 본 모듈은 CPO 에게 주입할 컨텍스트
-(현재 hired 워커 목록 + CPO 자기 history) 를 만든다.
+사용자가 워커 이름 없이 ``/lskun-kit:work "<요청>"`` 을 호출하면 CPO 가 1차
+수신자가 된다. 본 모듈은 CPO 에게 주입할 컨텍스트 (현재 hired 워커 목록 +
+CPO 자기 history + 각 후보의 project 별 history 요약) 를 만든다.
 
-핵심 정책 (ADR-0004 supersede 반영, P35):
-    - CPO 는 적합 워커 부재 시 HR Lead 를 Task tool 로 호출해 **자동 채용** 한다
-      (ADR-0004 §3). ADR-0002 의 구 "CPO chain 금지" 조항은 ADR-0004 §3 이 폐기.
+핵심 정책:
+    - CPO 는 적합 워커 부재 시 HR Lead 를 Task tool 로 호출해 **자동 채용** 한다.
     - 자동 채용은 사용자 알림 1줄만 emit, 차단 없음. 신규 워커 dispatch 까지
       CPO 가 한 흐름으로 처리.
-    - 워커 → 워커 chain 은 여전히 금지 (ADR-0004 §8, PreToolUse hook 이 차단).
+    - 워커 → 워커 chain 은 여전히 금지 (PreToolUse hook 이 차단).
+
+라우팅 정확도 보강:
+    - 각 후보 워커의 history 에서 project 별 entry 카운트를 요약 (top 3) 으로
+      CPO 컨텍스트에 주입. CPO 가 "이 요청이 어느 프로젝트 작업인지" 와 "그
+      프로젝트에 누적된 워커 자산이 누구인지" 를 한 번에 판단 가능.
 """
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from dataclasses import dataclass
 
 from lskun_kit.adapters.base import StorageAdapter
 from lskun_kit.context import build_worker_context
 from lskun_kit.errors import WorkerNotFoundError
+
+#: history entry 카운트 요약에서 1워커당 표시할 최대 project 수.
+PROJECT_SUMMARY_TOP_N = 3
+#: history line 에서 project 필드 추출용 패턴 — ``- {date} / {project} / ...``.
+_HISTORY_LINE_RE = re.compile(r"^-\s+\S+\s+/\s+([^/]+?)\s+/")
 
 CPO_WORKER_NAME = "cpo"
 HR_LEAD_WORKER_NAME = "hr-lead"
@@ -93,13 +104,20 @@ def build_cpo_routing_context(
         for name in candidate_workers:
             try:
                 worker = adapter.read_worker(name)
-                parts.append(f"- {name} ({worker.role})")
+                project_summary = _summarize_projects(worker.body)
+                line = f"- {name} ({worker.role}, domain={worker.domain}"
+                if worker.model:
+                    line += f", model={worker.model}"
+                line += ")"
+                if project_summary:
+                    line += f" — {project_summary}"
+                parts.append(line)
             except Exception:
                 parts.append(f"- {name} (role unknown)")
     else:
         parts.append(
             "_(현재 라우팅 후보 워커 없음 — HR Lead 를 Task tool 로 호출해 "
-            "자동 채용 진행. ADR-0004 §3.)_"
+            "자동 채용 진행.)_"
         )
 
     parts.extend(
@@ -108,7 +126,7 @@ def build_cpo_routing_context(
             "## User Request",
             user_request.strip() or "_(empty)_",
             "",
-            "## 응답 형식 (ADR-0004 §1~§3)",
+            "## 응답 형식",
             "적합 워커가 있을 때 — Task tool 로 dispatch:",
             "```",
             "추천 워커: <worker> (<role>, domain=<domain>, model=<sonnet|opus>)",
@@ -116,7 +134,7 @@ def build_cpo_routing_context(
             "행동: Task tool 호출 → 워커 컨텍스트 + 사용자 요청 + 보고 양식 주입",
             "```",
             "",
-            "적합 워커가 없을 때 — HR Lead 를 Task tool 로 호출해 자동 채용 (ADR-0004 §3):",
+            "적합 워커가 없을 때 — HR Lead 를 Task tool 로 호출해 자동 채용:",
             "```",
             "사유: 적합 워커 부재 (역할=<role>, 도메인=<domain>)",
             "행동:",
@@ -126,11 +144,42 @@ def build_cpo_routing_context(
             "  4. 신규 워커를 Task tool 로 즉시 dispatch → 결재 → 사용자 응답",
             "```",
             "",
-            "주의: 워커 → 워커 chain 은 금지 (ADR-0004 §8). 워커는 CPO 에게만 보고하고",
+            "주의: 워커 → 워커 chain 은 금지. 워커는 CPO 에게만 보고하고",
             "다른 워커를 직접 호출하지 않는다. PreToolUse hook 이 차단한다.",
+            "",
+            "라우팅 hint: 위 후보의 project 요약은 누적된 reflection 의 프로젝트 분포다.",
+            "사용자 요청이 어느 프로젝트인지 추론한 뒤, 해당 프로젝트 entry 가 많은 워커를",
+            "우선 고려하라 (도메인·role 매칭이 동률일 때).",
         ]
     )
     return "\n".join(parts) + "\n"
+
+
+def _summarize_projects(worker_body: str) -> str:
+    """워커 body 의 ## Project History 섹션에서 project 별 entry 카운트 요약.
+
+    Returns:
+        ``"DcodeJob 7건, AIMBTI 3건, fitshot 2건"`` 형식. history 없으면 빈 문자열.
+    """
+
+    if "## Project History" not in worker_body:
+        return ""
+    section = worker_body.split("## Project History", 1)[1]
+    counts: Counter[str] = Counter()
+    for line in section.splitlines():
+        m = _HISTORY_LINE_RE.match(line.strip())
+        if m:
+            project = m.group(1).strip()
+            if project:
+                counts[project] += 1
+    if not counts:
+        return ""
+    top = counts.most_common(PROJECT_SUMMARY_TOP_N)
+    summary = ", ".join(f"{proj} {n}건" for proj, n in top)
+    extra = len(counts) - len(top)
+    if extra > 0:
+        summary += f" (외 {extra})"
+    return f"history: {summary}"
 
 
 __all__ = [
