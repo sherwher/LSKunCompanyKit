@@ -20,7 +20,7 @@ from lskun_kit.errors import (
 )
 from lskun_kit.models import Company, HistoryEntry, Worker
 
-__version__ = "0.6.0-dev"
+__version__ = "0.7.0"
 
 __all__ = [
     "__version__",
