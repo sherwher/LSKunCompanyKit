@@ -20,7 +20,6 @@ from pathlib import Path
 from lskun_kit.adapters import frontmatter
 from lskun_kit.adapters.vault import COMPANIES_DIRNAME
 from lskun_kit.persona_injection import inject as inject_cpo_persona
-from lskun_kit import project_link as _pl
 from lskun_kit.templates import iter_default_workers, render_default_worker
 
 #: ``$LSKUN_VAULT`` 환경변수 키 — Vault backend 선택 trigger.
@@ -45,8 +44,6 @@ class InitResult:
     notes: list[str] = field(default_factory=list)
     persona_action: str = "skipped"  # ADR-0004 §1 — "created" | "updated" | "unchanged" | "skipped"
     persona_path: Path | None = None
-    link_action: str = "skipped"  # ADR-0007 §3 — "created" | "preserved" | "skipped"
-    link_path: Path | None = None
 
     def render(self) -> str:
         """사람이 읽는 진단 리포트."""
@@ -68,12 +65,6 @@ class InitResult:
             )
         else:
             lines.append(f"CPO persona   : {self.persona_action}")
-        if self.link_path is not None:
-            lines.append(
-                f"project link  : {self.link_action} → {self.link_path}"
-            )
-        else:
-            lines.append(f"project link  : {self.link_action}")
         for note in self.notes:
             lines.append(f"note          : {note}")
         return "\n".join(lines) + "\n"
@@ -289,31 +280,6 @@ def run(
         else:
             notes.append("CPO persona 박제 skip — hired/cpo.md 가 존재하지 않음")
 
-    # ADR-0007 §3 — 사용자 프로젝트 root 의 .claude/lskun-kit.json 박제
-    link_action = "skipped"
-    link_file_path: Path | None = None
-    project_root_path = Path(project_root).expanduser()
-    if not project_root_path.exists():
-        notes.append(
-            f"project link 박제 skip — project_root={project_root_path} 가 존재하지 않음"
-        )
-    else:
-        existing = _pl.read(project_root_path)
-        desired = _pl.ProjectLink(company=resolved_company, backend=backend)
-        if existing is None:
-            link_file_path = _pl.write(project_root_path, desired)
-            link_action = "created"
-        elif existing == desired:
-            link_file_path = _pl.link_path(project_root_path)
-            link_action = "preserved"
-        else:
-            link_file_path = _pl.link_path(project_root_path)
-            link_action = "skipped"
-            notes.append(
-                f".claude/lskun-kit.json 가 이미 {existing.company!r} 를 가리킴 — "
-                f"덮어쓰지 않음. /lskun-kit:role-init 으로 명시 갱신 필요."
-            )
-
     return InitResult(
         backend=backend,
         company_root=company_root,
@@ -325,8 +291,6 @@ def run(
         notes=notes,
         persona_action=persona_action,
         persona_path=persona_path,
-        link_action=link_action,
-        link_path=link_file_path,
     )
 
 

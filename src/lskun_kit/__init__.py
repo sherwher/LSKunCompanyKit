@@ -12,10 +12,6 @@ from lskun_kit.audit import (
     AuditError,
     new_request_id,
 )
-from lskun_kit.project_link import (
-    ProjectLink,
-    ProjectLinkError,
-)
 from lskun_kit.errors import (
     InvalidWorkerSchemaError,
     LSKunKitError,
@@ -43,6 +39,4 @@ __all__ = [
     "AuditEntry",
     "AuditError",
     "new_request_id",
-    "ProjectLink",
-    "ProjectLinkError",
 ]
