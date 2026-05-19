@@ -5,7 +5,28 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
-## [Unreleased] — 0.6.0-dev
+## [Unreleased] — 0.7.0-dev
+
+### Removed / Reverted — ADR-0007 폐기 ([ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md))
+- **`.claude/lskun-kit.json`** 프로젝트→회사 link 메커니즘 전체 revert (PR #20)
+- `src/lskun_kit/project_link.py` 삭제
+- `tests/test_project_link.py` 삭제
+- `commands/role-init.md` 삭제
+- `init.py` 의 link 박제 로직 제거
+- ADR-0007 status → `superseded by ADR-0008`
+
+### Decision — ADR-0008
+- ADR-0001 §4 backend 모델 그대로 유지 (Local default + Vault optional, 동등)
+- ADR-0004 §1 "CLAUDE.md marker = 진실원" 복원 (ADR-0007 §4 의 "캐시" 강등 철회)
+- SSOT 2축 유지 (개발자 / 회사 운영). 사용자 프로젝트는 작업 위치이며 SSOT 아님
+- multi-project 단일 회사 케이스 발생 시 별도 ADR + `/lskun-kit:promote` 사후 도입 (현재 미도입)
+- 사유: 3명 전문 에이전트 (architect / critic / analyst) 만장일치 ADR-0007 폐기 권고. YAGNI / dead artifact / 인프라:핵심 2.7:1 / 24h 자기 모순 / revert 비용 << 유지 비용
+
+### Retained from 0.6.0-dev (P52 — ADR-0006)
+- `lskun_kit.audit` 모듈 / `.audit/decisions.jsonl` / verdict enum 4종 / doctor 항목 14
+- (상세 변경 사항은 아래 [0.6.0] 섹션 참조)
+
+## [0.6.0] — 2026-05-18
 
 ### Added — CPO 결재 audit log ([ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md))
 - `lskun_kit.audit` 모듈 — `AuditEntry` dataclass + `record()` + `new_request_id()`
