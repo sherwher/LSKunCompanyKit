@@ -40,7 +40,7 @@ arguments:
 
 Stop hook 은 사용자가 환경변수 (`LSKUN_PROJECT`, `LSKUN_TOPIC`, `LSKUN_PATTERN`, `LSKUN_FIRST_PASS`) 로 사전 제공한 경우 자동 reflect 한다. 명시적 `/reflect` 를 선호하는 사용자는 hook 을 비활성화하거나 환경변수를 비워두면 된다.
 
-### P30 — Reflection 진실성 가드 (`LSKUN_OUTCOME`)
+### Reflection 진실성 가드 (`LSKUN_OUTCOME`)
 
 작업이 실패·중단됐는데 환경변수가 채워져 있어 박제되는 오염을 막기 위해 Stop hook 은 `LSKUN_OUTCOME` 을 읽는다:
 

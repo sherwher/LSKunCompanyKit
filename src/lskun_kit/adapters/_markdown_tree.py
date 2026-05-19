@@ -95,6 +95,8 @@ class MarkdownTreeAdapter(StorageAdapter):
             storage_backend=parsed.frontmatter["storage_backend"],
             display_name=parsed.frontmatter["display_name"],
             model=parsed.frontmatter.get("model"),
+            persona_synced_from=parsed.frontmatter.get("persona_synced_from"),
+            persona_synced_at=parsed.frontmatter.get("persona_synced_at"),
             body=parsed.body,
             extra={
                 k: v

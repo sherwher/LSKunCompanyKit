@@ -11,6 +11,7 @@
 > - ~~[ADR-0007](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0007-2026-05-19-ssot-3axis-and-project-link.md)~~ — SSOT 3축 + `.claude/lskun-kit.json` (**superseded by ADR-0008**)
 > - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입 (ADR-0007 폐기, ADR-0001 §4 + ADR-0004 §1 유지)
 > - [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — **Self-contained default** + 외부 통합은 명시 opt-in. "future: Notion" 약속 폐기. plugin core 는 외부 SDK / API 미보유
+> - [ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) — Persona sync (`/lskun-kit:sync-persona`) + provenance + 조직도 view (`/lskun-kit:org`)
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -20,7 +21,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.7.0 (Phase 7 — ADR-0008 Local-first 유지 + ADR-0009 self-contained default)
+- **버전:** 0.8.0 (Phase 8 — ADR-0010 persona sync + 조직도 view)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -36,12 +37,14 @@
 
 | 명령 | 역할 |
 |---|---|
-| `/lskun-kit:init` | 신규 회사 셋업 + CPO/HR 자동 hire (P13) |
+| `/lskun-kit:init` | 신규 회사 셋업 + CPO/HR 자동 hire |
 | `/lskun-kit:hire` | 신규 워커 박제 (primitive) |
-| `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 (P14) |
+| `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 |
 | `/lskun-kit:reflect` | 작업 종료 1줄 기록 (수동) |
 | `/lskun-kit:migrate` | Local ↔ Vault 무결성 이동 |
-| `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 v0.4 schema 로 보강 (P50/ADR-0005) |
+| `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
+| `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
+| `/lskun-kit:org` | 회사 조직도 read-only view |
 | `/lskun-kit:doctor` | 환경 진단 |
 
 ---
@@ -191,18 +194,20 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version: 0.5.0
+│   ├── plugin.json           # version: 0.8.0
 │   └── marketplace.json
 ├── hooks/
 │   └── hooks.json            # SessionStart hook 등록 (P24)
 ├── commands/                  # 6개 slash command
-│   ├── init.md               # /lskun-kit:init      (P13/P23 — 5-step 인터뷰 + CLAUDE.md 박제)
-│   ├── doctor.md             # /lskun-kit:doctor    (P15/P23 — 13개 진단 항목)
-│   ├── hire.md               # /lskun-kit:hire      (P26 — --domain --model 옵션)
-│   ├── work.md               # /lskun-kit:work      (P14/P26 — 메인 세션 = CPO, --model)
+│   ├── init.md               # /lskun-kit:init
+│   ├── doctor.md             # /lskun-kit:doctor          (16개 진단 항목)
+│   ├── hire.md               # /lskun-kit:hire            (--domain --model)
+│   ├── work.md               # /lskun-kit:work            (메인 세션 = CPO, --model)
 │   ├── reflect.md            # /lskun-kit:reflect
 │   ├── migrate.md            # /lskun-kit:migrate         (Local ↔ Vault)
-│   └── migrate-schema.md     # /lskun-kit:migrate-schema  (P50/ADR-0005)
+│   ├── migrate-schema.md     # /lskun-kit:migrate-schema
+│   ├── sync-persona.md       # /lskun-kit:sync-persona    (cpo/hr-lead body sync)
+│   └── org.md                # /lskun-kit:org             (조직도 read-only)
 ├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
 │   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
 │   ├── hooks/                # stop_reflect (P6) + session_start (P24)
@@ -212,10 +217,12 @@ LSKunCompanyKit/
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
 │   ├── context.py            # build_worker_context (history 컨텍스트 주입)
 │   ├── reflection.py         # record (history 1줄 append)
-│   ├── audit.py              # CPO 결재 audit log (ADR-0006, P52) — AuditEntry/record/new_request_id
+│   ├── audit.py              # CPO 결재 audit log — AuditEntry/record/new_request_id
+│   ├── persona_sync.py       # 메타 워커 body sync — plan/execute (cpo, hr-lead)
+│   ├── org.py                # 조직도 read-only view — OrgReport.render()
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
 │   ├── schema_migration.py   # v0.2/v0.3 → v0.4 frontmatter 보강 (P50/ADR-0005)
-│   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log (P32/P45)
+│   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log
 │   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
 │   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
 │   └── routing.py            # CPO 라우팅 컨텍스트 빌더 (P14)

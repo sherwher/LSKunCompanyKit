@@ -39,6 +39,7 @@ def render_default_worker(
     hired_at: date_cls | None = None,
     domain: str = META_DOMAIN,
     model: str | None = None,
+    synced_from: str | None = None,
 ) -> str:
     """템플릿 파일을 읽어 frontmatter 6 필수 필드 (+ optional model) 를 채워 반환한다.
 
@@ -78,6 +79,10 @@ def render_default_worker(
     }
     if model is not None:
         fm["model"] = model
+    # ADR-0010 — 메타 워커 (CPO/HR Lead) 의 hire 시점에 provenance 박제.
+    if synced_from is not None:
+        fm["persona_synced_from"] = synced_from
+        fm["persona_synced_at"] = (hired_at or date_cls.today()).isoformat()
     return frontmatter.dump(fm, _read_template(template_filename))
 
 

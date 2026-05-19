@@ -1,6 +1,6 @@
 ---
 name: lskun-kit:migrate-schema
-description: 기존 회사 (v0.2 / v0.3 schema) 를 현재 v0.4 schema 로 보강 — frontmatter 누락 필드 + CLAUDE.md marker 박제. history 절대 보존 (ADR-0005).
+description: 기존 회사의 워커·company.md frontmatter 누락 필드를 현재 schema 로 보강. CLAUDE.md marker 도 함께 박제. Project History 절대 보존, 백업 자동 생성
 arguments:
   - name: dry_run
     description: 변경 없이 plan 만 출력 (--dry-run)
@@ -12,7 +12,7 @@ arguments:
 
 # /lskun-kit:migrate-schema
 
-이미 운영 중인 회사를 새 schema 로 끌어올린다. ADR-0005.
+이미 운영 중인 회사를 새 schema 로 끌어올린다.
 
 ## 동작 (멱등 · 안전 가드 4중)
 
@@ -30,7 +30,7 @@ arguments:
    - 변경 전 모든 파일 자동 백업 (`<file>.lskun-pre-migrate.bak`)
    - frontmatter 의 **누락 필드만 추가** — 기존 값 절대 덮어쓰지 않음
    - `## Project History` 섹션 한 줄도 건드리지 않음
-   - CLAUDE.md marker 박제 (없으면 신규, 손편집 감지되면 P34 가드대로 추가 백업)
+   - CLAUDE.md marker 박제 (없으면 신규, 손편집 감지되면 추가 백업)
 6. 결과 리포트 출력 — 변환 항목 / 백업 위치 / 손실 0 검증
 
 ## 안전 가드 (불가침)
@@ -92,13 +92,6 @@ backups       : 3 files
 `/lskun-kit:doctor` 의 [5] / [10] / [11] 항목이 ⚠️ / ❌ 일 때 본 명령으로 안내된다.
 실행 후 doctor 를 다시 돌리면 모두 ✅ 가 되어야 한다.
 
-## 사양 참조
-
-- ADR-0005 — 본 명령 도입 사유 / 안전 가드 / ADR-0004 §6 부분 supersede
-- ADR-0003 — `domain` 필드 의미
-- ADR-0004 §5 — `display_name` 사용자 입력 정책
-- ADR-0004 §6 — frontmatter 6 필수 (본 ADR 가 일부 supersede)
-- CLAUDE.md §1 — "마이그레이션은 LSKunCompanyKit 책임"
 
 ## Python 진입점
 
