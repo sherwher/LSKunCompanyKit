@@ -4,7 +4,7 @@
 
 **LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 자동으로 채용합니다. 도메인 (의료/금융/교육 등) 별 전문가 채용으로 reflection 자산이 도메인 단위로 축적됩니다.
 
-- **Status:** `0.7.0-dev` · Phase 7 (ADR-0007 폐기 + [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) Local-first 유지)
+- **Status:** `0.7.0-dev` · Phase 7 ([ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) Local-first + [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) self-contained default)
 - **License:** MIT
 - **Namespace:** `/lskun-kit:*`
 
@@ -101,13 +101,15 @@ LSKunCompanyKit core (interface 만 알고 구현은 모름)
          list_workers()
          read_company()
               ↓
-       Local | Vault | (future: Notion, ...)
+       Local (default, self-contained) | Vault (Optional Integration)
 ```
 
 | Backend | 경로 | 선택 조건 |
 |---|---|---|
-| **Vault** | `<vault>/03_Companies/<company-name>/` | `LSKUN_VAULT` 환경변수 있을 때 |
-| **Local** (기본값) | `<project-root>/.company/` | 환경변수 없을 때 자동 |
+| **Local** (default) | `<project-root>/.company/` | 항상 사용 가능 — **plugin 자체 동작, 외부 의존성 0** |
+| **Vault** (Optional) | `<your-vault>/03_Companies/<company-name>/` | `LSKUN_VAULT` 환경변수 명시 설정 시 (opt-in) |
+
+ADR-0009 — Local 만으로 Reflection / Stateful Workers / CPO 결재 / audit log 모두 완전 동작. Vault 는 사용자가 명시 opt-in 한 통합이며, 다른 외부 시스템 (Notion 등) 통합은 별도 add-on package 책임으로 본 core 에 두지 않는다.
 
 Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (SHA-256 무결성 보장).
 
@@ -117,9 +119,9 @@ Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (SHA-256 무결
 
 | 영역 | 위치 | 내용 |
 |---|---|---|
-| Plugin 개발자 SSOT | 본 repo + `obsidian-vault/02_Projects/LSKunCompanyKit/` | ADR / Phase 계획 / interface 설계 |
-| 사용자 SSOT — Vault | `<vault>/03_Companies/<name>/` | `company.md` / `hired/` |
-| 사용자 SSOT — Local | `<project-root>/.company/` | (동일 구조) |
+| Plugin 개발자 SSOT | 본 repo (코드) + 저자별 별도 위치 (ADR / Phase 계획) | plugin 본 repo 의 문서는 저자 개인 SSOT 위치를 박제하지 않는다 (ADR-0009) |
+| 사용자 SSOT — Local (default) | `<project-root>/.company/` | `company.md` / `hired/` |
+| 사용자 SSOT — Vault (opt-in) | `<your-vault>/03_Companies/<name>/` | (동일 구조) |
 
 두 SSOT 는 물리적으로 분리되며 `/lskun-kit:doctor` 가 cross-contamination 을 검증합니다.
 
@@ -164,11 +166,11 @@ git clone https://github.com/sherwher/LSKunCompanyKit.git
 신규 회사 셋업의 단일 진입점. backend 자동 감지 + 회사 `domain` 박제 + CPO/HR 자동 hire + 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제.
 
 ```text
-# Local backend
+# Local backend (default — self-contained)
 /lskun-kit:init
 
-# Vault backend
-export LSKUN_VAULT="$HOME/Documents/private-workspaces/obsidian-vault"
+# Vault backend (Optional — opt-in 통합)
+export LSKUN_VAULT="<your-vault-root>"
 /lskun-kit:init Acme "AI agents for SMB compliance"
 ```
 
@@ -282,6 +284,10 @@ P57     ✅ ADR-0007 폐기 + ADR-0008 박제 (Local-first 유지) + PR #20 reve
         — 3명 전문 에이전트 만장일치 권고 반영 (architect/critic/analyst)
         — YAGNI: multi-project 단일 회사 케이스 0건 + 인프라:핵심 비율 2.7:1 위험
         — ADR-0004 §1 marker = 진실원 복원 + ADR-0001 §4 backend 동등 유지
+P58     ✅ ADR-0009 박제 — self-contained default, vault optional, no future promises
+        — Local 만으로 모든 핵심 메커니즘 동작. Vault 는 명시 opt-in 통합으로 명문화
+        — "future: Notion" 약속 폐기, 외부 도구 컨벤션 박제 제거
+        — 문서·예시 디커플링 (절대경로 → placeholder)
 ```
 
 ---
@@ -298,6 +304,7 @@ P57     ✅ ADR-0007 폐기 + ADR-0008 박제 (Local-first 유지) + PR #20 reve
 - [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md) — CPO 결재 audit log (`.audit/decisions.jsonl`)
 - ~~[ADR-0007](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0007-2026-05-19-ssot-3axis-and-project-link.md)~~ — SSOT 3축 + project link (**superseded by ADR-0008**)
 - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입
+- [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — Self-contained default + 외부 통합은 명시 opt-in (Notion 등 "future" promise 폐기)
 
 이전 [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md) 는 deprecated. 역사적 참조용으로만 보존됩니다.
 

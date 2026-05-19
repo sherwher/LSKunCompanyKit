@@ -93,9 +93,10 @@ adapter.create_worker(
 # 해고는 adapter.archive_worker("alice") — hired/ → archived/ 이동, 삭제 X
 ```
 
-P45 이전의 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 미래 backend
-(Notion 등) 가 파일 쓰기가 아닌 호출이 필요할 때 깨진다. adapter API 를
-경유해야 backend 추상화가 유지된다.
+P45 이전의 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 외부 add-on
+이 파일 쓰기가 아닌 호출 기반 backend 를 구현할 때 깨진다. adapter API 를
+경유해야 backend 추상화가 유지된다 (ADR-0009 — core 는 파일 기반 Local/Vault
+만, 외부 시스템 통합은 add-on 책임).
 
 ## CPO 자동 채용과의 관계 (ADR-0004 §3)
 

@@ -10,8 +10,9 @@
 > - [ADR-0006](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0006-2026-05-18-cpo-decision-audit.md) — CPO 결재 audit log (`.audit/decisions.jsonl`)
 > - ~~[ADR-0007](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0007-2026-05-19-ssot-3axis-and-project-link.md)~~ — SSOT 3축 + `.claude/lskun-kit.json` (**superseded by ADR-0008**)
 > - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입 (ADR-0007 폐기, ADR-0001 §4 + ADR-0004 §1 유지)
+> - [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — **Self-contained default** + 외부 통합은 명시 opt-in. "future: Notion" 약속 폐기. plugin core 는 외부 SDK / API 미보유
 >
-> Developer SSOT hub: `obsidian-vault/02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md`
+> Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
 ---
 
@@ -19,7 +20,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.7.0-dev (Phase 7 — ADR-0007 폐기 + ADR-0008 Local-first 유지)
+- **버전:** 0.7.0-dev (Phase 7 — ADR-0008 Local-first 유지 + ADR-0009 self-contained default)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -86,7 +87,7 @@ LSKunCompanyKit core (interface 만 알고 구현은 모름)
          read_worker(name), append_history(name, entry),
          list_workers(), read_company()
               ↓
-       Local | Vault | (future: Notion, ...)
+       Local (default, self-contained) | Vault (Optional Integration)
 ```
 
 v0.2 backend (2종, ADR-0002 §4 SSOT 야망 A 유지):
@@ -134,7 +135,7 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 
 ---
 
-## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 + ADR-0006 §"폐기/금지" + ADR-0008 §"폐기/금지" 누적)
+## 6. 절대 만들지 말 것 (ADR-0001 §7 + ADR-0002 §6 + ADR-0004 §8 + ADR-0006 §"폐기/금지" + ADR-0008 §"폐기/금지" + ADR-0009 §"폐기/금지" 누적)
 
 다음을 도입하려는 충동이 들면 **즉시 멈추고 ADR 우선 작성:**
 
@@ -159,6 +160,9 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **CLAUDE.md marker 의 "캐시" 강등** — marker = 진실원 (ADR-0004 §1). drift 발생 시 자동 갱신 X, 사용자 알림만 (ADR-0008)
 - **SSOT 3축 모델** — 2축 (개발자 / 사용자 회사) 으로 충분. 사용자 프로젝트는 작업 위치이며 별도 SSOT 아님 (ADR-0008)
 - **vault default 격상** — Local 과 Vault 동등. vault 강제 금지 (ADR-0008)
+- **"future: Notion" 등 외부 통합 promise** — plugin 본 repo 어디서도 박제 금지. 실제 도입 시점에 별도 ADR + add-on package (ADR-0009)
+- **plugin core 안에서 외부 시스템 (Obsidian, Notion 등) SDK / API 호출** — 영원히 금지. 외부 통합은 별도 add-on 책임 (ADR-0009)
+- **plugin 본 문서에 사용자 vault 절대경로·외부 도구 컨벤션 박제** — 추상 placeholder (`<your-vault>/`, `<your-project>/`) 만 허용 (ADR-0009)
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
