@@ -248,6 +248,9 @@ def run(
                 f"(ADR-0004 §5 — CPO/HR 이름은 사용자가 직접 입력). "
                 f"`run(..., {'cpo_name' if worker_name == 'cpo' else 'hr_name'}='...')` 로 전달하라."
             )
+        # ADR-0010 — CPO/HR Lead 는 메타 워커. 첫 hire 시점에 plugin 버전 provenance 박제.
+        from lskun_kit import __version__ as _kit_version
+        synced_from = f"lskun-kit@{_kit_version}" if worker_name in ("cpo", "hr-lead") else None
         worker_path.write_text(
             render_default_worker(
                 name=worker_name,
@@ -257,6 +260,7 @@ def run(
                 display_name=display_name,
                 hired_at=today,
                 model=default_model,
+                synced_from=synced_from,
             ),
             encoding="utf-8",
         )

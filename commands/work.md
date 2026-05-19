@@ -1,23 +1,23 @@
 ---
 name: lskun-kit:work
-description: 워커 호출 — 자기 history 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 메인 세션 = CPO 가 직접 라우팅·자동 채용·결재 (ADR-0004 §1~§3).
+description: 워커 호출 — 자기 history 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 메인 세션 = CPO 가 직접 라우팅·자동 채용·결재 수행
 arguments:
   - name: worker
-    description: 호출할 워커 이름. 생략 시 메인 세션의 CPO persona 가 처리 (ADR-0004 §1)
+    description: 호출할 워커 이름. 생략 시 메인 세션의 CPO persona 가 처리
     required: false
   - name: request
     description: 사용자 요청 본문
     required: false
   - name: model
-    description: ADR-0004 §4 — 워커 dispatch 모델 override ("sonnet" / "opus" / 모델 ID). 생략 시 워커 frontmatter.model → CPO 동적 판단 → default(sonnet)
+    description: 워커 dispatch 모델 override ("sonnet" / "opus" / 모델 ID). 생략 시 워커 frontmatter.model → CPO 동적 판단 → default(sonnet)
     required: false
 ---
 
 # /lskun-kit:work
 
-워커를 활성화하고 자기 history 를 컨텍스트로 주입한다. ADR-0004 진입 후 동작 사양이 변경됐다.
+워커를 활성화하고 자기 history 를 컨텍스트로 주입한다.
 
-## 분기 (ADR-0004 §1~§3)
+## 분기
 
 | 호출 형태 | 동작 |
 |---|---|
@@ -36,9 +36,9 @@ arguments:
 4. `--model` 옵션이 있으면 해당 모델로 dispatch; 없으면 워커 frontmatter `model` → default(`sonnet`)
 5. 사용자가 자유롭게 일을 시킨다. 종료 시 Stop hook 또는 `/lskun-kit:reflect` 가 1줄 박제.
 
-### 메인 세션 CPO 라우팅 (워커 이름 생략, ADR-0004 §1~§3)
+### 메인 세션 CPO 라우팅 (워커 이름 생략)
 
-1. 메인 세션은 **이미 CPO persona** 로 동작 중 (P23 의 CLAUDE.md 박제 + P24 의 SessionStart hook 으로 활성 회사 컨텍스트 주입)
+1. 메인 세션은 **이미 CPO persona** 로 동작 중 (CLAUDE.md 박제 + SessionStart hook 으로 활성 회사 컨텍스트 주입)
 2. CPO 가 요청을 받아:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
    - 적합 워커 있음 → `Task` tool 로 dispatch (model 결정 = frontmatter / CPO 판단 / default)
@@ -47,7 +47,7 @@ arguments:
 4. 사용자에게 결재된 결과 전달
 5. Reflection 후보를 워커 history 에 자동 박제 (`reflection.record`)
 
-> 자동 채용은 **사용자 알림만** — 차단 없음 (ADR-0004 §3). 해고만 사용자 명시 요청 필수.
+> 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.
 
 ## 사용 예
 
@@ -67,11 +67,10 @@ arguments:
 
 ## 사양
 
-- ADR-0002 §1 — CPO 호출 모델 (워커 이름 생략 시 CPO 가 받음)
-- ADR-0004 §1 — 메인 세션 자체가 CPO persona (CLAUDE.md 박제 + SessionStart hook)
-- ADR-0004 §2 — Leader-Worker dispatch (Task tool + 보고 양식)
-- ADR-0004 §3 — CPO 자동 채용 (사용자 알림만, 차단 X)
-- ADR-0004 §4 — 모델 라우팅 (워커 default=sonnet, override=opus)
+- CPO 호출 — 워커 이름 생략 시 메인 세션의 CPO 가 받음
+- Leader-Worker dispatch — Task tool + 보고 양식
+- 자동 채용 — 사용자 알림만, 차단 X
+- 모델 라우팅 — 워커 default=sonnet, override=opus
 
 ## Python 진입점
 
@@ -86,7 +85,7 @@ decision = decide_target(adapter, requested_worker=None)
 if decision.mode == "direct":
     ctx = build_worker_context(adapter, decision.target_worker)
 elif decision.mode == "cpo":
-    # 메인 세션이 이미 CPO 인 경우 (ADR-0004 §1) 본 컨텍스트는 보조용:
+    # 메인 세션이 이미 CPO 인 경우 본 컨텍스트는 보조용:
     ctx = build_cpo_routing_context(adapter, user_request="...")
 else:  # missing-cpo
     print(decision.reason)

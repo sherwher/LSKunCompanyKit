@@ -5,6 +5,26 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.8.0] — 2026-05-19
+
+### Added — Persona sync + provenance + 조직도 view ([ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md))
+- `/lskun-kit:sync-persona` — 메타 워커 (CPO / HR Lead) body 를 plugin 최신 template 와 sync. frontmatter / Project History 절대 보존, idempotent, 자동 백업
+- `/lskun-kit:org` — 회사 조직도 read-only view (CPO / HR / Worker 카테고리별 + 도메인 분포 + persona sync 상태 요약)
+- `lskun_kit.persona_sync` 모듈 — `plan` / `execute` / `diff_text_for` + plan→confirm→execute 패턴
+- `lskun_kit.org` 모듈 — `build()` / `OrgReport.render()`
+- Worker frontmatter optional 필드 — `persona_synced_from` (예: `lskun-kit@0.8.0`) + `persona_synced_at` (ISO date)
+- `init.run()` 의 CPO/HR Lead hire 시 자동으로 provenance 박제
+- `/lskun-kit:doctor` 항목 15 (Persona sync 상태) + 항목 16 (조직도 한 줄 요약) 신설
+- 신규 테스트 — `test_persona_sync.py` (9건) + `test_org.py` (8건)
+
+### Changed
+- slash command frontmatter description 의 ADR / P-번호 사족 제거 — 사용자 일람에서 노출되는 한 줄을 동작 중심으로 정리
+- 명령 본문의 ADR 인용 / "## 사양 참조" 류 섹션 제거 — 명령 사양은 외부 동작 정의에 집중, ADR 추적은 vault 측만
+
+### Notes — Idempotent sync 보장
+- 이미 sync 된 상태에서 재실행 → no-op (백업 0)
+- body 는 sync 됐지만 provenance 부재 (기존 회사) → provenance 만 박제
+
 ## [0.7.0] — 2026-05-19
 
 ### Removed / Reverted — ADR-0007 폐기 ([ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md))

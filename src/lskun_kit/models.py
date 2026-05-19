@@ -24,8 +24,8 @@ REQUIRED_WORKER_FIELDS = (
     "display_name",
 )
 
-#: ADR-0004 §6 — optional frontmatter 필드.
-OPTIONAL_WORKER_FIELDS = ("model",)
+#: ADR-0004 §6 + ADR-0010 — optional frontmatter 필드.
+OPTIONAL_WORKER_FIELDS = ("model", "persona_synced_from", "persona_synced_at")
 
 #: ADR-0003 §1 — CPO / HR Lead 등 도메인 무관 워커의 ``domain`` 예약값.
 META_DOMAIN = "meta"
@@ -98,6 +98,10 @@ class Worker:
     storage_backend: str
     display_name: str
     model: str | None = None
+    #: ADR-0010 — persona body 가 sync 된 plugin 버전. 메타 워커 (cpo/hr-lead) 에만 박힘.
+    persona_synced_from: str | None = None
+    #: ADR-0010 — persona body sync 시각 (ISO date). 메타 워커에만 박힘.
+    persona_synced_at: str | None = None
     body: str = ""  # frontmatter 이후 markdown 본문 전체
     extra: dict = field(default_factory=dict)
 

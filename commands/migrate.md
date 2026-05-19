@@ -50,7 +50,7 @@ Migration plan: local → vault
   files: 4, bytes: 8421
 ```
 
-## 보장 사항 (ADR-0001 §검증 KPI: Migration 무결성 데이터 손실 0)
+## 보장 사항 (데이터 손실 0)
 
 - ✅ 체크섬 검증 (SHA-256) — 전송 중 손실 0
 - ✅ target 이 비어 있지 않으면 거부 (덮어쓰기 사고 방지)
