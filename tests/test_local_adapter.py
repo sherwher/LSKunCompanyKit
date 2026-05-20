@@ -88,8 +88,36 @@ class LocalAdapterTests(unittest.TestCase):
         self.assertEqual(worker.storage_backend, "local")
         self.assertEqual(worker.display_name, "Alice Park")
         self.assertIsNone(worker.model)  # frontmatter 에 model 키 없으면 None
+        # P69 — keywords 키가 없으면 None (기존 회사 0 영향 회귀 가드)
+        self.assertIsNone(worker.keywords)
         self.assertEqual(worker.extra.get("specialty"), "payments")
         self.assertIn("## Project History", worker.body)
+
+    def test_read_worker_parses_keywords_when_present(self) -> None:
+        """P69 — keywords frontmatter 가 있을 때 worker.keywords 에 매핑."""
+        kw_md = dedent(
+            """\
+            ---
+            name: carol
+            role: frontend-engineer
+            domain: web
+            hired_at: 2026-05-20
+            storage_backend: local
+            display_name: Carol Lee
+            keywords: React, Next.js, 결제 webhook
+            ---
+
+            # carol
+            ## Project History
+
+            _(empty)_
+            """
+        )
+        (self.root / "hired" / "carol.md").write_text(kw_md, encoding="utf-8")
+        worker = self.adapter.read_worker("carol")
+        self.assertEqual(worker.keywords, "React, Next.js, 결제 webhook")
+        # known field 이므로 extra 로는 새지 않음
+        self.assertNotIn("keywords", worker.extra)
 
     def test_read_worker_missing_raises(self) -> None:
         with self.assertRaises(WorkerNotFoundError):

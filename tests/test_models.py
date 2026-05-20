@@ -28,6 +28,14 @@ class FrontmatterFieldConstantsTests(unittest.TestCase):
     def test_optional_fields_contain_model(self) -> None:
         self.assertIn("model", OPTIONAL_WORKER_FIELDS)
 
+    def test_optional_fields_contain_keywords(self) -> None:
+        # P69 — 라우팅 정확도 보강용 optional 필드
+        self.assertIn("keywords", OPTIONAL_WORKER_FIELDS)
+
+    def test_keywords_not_in_required(self) -> None:
+        # keywords 는 optional — 기존 회사 0 변경으로 동작해야 함
+        self.assertNotIn("keywords", REQUIRED_WORKER_FIELDS)
+
     def test_meta_domain_is_string(self) -> None:
         self.assertEqual(META_DOMAIN, "meta")
 

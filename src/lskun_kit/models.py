@@ -24,8 +24,17 @@ REQUIRED_WORKER_FIELDS = (
     "display_name",
 )
 
-#: ADR-0004 §6 + ADR-0010 — optional frontmatter 필드.
-OPTIONAL_WORKER_FIELDS = ("model", "persona_synced_from", "persona_synced_at")
+#: ADR-0004 §6 + ADR-0010 + P69 — optional frontmatter 필드.
+#: ``keywords`` 는 콤마 구분 문자열 (예: ``"API, DB 마이그레이션, 결제 webhook"``).
+#: ``frontmatter.py`` 가 list 를 지원하지 않으므로 의도적으로 단일 string.
+#: plugin core 는 keywords 를 매칭/정렬에 사용하지 않는다 (raw display 만).
+#: CPO LLM 이 routing context 에 노출된 keywords 를 보고 자유 해석한다.
+OPTIONAL_WORKER_FIELDS = (
+    "model",
+    "persona_synced_from",
+    "persona_synced_at",
+    "keywords",
+)
 
 #: ADR-0003 §1 — CPO / HR Lead 등 도메인 무관 워커의 ``domain`` 예약값.
 META_DOMAIN = "meta"
@@ -102,6 +111,9 @@ class Worker:
     persona_synced_from: str | None = None
     #: ADR-0010 — persona body sync 시각 (ISO date). 메타 워커에만 박힘.
     persona_synced_at: str | None = None
+    #: P69 — 워커 자기 책임/도메인 키워드 (콤마 구분). CPO 라우팅 정확도 보강용.
+    #: 메타 워커 (CPO/HR Lead) 는 비워둔다 — 라우팅 후보가 아니라서 무의미.
+    keywords: str | None = None
     body: str = ""  # frontmatter 이후 markdown 본문 전체
     extra: dict = field(default_factory=dict)
 

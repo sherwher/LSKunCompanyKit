@@ -21,7 +21,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.8.0 (Phase 8 — ADR-0010 persona sync + 조직도 view)
+- **버전:** 0.9.0 (Phase 9 — P69 라우팅 정확도 보강: workers keywords + cpo.md 결정 절차 5단계 + injection 가드)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -273,6 +273,21 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 9 (P69 — 라우팅 정확도 보강)
+
+```
+P69 ✅ workers frontmatter 에 optional `keywords` (콤마 구분 string) 도입.
+       routing.py 가 후보 1줄에 keywords raw 노출 + user_request fence 처리
+       (markdown injection 가드). cpo.md Routing Heuristics 를 자연어 4줄
+       → 결정 절차 5단계 (의도 파악 → keywords/domain 매칭으로 상위 3명 압축
+       → history tie-break → 동률 시 사용자 1줄 확인 → 부재 시 자동 채용)
+       로 재작성. hr-lead.md 채용 절차에 keywords 1줄 제안 (optional, ceremony 0).
+       plugin core 는 매칭/정렬을 하지 않음 — CPO LLM 이 매 호출 시 직접 수행
+       (ADR-0009 self-contained 유지). 회사별 lookup table 0. 기존 회사 0
+       변경으로 동작 (optional 필드). plugin 업데이트는 회사별 `/sync-persona`
+       1회로 전파.
 ```
 
 ---

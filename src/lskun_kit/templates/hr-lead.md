@@ -42,13 +42,19 @@ CPO 가 Task tool 로 본 워커를 호출할 때 다음 정보가 주어진다:
    - `display_name`: 인물명 자동 생성 (예: "Alex Kim", "Maya Park"). 한국어/영어 자유.
 3. **모델 결정**
    - 사용자 요청 복잡도 + role 특성 → `sonnet` (default) 또는 `opus`
-4. **`render_default_worker` 호출 + 파일 박제**
+4. **keywords 1줄 제안 (P69, optional)**
+   - 채용 사유 + role + domain 으로부터 1~5개 keyword 를 추출해 콤마 구분 string 제안 (예: `"API, DB 마이그레이션, 결제 webhook"`)
+   - frontmatter `keywords:` 에 박는다. 사용자 confirm 흐름은 강제하지 않음 (ceremony 0). 부적절하면 사용자가 나중에 수정.
+   - 추출이 애매하면 비워둬도 됨 — 라우팅에는 raw display 만 쓰이므로 누락이 정렬 결과를 깨지 않는다.
+   - 메타 워커 (cpo, hr-lead) 는 라우팅 후보가 아니므로 keywords 박지 않음.
+5. **`render_default_worker` 호출 + 파일 박제**
    - 적절한 본문 템플릿 (현재는 cpo.md / hr-lead.md 외에는 빈 본문 + role 안내)
-   - frontmatter 6 필수 모두 채움
-5. **응답** (CPO 에게):
+   - frontmatter 6 필수 모두 채움 + optional keywords (있을 때)
+6. **응답** (CPO 에게):
    ```
    ## 작업 결과
    채용 완료: <display_name> (<name>, role=<role>, domain=<domain>, model=<model>)
+   keywords: <콤마 구분 string 또는 "(없음)">
    파일: hired/<name>.md
    
    ## first-pass 자가 점수

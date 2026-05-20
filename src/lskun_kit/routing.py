@@ -104,14 +104,7 @@ def build_cpo_routing_context(
         for name in candidate_workers:
             try:
                 worker = adapter.read_worker(name)
-                project_summary = _summarize_projects(worker.body)
-                line = f"- {name} ({worker.role}, domain={worker.domain}"
-                if worker.model:
-                    line += f", model={worker.model}"
-                line += ")"
-                if project_summary:
-                    line += f" — {project_summary}"
-                parts.append(line)
+                parts.append(_format_worker_line(name, worker))
             except Exception:
                 parts.append(f"- {name} (role unknown)")
     else:
@@ -120,11 +113,17 @@ def build_cpo_routing_context(
             "자동 채용 진행.)_"
         )
 
+    # P69 — user_request 를 fence 로 감싸 markdown injection 차단.
+    # 사용자 요청에 ``## Hired Workers`` 같은 헤더가 들어와도 routing context
+    # 구조가 깨지지 않도록 보호한다 (security 가드).
+    safe_request = (user_request.strip() or "_(empty)_").replace("```", "ˋˋˋ")
     parts.extend(
         [
             "",
             "## User Request",
-            user_request.strip() or "_(empty)_",
+            "```user-request",
+            safe_request,
+            "```",
             "",
             "## 응답 형식",
             "적합 워커가 있을 때 — Task tool 로 dispatch:",
@@ -147,12 +146,37 @@ def build_cpo_routing_context(
             "주의: 워커 → 워커 chain 은 금지. 워커는 CPO 에게만 보고하고",
             "다른 워커를 직접 호출하지 않는다. PreToolUse hook 이 차단한다.",
             "",
-            "라우팅 hint: 위 후보의 project 요약은 누적된 reflection 의 프로젝트 분포다.",
-            "사용자 요청이 어느 프로젝트인지 추론한 뒤, 해당 프로젝트 entry 가 많은 워커를",
-            "우선 고려하라 (도메인·role 매칭이 동률일 때).",
+            "라우팅 hint:",
+            "  1. 각 후보의 ``keywords:`` (현재 책임 신호) 와 사용자 요청의 의미를 매칭",
+            "  2. ``domain=`` 일치 (회사 도메인 vs 후보 도메인) 가 동률 tie-break 1순위",
+            "  3. ``history:`` 요약 (누적 자산 신호) 가 동률 tie-break 2순위",
+            "  4. 그래도 동률이면 사용자에게 1줄로 후보 2~3명 제시하고 선택 요청",
+            "  주의: keywords 는 워커 자기 신고이므로 과대광고 가능. 의심 시 history 우선.",
         ]
     )
     return "\n".join(parts) + "\n"
+
+
+def _format_worker_line(name: str, worker) -> str:
+    """라우팅 후보 1줄 포맷. CPO 가 적합 워커를 고를 때 참조하는 메타데이터.
+
+    P69 — ``keywords`` (있을 때만) 를 raw 노출. plugin core 는 keywords 를
+    매칭/정렬에 쓰지 않고 CPO LLM 이 자유 해석하도록 그대로 표시한다.
+    history 요약은 누적 자산 신호, keywords 는 현재 책임 신호.
+    """
+
+    line = f"- {name} ({worker.role}, domain={worker.domain}"
+    if worker.model:
+        line += f", model={worker.model}"
+    line += ")"
+    # keywords 출력 시 backtick escape — markdown 렌더링 보호.
+    if worker.keywords:
+        safe_kw = worker.keywords.replace("`", "'")
+        line += f" — keywords: {safe_kw}"
+    project_summary = _summarize_projects(worker.body)
+    if project_summary:
+        line += f" — {project_summary}"
+    return line
 
 
 def _summarize_projects(worker_body: str) -> str:
