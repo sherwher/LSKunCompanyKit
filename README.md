@@ -4,7 +4,7 @@
 
 **LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 자동으로 채용합니다. 도메인 (의료/금융/교육 등) 별 전문가 채용으로 reflection 자산이 도메인 단위로 축적됩니다.
 
-- **Status:** `0.8.0` · Phase 8 ([ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) persona sync + 조직도 view)
+- **Status:** Version 은 `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 가장 최근 design pivot 은 [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) (단일 SSOT version 정책)
 - **License:** MIT
 - **Namespace:** `/lskun-kit:*`
 

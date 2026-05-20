@@ -22,7 +22,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.10.0 (Phase 10 — P70 ADR-0011 JD 기반 채용 + 정체성 보강)
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 11 — P71 ADR-0012 단일 SSOT version 정책
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -207,8 +207,8 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version: 0.8.0
-│   └── marketplace.json
+│   ├── plugin.json           # version SSOT (ADR-0012)
+│   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
 ├── hooks/
 │   └── hooks.json            # SessionStart hook 등록 (P24)
 ├── commands/                  # 6개 slash command

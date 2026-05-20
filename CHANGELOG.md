@@ -5,6 +5,24 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.11.0] — 2026-05-20
+
+### Changed — Plugin version single-source SSOT ([ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md))
+- `.claude-plugin/plugin.json` 의 `version` 필드를 **유일한 version 진실원** 으로 확정
+- `src/lskun_kit/__init__.py` 의 `__version__` 을 hardcode `"0.8.0"` → `plugin.json` 동적 parse 로 교체. import 시점 1회 평가, stdlib only (ADR-0009 self-contained 유지). Persona sync provenance (`lskun-kit@<version>`) 가 자동으로 정합화됨
+- `.claude-plugin/marketplace.json` 의 `version` 필드 제거 — spec 상 fallback (1순위 = plugin.json) 이라 작동 영향 0, drift 원천만 제거
+- `CLAUDE.md` §7 디렉토리 트리의 `# version: …` 주석 제거 + §1 "버전" 라인을 plugin.json 참조 안내로 교체
+- `README.md` Status 라인 — 숫자 박제 제거, plugin.json SSOT 안내로 교체
+- `commands/{sync-persona,doctor,org}.md` 의 예시 출력 — `0.8.0` 등 hardcode → `<plugin-version>` / `<ver>` placeholder
+
+### Notes — Release 절차 단순화
+- 박제 위치 7곳 → 1곳 (`plugin.json` 만 bump)
+- 누락 위험 0
+- 기존 110+ test 영향 없음 (test fixture 의 `"0.8.0"` 는 sync 로직 검증용 임의 값, plugin 자체 version 과 무관)
+
+### Catch-up — 0.9.0 / 0.10.0
+P60~P70 동안 ADR-0010 (persona sync) / ADR-0011 (JD 기반 채용) 박제 시점에 plugin.json 은 bump 됐으나 CHANGELOG 항목 작성이 누락되었다. 본 ADR-0012 가 의도하는 "단일 SSOT" 정신상 CHANGELOG 항목 역추적 작성은 본 phase 범위 밖이며, ADR-0010 / ADR-0011 문서가 1차 진실원으로 남는다.
+
 ## [0.8.0] — 2026-05-19
 
 ### Added — Persona sync + provenance + 조직도 view ([ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md))

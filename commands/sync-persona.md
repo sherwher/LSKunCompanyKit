@@ -49,15 +49,15 @@ Persona Sync Plan
 ================================================
 backend          : vault
 company root     : <your-vault>/03_Companies/<company>
-plugin version   : 0.8.0
+plugin version   : <plugin-version>
 
 [cpo] <your-vault>/03_Companies/<company>/hired/cpo.md
   body          : OK
-  provenance    : missing/stale (current=None, target='lskun-kit@0.8.0')
+  provenance    : missing/stale (current=None, target='lskun-kit@<plugin-version>')
   action        : sync
 [hr-lead] <your-vault>/03_Companies/<company>/hired/hr-lead.md
   body          : STALE — needs sync
-  provenance    : missing/stale (current=None, target='lskun-kit@0.8.0')
+  provenance    : missing/stale (current=None, target='lskun-kit@<plugin-version>')
   action        : sync
 ```
 

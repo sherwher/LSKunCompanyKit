@@ -29,7 +29,7 @@ backend: vault → <your-vault>/03_Companies/Acme
 
 총: 4명 (CPO 1, HR 1, Worker 2)
 도메인별: meta 2, web 2
-Persona sync: cpo=lskun-kit@0.8.0 (2026-05-19), hr-lead=lskun-kit@0.8.0 (2026-05-19)
+Persona sync: cpo=lskun-kit@<ver> (2026-05-19), hr-lead=lskun-kit@<ver> (2026-05-19)
 ```
 
 ## 동작
