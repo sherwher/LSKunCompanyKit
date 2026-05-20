@@ -40,13 +40,16 @@ def render_default_worker(
     domain: str = META_DOMAIN,
     model: str | None = None,
     synced_from: str | None = None,
+    keywords: str | None = None,
+    body_override: str | None = None,
 ) -> str:
-    """템플릿 파일을 읽어 frontmatter 6 필수 필드 (+ optional model) 를 채워 반환한다.
+    """템플릿 파일을 읽어 frontmatter 6 필수 필드 (+ optional) 를 채워 반환한다.
 
     Args:
         name: 워커 이름 (파일명 stem 과 일치해야 함)
         role: 워커 역할
-        template_filename: ``src/lskun_kit/templates/<filename>`` 의 본문 파일명
+        template_filename: ``src/lskun_kit/templates/<filename>`` 의 본문 파일명.
+                           ``body_override`` 가 주어지면 무시된다.
         storage_backend: ``"local"`` | ``"vault"``
         display_name: ADR-0004 §5 — 사람 이름 (자유 입력, 필수).
                       CPO/HR 의 경우 init 인터뷰에서 사용자가 직접 입력한 값을 받는다.
@@ -55,6 +58,14 @@ def render_default_worker(
                 CPO/HR Lead 등 도메인 무관 워커용).
         model: ADR-0004 §4 — ``"sonnet" | "opus"`` 또는 모델 ID. ``None`` 이면
                frontmatter 에 ``model`` 키를 emit 하지 않음 (= default 적용).
+        keywords: P69 — 콤마 구분 키워드 문자열 (예: ``"API, DB 마이그레이션"``).
+                  ``None`` 이면 frontmatter 에 ``keywords`` 키를 emit 하지 않음.
+                  메타 워커 (CPO/HR Lead) 는 라우팅 후보가 아니므로 비워두는 것이 원칙.
+        body_override: P70 (ADR-0011) — HR Lead 가 JD 기반으로 작성한 markdown
+                       string. ``None`` 이면 ``template_filename`` 의 본문을 읽는다
+                       (기존 동작 보존). 주어지면 그 string 을 그대로 body 로 사용
+                       — plugin core 는 schema 검증을 하지 않는 단순 passthrough
+                       (ADR-0009 + ADR-0011 §4).
 
     Returns:
         frontmatter + 본문이 결합된 markdown 문자열. 그대로
@@ -83,7 +94,12 @@ def render_default_worker(
     if synced_from is not None:
         fm["persona_synced_from"] = synced_from
         fm["persona_synced_at"] = (hired_at or date_cls.today()).isoformat()
-    return frontmatter.dump(fm, _read_template(template_filename))
+    # P69 — keywords 가 주어졌을 때만 frontmatter 에 박제.
+    if keywords is not None and keywords.strip():
+        fm["keywords"] = keywords.strip()
+    # P70 (ADR-0011) — body_override 우선. plugin core 는 내용 검증 X (passthrough).
+    body = body_override if body_override is not None else _read_template(template_filename)
+    return frontmatter.dump(fm, body)
 
 
 def iter_default_workers() -> Iterable[tuple[str, str, str, str | None]]:

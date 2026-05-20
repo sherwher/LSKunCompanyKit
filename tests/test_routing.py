@@ -436,6 +436,142 @@ class P69CpoPersonaTests(unittest.TestCase):
         self.assertIn("과대광고", body)
 
 
+class P70JdBasedHiringTests(unittest.TestCase):
+    """P70 (ADR-0011) — render_default_worker body_override + JD inline."""
+
+    def test_body_override_replaces_template_body(self) -> None:
+        from lskun_kit.templates import render_default_worker
+        jd = (
+            "# Carol Lee — frontend-engineer\n\n"
+            "> 결제 페이지 신뢰성에 집중하는 프론트엔드 엔지니어.\n\n"
+            "## 책임 (Responsibilities)\n- 결제 UX 안정성\n\n"
+            "## 핵심 역량 (Qualifications)\n- Next.js, React, Stripe\n\n"
+            "## 작업 지침 (Guidelines)\n- CPO 결재 양식 준수\n\n"
+            "## Project History\n\n_(empty)_\n"
+        )
+        rendered = render_default_worker(
+            name="frontend-engineer",
+            role="frontend-engineer",
+            template_filename="cpo.md",  # 의도적으로 다른 template 지정
+            storage_backend="local",
+            display_name="Carol Lee",
+            domain="web",
+            body_override=jd,
+        )
+        # template 내용이 새지 않고 body_override 만 박혀야 함
+        self.assertIn("# Carol Lee — frontend-engineer", rendered)
+        self.assertIn("## 책임 (Responsibilities)", rendered)
+        self.assertNotIn("Chief Product Officer", rendered)
+        # frontmatter 는 정상 박제
+        self.assertIn("name: frontend-engineer", rendered)
+        self.assertIn("display_name: Carol Lee", rendered)
+        self.assertIn("domain: web", rendered)
+
+    def test_body_override_none_preserves_template_read(self) -> None:
+        """기존 호출자 0 변경 — body_override 없으면 template 그대로 읽는다."""
+        from lskun_kit.templates import render_default_worker
+        rendered = render_default_worker(
+            name="cpo",
+            role="chief-product-officer",
+            template_filename="cpo.md",
+            storage_backend="local",
+            display_name="자비스",
+        )
+        # cpo.md template 의 본문이 그대로 들어와야 함
+        self.assertIn("Chief Product Officer", rendered)
+        self.assertIn("결정 절차 5단계", rendered)
+
+    def test_keywords_param_renders_when_present(self) -> None:
+        """P70 — keywords 인자가 frontmatter 에 박힘."""
+        from lskun_kit.templates import render_default_worker
+        rendered = render_default_worker(
+            name="bob",
+            role="backend-engineer",
+            template_filename="cpo.md",
+            storage_backend="local",
+            display_name="Bob Kim",
+            domain="web",
+            keywords="API, DB 마이그레이션, 결제 webhook",
+            body_override="# bob\n\n## Project History\n\n_(empty)_\n",
+        )
+        self.assertIn("keywords: API, DB 마이그레이션, 결제 webhook", rendered)
+
+    def test_keywords_param_omitted_does_not_emit_key(self) -> None:
+        """keywords None 이면 frontmatter 에 키 자체가 없어야 함 (기존 회귀 가드)."""
+        from lskun_kit.templates import render_default_worker
+        rendered = render_default_worker(
+            name="alice",
+            role="engineer",
+            template_filename="cpo.md",
+            storage_backend="local",
+            display_name="Alice",
+            domain="web",
+            body_override="# alice\n\n## Project History\n\n_(empty)_\n",
+        )
+        self.assertNotIn("keywords:", rendered)
+
+    def test_keywords_param_empty_string_does_not_emit_key(self) -> None:
+        """빈 string 도 frontmatter emit 안 함 (sanitize)."""
+        from lskun_kit.templates import render_default_worker
+        rendered = render_default_worker(
+            name="alice",
+            role="engineer",
+            template_filename="cpo.md",
+            storage_backend="local",
+            display_name="Alice",
+            domain="web",
+            keywords="   ",
+            body_override="# alice\n",
+        )
+        self.assertNotIn("keywords:", rendered)
+
+
+class P70HrLeadPersonaTests(unittest.TestCase):
+    """P70 (ADR-0011) — HR Lead persona 가 JD body 작성 단계를 박제."""
+
+    def _read_rendered_hr(self) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            return adapter.read_worker(HR_LEAD_WORKER_NAME).body
+
+    def test_hr_lead_documents_jd_body_step(self) -> None:
+        body = self._read_rendered_hr()
+        self.assertIn("JD body 작성", body)
+        self.assertIn("body_override", body)
+        # JD 4 섹션 박제
+        self.assertIn("책임 (Responsibilities)", body)
+        self.assertIn("핵심 역량 (Qualifications)", body)
+        self.assertIn("작업 지침 (Guidelines)", body)
+
+    def test_hr_lead_documents_rate_limit_bypass_guard(self) -> None:
+        body = self._read_rendered_hr()
+        self.assertIn("Rate-limit 우회 금지", body)
+        self.assertIn("role 을 미세 분화", body)
+
+    def test_hr_lead_documents_keywords_bulk_and_rehire(self) -> None:
+        body = self._read_rendered_hr()
+        self.assertIn("keywords 일괄 보강", body)
+        self.assertIn("역량 갱신", body)
+        # 자동 트리거 금지 명시
+        self.assertIn("사용자 명시 요청만", body)
+
+
+class P70CpoIdentityTests(unittest.TestCase):
+    """P70 — CLAUDE.md 정체성 박제는 plugin code 가 직접 검증할 수 없으므로,
+    cpo.md persona 가 JD 자산 누적 흐름과 충돌하지 않는지 회귀 가드만 둔다."""
+
+    def _read_rendered_cpo(self) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            return adapter.read_worker(CPO_WORKER_NAME).body
+
+    def test_cpo_persona_does_not_reintroduce_density_slogan(self) -> None:
+        """ADR-0011 §"폐기/금지" — 슬로건성 표현 금지."""
+        body = self._read_rendered_cpo()
+        for slogan in ("고밀도 워크포스", "최대한 밀도", "AI 직원 진화"):
+            self.assertNotIn(slogan, body)
+
+
 class P69HrLeadPersonaTests(unittest.TestCase):
     """P69 — hr-lead.md 가 채용 시 keywords 1줄 제안 절차를 박제."""
 

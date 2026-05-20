@@ -1,6 +1,6 @@
 {
   "name": "LSKunCompanyKit",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "AI workers that remember their work — main session = CPO (Leader-Worker) with domain-aware stateful workers, Reflection, and pluggable storage backends for Claude Code.",
   "author": {
     "name": "이성근",

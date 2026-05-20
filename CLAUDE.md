@@ -12,6 +12,7 @@
 > - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입 (ADR-0007 폐기, ADR-0001 §4 + ADR-0004 §1 유지)
 > - [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — **Self-contained default** + 외부 통합은 명시 opt-in. "future: Notion" 약속 폐기. plugin core 는 외부 SDK / API 미보유
 > - [ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) — Persona sync (`/lskun-kit:sync-persona`) + provenance + 조직도 view (`/lskun-kit:org`)
+> - [ADR-0011](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0011-2026-05-20-jd-based-hiring.md) — **JD 기반 채용 + 정체성 보강** (persona body 의 JD inline + 자산 누적 2 차원)
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -21,17 +22,22 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** 0.9.0 (Phase 9 — P69 라우팅 정확도 보강: workers keywords + cpo.md 결정 절차 5단계 + injection 가드)
+- **버전:** 0.10.0 (Phase 10 — P70 ADR-0011 JD 기반 채용 + 정체성 보강)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
 - **라이선스:** MIT
 
-### 한 줄 정체성
+### 한 줄 정체성 (ADR-0011 갱신)
 
-> "Claude Code 의 메인 세션 자체가 회사의 CPO 로 동작하여, AI 직원이 작업을 기억하며 자라는 시스템.
-> 사용자 요청 → CPO 자동 라우팅 → 워커 dispatch → 결재 → 응답. 부재 워커는 자동 채용.
+> "Claude Code 의 메인 세션 자체가 회사의 CPO 로 동작하여, 사용자 요청마다 최적 전문가를 매칭·dispatch 한다.
+> 채용 시 HR Lead 가 작성한 JD (persona body) 와 작업 이력 (reflection history) 이 회사 자산으로 누적된다.
+> 사용자 요청 → CPO 라우팅 → 워커 dispatch → 결재 → 응답. 부재 워커는 JD 기반 자동 채용.
 > 저장 위치는 사용자 선택, 마이그레이션은 LSKunCompanyKit 책임."
+
+자산은 두 차원으로 정의된다 (ADR-0011 §6):
+- **정적 자산 = persona body (JD inline)** — 채용 시점 1회 박제, 자동 갱신 금지
+- **동적 자산 = reflection history** — 매 작업 종료 시 1줄 append (ADR-0001 §3)
 
 ### Slash commands (현재)
 
@@ -166,6 +172,13 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **"future: Notion" 등 외부 통합 promise** — plugin 본 repo 어디서도 박제 금지. 실제 도입 시점에 별도 ADR + add-on package (ADR-0009)
 - **plugin core 안에서 외부 시스템 (Obsidian, Notion 등) SDK / API 호출** — 영원히 금지. 외부 통합은 별도 add-on 책임 (ADR-0009)
 - **plugin 본 문서에 사용자 vault 절대경로·외부 도구 컨벤션 박제** — 추상 placeholder (`<your-vault>/`, `<your-project>/`) 만 허용 (ADR-0009)
+- **JD 자동 정기 갱신** — 채용 시점 1회 inline 박제. 사용자 미요청 자동 갱신 금지 (ADR-0011 §"폐기/금지")
+- **별도 JD 파일** (`jd/<name>.md` 등) — JD 는 워커 body inline 만 (ADR-0011)
+- **plugin core 의 JD schema 박제** — `body_override` 는 단순 string passthrough. dataclass / 검증 / 도메인 사전 도입 금지 (ADR-0011 + ADR-0009)
+- **role 미세 분화 우회** — JD 가 정교해진다고 `backend-engineer-payment` 같은 role 분할 채용 금지. rate-limit 단위 `role × domain` 유지 (ADR-0011)
+- **JD 외부 전송** — JD 가 외부 시스템 (Notion / Slack 등) 으로 자동 전송 금지 (ADR-0011 + ADR-0009)
+- **"고밀도 워크포스" / "최대한 밀도" / "AI 직원 진화" 등 슬로건성 narrative** — CLAUDE.md / README / ADR / persona template 어디에도 박지 않음 (ADR-0011)
+- **JD 측정 지표** — "밀도" / "Context Coverage Rate" / "First-pass Approval Rate" 등 KPI 자동 산출 금지 (ADR-0011 + ADR-0002 §5)
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
@@ -273,6 +286,20 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 10 (P70 — JD 기반 채용 + 정체성 보강)
+
+```
+P70 ✅ ADR-0011 박제. CLAUDE.md §1 정체성 한 줄 갱신 (JD persona body +
+       reflection history 2차원 자산). render_default_worker 에 body_override
+       string passthrough 인자 추가 (기존 호출자 0 변경). HR Lead persona
+       채용 알고리즘 6단계 → 7단계 (4.5 JD body 작성). 핵심 책임에
+       "keywords 일괄 보강" (#6) / "역량 갱신" (#7) 추가. CLAUDE.md §6
+       금지 목록에 JD 관련 7개 항목 박제 (자동 갱신 / 별도 파일 / schema /
+       role 미세 분화 / 외부 전송 / 슬로건 / KPI). 측정 지표 비도입.
+       4 에이전트 검토 합의 (architect / critic / analyst / planner).
+       기존 회사 / 기존 워커 0 변경.
 ```
 
 ### Phase 9 (P69 — 라우팅 정확도 보강)
