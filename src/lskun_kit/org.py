@@ -51,6 +51,10 @@ class OrgReport:
     entries: list[OrgEntry] = field(default_factory=list)
     archived_entries: list[OrgEntry] = field(default_factory=list)
 
+    #: ADR-0013 — 조직도 stable format. 동적 padding 폐지, markdown table 단일 SSOT.
+    _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | History |"
+    _TABLE_SEP = "|--------|------|---------|------|--------|-------|---------|"
+
     def render(self, include_archived: bool = False) -> str:
         lines = [
             "LSKunCompanyKit org",
@@ -67,16 +71,14 @@ class OrgReport:
         sorted_entries = sorted(
             self.entries, key=lambda e: (order[e.category], e.name)
         )
-        # 컬럼 폭 계산
-        w_name = max(8, max(len(e.name) for e in sorted_entries))
-        w_disp = max(6, max(len(e.display_name) for e in sorted_entries))
-        w_role = max(8, max(len(e.role) for e in sorted_entries))
+        # ADR-0013 — markdown table. 컬럼 폭 동적 계산 금지.
+        lines.append(self._TABLE_HEADER)
+        lines.append(self._TABLE_SEP)
         for e in sorted_entries:
             model = e.model or "default"
             lines.append(
-                f"[{e.category:<6}] {e.name:<{w_name}}  {e.display_name:<{w_disp}}  "
-                f"({e.role:<{w_role}}, model={model:<8}, domain={e.domain}, "
-                f"history={e.history_count})"
+                f"| {e.category:<6} | {e.name} | {e.display_name} | "
+                f"{e.role} | {e.domain} | {model} | {e.history_count} |"
             )
         # 요약
         cpo_n = sum(1 for e in sorted_entries if e.category == "CPO")
@@ -106,11 +108,13 @@ class OrgReport:
         if include_archived and self.archived_entries:
             lines.append("")
             lines.append("--- archived ---")
+            lines.append(self._TABLE_HEADER)
+            lines.append(self._TABLE_SEP)
             for e in sorted(self.archived_entries, key=lambda e: e.name):
                 model = e.model or "default"
                 lines.append(
-                    f"[archive] {e.name}  {e.display_name}  "
-                    f"({e.role}, model={model}, domain={e.domain})"
+                    f"| arch   | {e.name} | {e.display_name} | "
+                    f"{e.role} | {e.domain} | {model} | {e.history_count} |"
                 )
         return "\n".join(lines) + "\n"
 

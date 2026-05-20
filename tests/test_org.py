@@ -140,6 +140,54 @@ class OrgBuildTests(unittest.TestCase):
         self.assertIn("web 2", text)
         self.assertIn("meta 2", text)
 
+    def test_render_uses_stable_markdown_table(self) -> None:
+        """ADR-0013 — markdown table format 박제 강제.
+
+        호출마다 형식이 흔들리는 동적 padding 회귀를 방지한다.
+        """
+        self._put("cpo", role="chief-product-officer", display="자비스")
+        self._put("hr-lead", role="hr-lead", display="요니찡")
+        self._put("alice", role="backend-engineer", display="앨리스 Kim",
+                  domain="web", history_lines=3)
+        text = org.build(self.adapter).render()
+        # 고정 header / separator
+        self.assertIn(
+            "| Cat    | Name | Display | Role | Domain | Model | History |",
+            text,
+        )
+        self.assertIn(
+            "|--------|------|---------|------|--------|-------|---------|",
+            text,
+        )
+        # 한글 display name 이 폭 보정 없이 그대로 박힘
+        self.assertIn("| 자비스 |", text)
+        self.assertIn("| 앨리스 Kim |", text)
+        # Cat 컬럼은 6폭 고정 (이건 의도된 유일한 padding)
+        self.assertIn("| CPO    |", text)
+        self.assertIn("| HR     |", text)
+        self.assertIn("| Worker |", text)
+        # history 카운트가 정수로 직접 박힘 (history=3 형식 회귀 방지)
+        self.assertIn("| 3 |", text)
+        self.assertNotIn("history=", text)
+
+    def test_render_is_stable_across_dataset_changes(self) -> None:
+        """ADR-0013 — 워커 추가/제거 시 기존 줄의 형식이 흔들리지 않는다."""
+        self._put("cpo", role="chief-product-officer", display="자비스")
+        self._put("alice", role="backend-engineer", display="A", domain="web")
+        text1 = org.build(self.adapter).render()
+        alice_line_1 = [ln for ln in text1.splitlines()
+                        if "| alice |" in ln][0]
+        # 매우 긴 display name 을 가진 워커 추가
+        self._put("verylongworkernameforpaddingtest",
+                  role="frontend-engineer",
+                  display="이름이 매우매우매우 긴 워커",
+                  domain="ai")
+        text2 = org.build(self.adapter).render()
+        alice_line_2 = [ln for ln in text2.splitlines()
+                        if "| alice |" in ln][0]
+        # 기존 alice 줄이 새 워커의 폭에 영향받지 않고 동일하게 유지
+        self.assertEqual(alice_line_1, alice_line_2)
+
 
 class OrgArchivedTests(unittest.TestCase):
     def test_include_archived_renders_separately(self) -> None:

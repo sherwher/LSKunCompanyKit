@@ -14,7 +14,7 @@ description: 현재 회사의 조직도를 한눈에 본다 (읽기 전용). hir
 /lskun-kit:org --include-archived      # archived/ 도 별도 섹션으로 표시
 ```
 
-## 출력 예
+## 출력 예 (ADR-0013 — stable markdown table)
 
 ```
 LSKunCompanyKit org
@@ -22,15 +22,20 @@ LSKunCompanyKit org
 회사: Acme (domain=핀테크)
 backend: vault → <your-vault>/03_Companies/Acme
 
-[CPO   ] cpo               자비스      (chief-product-officer, model=default, domain=meta, history=12)
-[HR    ] hr-lead           요니찡      (hr-lead              , model=sonnet,  domain=meta, history=3)
-[Worker] backend-engineer  준호 Kim    (backend-engineer     , model=sonnet,  domain=web,  history=28)
-[Worker] frontend-engineer 민지 Park   (frontend-engineer    , model=sonnet,  domain=web,  history=45)
+| Cat    | Name | Display | Role | Domain | Model | History |
+|--------|------|---------|------|--------|-------|---------|
+| CPO    | cpo | 자비스 | chief-product-officer | meta | default | 12 |
+| HR     | hr-lead | 요니찡 | hr-lead | meta | sonnet | 3 |
+| Worker | backend-engineer | 준호 Kim | backend-engineer | web | sonnet | 28 |
+| Worker | frontend-engineer | 민지 Park | frontend-engineer | web | sonnet | 45 |
 
 총: 4명 (CPO 1, HR 1, Worker 2)
 도메인별: meta 2, web 2
-Persona sync: cpo=lskun-kit@<ver> (2026-05-19), hr-lead=lskun-kit@<ver> (2026-05-19)
+Persona sync: cpo=lskun-kit@<plugin-version> (2026-05-19), hr-lead=lskun-kit@<plugin-version> (2026-05-19)
 ```
+
+> Markdown table 이라 호출 시점·데이터셋·한글 비율에 무관하게 형식이 안정적이다 (ADR-0013).
+> Claude Code / GitHub / Obsidian 모두 동일하게 렌더링.
 
 ## 동작
 

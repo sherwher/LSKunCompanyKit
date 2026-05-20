@@ -36,9 +36,13 @@ arguments:
 - `first_pass_score` 는 0..100 정수
 - 위반 시 `ValueError` → 사용자에게 메시지 표시 후 종료
 
+## 위상 (ADR-0013)
+
+본 명령은 **사용자 수동 정정 경로**다. 메인 자동 박제 경로는 **CPO 결재 6단계의 §4/§5** (cpo.md SSOT) — 즉 `/lskun-kit:work` 로 워커를 dispatch 하면 CPO 가 결재 직후 `lskun_kit.reflection.record()` 를 1줄 호출. 본 명령은 그 경로가 누락된 케이스 (직통 `/lskun-kit:work <name>` 후 사용자가 직접 박고 싶을 때, 또는 과거 누락 복구) 에 사용.
+
 ## Stop hook 과의 관계
 
-Stop hook 은 사용자가 환경변수 (`LSKUN_PROJECT`, `LSKUN_TOPIC`, `LSKUN_PATTERN`, `LSKUN_FIRST_PASS`) 로 사전 제공한 경우 자동 reflect 한다. 명시적 `/reflect` 를 선호하는 사용자는 hook 을 비활성화하거나 환경변수를 비워두면 된다.
+Stop hook 은 **`/lskun-kit:work <worker>` 직통 경로의 안전망**이다. 사용자가 환경변수 (`LSKUN_PROJECT`, `LSKUN_TOPIC`, `LSKUN_PATTERN`, `LSKUN_FIRST_PASS`) 로 사전 제공한 경우만 발동. **메인 세션 = CPO 의 Task dispatch 경로에서는 동작하지 않는다** (CPO 가 위 env 를 설정하는 메커니즘 없음 — ADR-0013 §"컨텍스트 2"). 따라서 메인 박제 경로는 cpo.md 결재 6단계가 단일 SSOT.
 
 ### Reflection 진실성 가드 (`LSKUN_OUTCOME`)
 

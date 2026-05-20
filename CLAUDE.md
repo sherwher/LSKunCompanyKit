@@ -13,6 +13,8 @@
 > - [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — **Self-contained default** + 외부 통합은 명시 opt-in. "future: Notion" 약속 폐기. plugin core 는 외부 SDK / API 미보유
 > - [ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) — Persona sync (`/lskun-kit:sync-persona`) + provenance + 조직도 view (`/lskun-kit:org`)
 > - [ADR-0011](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0011-2026-05-20-jd-based-hiring.md) — **JD 기반 채용 + 정체성 보강** (persona body 의 JD inline + 자산 누적 2 차원)
+> - [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) — Plugin version single-source SSOT (`plugin.json` 단일 진실원)
+> - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — **조직도 stable markdown table + CPO 결재 절차에 reflection 박제 강제** (워커 history dead code 화 결함 해결)
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -22,7 +24,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 11 — P71 ADR-0012 단일 SSOT version 정책
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P72 ADR-0013 조직도 stable format + reflection 박제 강제
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -179,6 +181,11 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **JD 외부 전송** — JD 가 외부 시스템 (Notion / Slack 등) 으로 자동 전송 금지 (ADR-0011 + ADR-0009)
 - **"고밀도 워크포스" / "최대한 밀도" / "AI 직원 진화" 등 슬로건성 narrative** — CLAUDE.md / README / ADR / persona template 어디에도 박지 않음 (ADR-0011)
 - **JD 측정 지표** — "밀도" / "Context Coverage Rate" / "First-pass Approval Rate" 등 KPI 자동 산출 금지 (ADR-0011 + ADR-0002 §5)
+- **`org.render()` 의 컬럼 폭 동적 계산 재도입** — markdown table 단일 SSOT. ASCII 정렬 미려함 추구로 동적 padding 복귀 금지 (ADR-0013)
+- **조직도 출력에 한글 폭 보정 (`east_asian_width`) 도입** — markdown table 로 회피한 의도 위반. 다른 format 필요 시 별도 ADR (ADR-0013)
+- **CPO 결재 절차의 reflection 박제 단계 생략** — 1건 dispatch = 1 `reflection.record()`. 일괄 / batch / 비동기 / "나중에" 금지 (ADR-0013)
+- **워커가 자기 reflection 을 직접 박제하는 경로** — reflection 박제는 CPO 결재 절차의 일부, 워커 → 워커 chain 금지와 동일 결 (ADR-0004 §8 + ADR-0013)
+- **새 hook (PostToolUse / SubagentStop 등) 으로 자동 reflection 박제 시도** — Claude Code hook spec 의존 자동 박제는 silent failure 누적 위험. 절차 박제 + 기존 `reflection.record()` 로 충분 (ADR-0013)
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 

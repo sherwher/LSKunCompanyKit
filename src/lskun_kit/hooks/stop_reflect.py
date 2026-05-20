@@ -1,7 +1,15 @@
-"""Stop hook — Claude Code 가 작업을 종료할 때 호출되는 reflection 자동화.
+"""Stop hook — ``/lskun-kit:work <worker>`` **직통 경로의 안전망** (ADR-0013 §4).
 
 세션 상태에 활성 워커가 있고, 환경변수로 reflection 필드가 채워져 있으면
 :func:`lskun_kit.reflection.record` 를 호출해 history 1줄을 append 한다.
+
+ADR-0013 — 메인 박제 경로 위상:
+    메인 세션 = CPO 의 Task dispatch 경로는 **본 hook 을 거치지 않는다**
+    (CPO 가 위 env 4개를 설정하는 메커니즘이 plugin 어디에도 없으며, Stop hook
+    은 메인 세션 종료 시점에 한 번 호출되므로 1세션 N dispatch 에 대응 불가).
+    그 경로의 reflection 박제는 ``cpo.md`` 의 §"결재 (Approval Loop) 6단계"
+    가 단일 SSOT — CPO 가 매 dispatch 직후 ``reflection.record()`` 를 1줄
+    호출한다.
 
 세션 상태가 없거나 필수 필드가 누락되면 silent no-op — 사용자가 본 hook 을
 의도적으로 사용하지 않는 워크플로 (직접 ``/lskun-kit:reflect`` 호출) 도 지원하기 위함.
