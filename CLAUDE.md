@@ -24,7 +24,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P74 `/org` compact 기본화 + paste 변형 금지 박제
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P75 `/org` self-bootstrap + 필터/export (4 에이전트 합의안)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -293,6 +293,31 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 12 (P75 — `/org` self-bootstrap + 필터/export, 4 에이전트 합의안)
+
+```
+P75 ✅ P74 잔존 결함 (PYTHONPATH 의존, 출력 길이) 근본 해결.
+       사용자 제안 (`org-chart.md` 정적 인덱스 + h=N auto-increment) 을 4
+       에이전트 (critic / architect / analyst / planner) 합의로 폐기:
+       - SSOT 이중화 (워커 md frontmatter ↔ org-chart.md)
+       - reflection.record() SRP 위반 + dual-write 비원자성
+       - ADR-0009 self-contained 원칙 위반 위험
+       - 41명 1인 운영 규모에 over-engineering
+
+       합의안 (P75-1 ~ P75-4) 박제:
+       - cli_org.py self-bootstrap: 파일 자기 위치 기반 sys.path 보정.
+         PYTHONPATH / $CLAUDE_PLUGIN_ROOT env var 의존 0. 직접 실행 가능.
+       - commands/org.md: `python3 "$CLAUDE_PLUGIN_ROOT/src/lskun_kit/cli_org.py"`
+         1줄로 박제. PYTHONPATH 제거.
+       - --domain DOM: prefix 매칭 필터 (예: --domain tech → tech-* 8명).
+         출력 길이 제어 — 41명 전체 대신 도메인별 부분 조회.
+       - --export PATH: stdout 대신 파일에 dump. Obsidian/GitHub 외부 렌더링.
+         사용자 명시 실행, 자동 sync 아님.
+
+       org.py 동적 산출 + ADR-0013 stable markdown table SSOT 유지.
+       256 tests 통과.
 ```
 
 ### Phase 12 (P74 — `/org` compact 기본 + paste 변형 금지 박제)
