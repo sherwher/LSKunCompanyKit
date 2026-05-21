@@ -55,7 +55,7 @@ class OrgReport:
     _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | History |"
     _TABLE_SEP = "|--------|------|---------|------|--------|-------|---------|"
 
-    def render(self, include_archived: bool = False) -> str:
+    def render(self, include_archived: bool = False, compact: bool = False) -> str:
         lines = [
             "LSKunCompanyKit org",
             "================================================",
@@ -71,15 +71,25 @@ class OrgReport:
         sorted_entries = sorted(
             self.entries, key=lambda e: (order[e.category], e.name)
         )
-        # ADR-0013 — markdown table. 컬럼 폭 동적 계산 금지.
-        lines.append(self._TABLE_HEADER)
-        lines.append(self._TABLE_SEP)
-        for e in sorted_entries:
-            model = e.model or "default"
-            lines.append(
-                f"| {e.category:<6} | {e.name} | {e.display_name} | "
-                f"{e.role} | {e.domain} | {model} | {e.history_count} |"
-            )
+        if compact:
+            # ADR-0013 add-on — compact 1줄. role==name 인 경우 role 생략 (중복 제거).
+            for e in sorted_entries:
+                model = e.model or "default"
+                role_part = "" if e.role == e.name else f" · {e.role}"
+                lines.append(
+                    f"[{e.category[0]}] {e.name} ({e.display_name})"
+                    f"{role_part} · {e.domain} · {model} · h={e.history_count}"
+                )
+        else:
+            # ADR-0013 — markdown table. 컬럼 폭 동적 계산 금지.
+            lines.append(self._TABLE_HEADER)
+            lines.append(self._TABLE_SEP)
+            for e in sorted_entries:
+                model = e.model or "default"
+                lines.append(
+                    f"| {e.category:<6} | {e.name} | {e.display_name} | "
+                    f"{e.role} | {e.domain} | {model} | {e.history_count} |"
+                )
         # 요약
         cpo_n = sum(1 for e in sorted_entries if e.category == "CPO")
         hr_n = sum(1 for e in sorted_entries if e.category == "HR")

@@ -24,7 +24,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P72 ADR-0013 조직도 stable format + reflection 박제 강제
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P73 `/org` canonical entrypoint + `--compact` add-on
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -293,6 +293,21 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 12 (P73 — `/org` canonical entrypoint + compact add-on)
+
+```
+P73 ✅ `/lskun-kit:org` 운영 개선. 신규 모듈 `src/lskun_kit/cli_org.py` 추가
+       (canonical entrypoint `python3 -m lskun_kit.cli_org`). backend
+       auto-detect 는 hooks/session_start 의 `_find_active_company_root` 와
+       동일 규칙 (LSKUN_VAULT+COMPANY → cwd 상향 .company). commands/org.md
+       를 "이 1줄만 실행" 으로 박제해 LLM 이 매번 다른 Python heredoc 을 짜는
+       우회 차단 (두 번 호출 / 출력 paste 오류 재발 방지). `OrgReport.render()`
+       에 `compact: bool = False` 인자 추가 — 기본은 ADR-0013 stable markdown
+       table 그대로 유지 (SSOT 미파괴), `--compact` 시 1줄 포맷
+       `[C/H/W] name (display) · role · domain · model · h=N` (role==name 시
+       role 생략) 로 가독성 확보. 256 tests 통과.
 ```
 
 ### Phase 10 (P70 — JD 기반 채용 + 정체성 보강)
