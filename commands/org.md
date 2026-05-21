@@ -7,24 +7,29 @@ description: 현재 회사의 조직도를 한눈에 본다 (읽기 전용). hir
 
 활성 backend 의 `hired/` 디렉토리를 스캔해 조직도를 출력. **읽기 전용** — 파일을 수정하지 않는다.
 
-## 실행 — Canonical (P75: self-bootstrap, env var 의존 0)
+## 실행 — Canonical (P77: env 의존 0, shell-side resolve)
 
-**다른 호출 형태로 우회하지 말 것.** `cli_org.py` 가 자기 위치 기반으로 `sys.path` 자체 보정하므로 `PYTHONPATH` / `$CLAUDE_PLUGIN_ROOT` 환경변수 불필요. 아래 1줄만 그대로 실행한다.
+**다른 호출 형태로 우회하지 말 것.** 아래 1줄을 그대로 실행한다. 셸이 직접 `cli_org.py` 경로를 해소하므로 `$CLAUDE_PLUGIN_ROOT` 가 주입되지 않은 환경에서도 동작한다.
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/src/lskun_kit/cli_org.py"
+LSKUN_CLI="${CLAUDE_PLUGIN_ROOT:-}/src/lskun_kit/cli_org.py"; [ -f "$LSKUN_CLI" ] || LSKUN_CLI="$(ls -1d ~/.claude/plugins/cache/LSKunCompanyKit/LSKunCompanyKit/*/src/lskun_kit/cli_org.py 2>/dev/null | sort -V | tail -1)"; [ -f "$LSKUN_CLI" ] || LSKUN_CLI="$(pwd)/src/lskun_kit/cli_org.py"; python3 "$LSKUN_CLI"
 ```
 
-`$CLAUDE_PLUGIN_ROOT` 가 미주입 환경이면, plugin install 경로 (`~/.claude/plugins/cache/LSKunCompanyKit/LSKunCompanyKit/<latest>/src/lskun_kit/cli_org.py`) 또는 repo clone 경로의 `src/lskun_kit/cli_org.py` 를 **그대로 첫 인자로** 실행한다. PYTHONPATH 박지 말 것.
+해소 순서:
+1. `$CLAUDE_PLUGIN_ROOT/src/lskun_kit/cli_org.py` (env 주입된 경우)
+2. `~/.claude/plugins/cache/LSKunCompanyKit/LSKunCompanyKit/<latest>/src/lskun_kit/cli_org.py` (sort -V 최신)
+3. `<cwd>/src/lskun_kit/cli_org.py` (repo clone 직접 실행)
 
-옵션:
+**LLM 금지 사항**: 위 1줄을 다른 형태로 재작성·축약·heredoc 변형하지 말 것. 버전 번호 hardcode 금지 (`0.16.0` 등). `PYTHONPATH=...` 박지 말 것. `python3 -m lskun_kit.cli_org` 도 금지 (sys.path 미보정 환경에서 실패).
+
+옵션 (위 1줄 끝의 `python3 "$LSKUN_CLI"` 에 인자 append):
 
 ```bash
-python3 .../cli_org.py --domain tech           # tech-* 도메인만 필터 (출력 길이 제어)
-python3 .../cli_org.py --domain meta           # meta 도메인만 (CPO/HR/CFO/COO 등)
-python3 .../cli_org.py --export /tmp/org.md    # stdout 대신 파일로 dump (Obsidian/GitHub 렌더링용)
-python3 .../cli_org.py --full                  # 옛 markdown table (ADR-0013 stable format)
-python3 .../cli_org.py --include-archived      # archived/ 도 표시
+python3 "$LSKUN_CLI" --domain tech           # tech-* 도메인만 필터 (출력 길이 제어)
+python3 "$LSKUN_CLI" --domain meta           # meta 도메인만 (CPO/HR/CFO/COO 등)
+python3 "$LSKUN_CLI" --export /tmp/org.md    # stdout 대신 파일로 dump (Obsidian/GitHub 렌더링용)
+python3 "$LSKUN_CLI" --full                  # 옛 markdown table (ADR-0013 stable format)
+python3 "$LSKUN_CLI" --include-archived      # archived/ 도 표시
 ```
 
 ## 출력 처리 — 그대로 (paste 변형 금지)

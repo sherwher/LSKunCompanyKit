@@ -24,7 +24,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 13 — P76 reflection 입력 방식 재설계 + 강제 메커니즘 (4 에이전트 합의 + 추천안 7개)
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 13 — P77 `/org` env var 의존 제거 + plugin install 단일성 진단 추가
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -293,6 +293,51 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 13 (P77 — `/org` env var 의존 제거 + plugin install 단일성 진단)
+
+```
+P77 ✅ P74/P75 잔존 결함 (`$CLAUDE_PLUGIN_ROOT` 미주입 → canonical 1줄 실패
+       → LLM 이 plugin install 경로 hardcode → 옛 버전 16개 누적 → 매번 다른
+       버전 선택) 의 근본 해결.
+
+       표면 증상: env 미주입 환경에서 `python3 "$CLAUDE_PLUGIN_ROOT/.../cli_org.py"`
+       가 `python3 "/src/.../cli_org.py"` 로 빈 변수 expand → 파일 없음 → LLM
+       이 fallback 으로 `~/.claude/plugins/cache/.../<version>/...` 을 매번
+       다르게 hardcode (P74 의 hardcode 금지 박제로도 차단 실패).
+
+       근본 원인: P75 의 self-bootstrap 은 `sys.path` 만 보정. **파일 경로 자체**
+       를 못 찾으면 무용. canonical 1줄이 `$CLAUDE_PLUGIN_ROOT` env var 라는
+       외부 계약에 의존하는데, Claude Code 가 활성 plugin 1개에만 env 를 set
+       하는 환경 다수 (실측: CLAUDE_PLUGIN_DATA 가 다른 plugin 값으로 set).
+
+       해결 (2축):
+       1. commands/org.md canonical 1줄을 **셸 자체가 경로를 resolve** 하도록
+          재박제. fallback chain 을 1줄에 inline:
+          - `$CLAUDE_PLUGIN_ROOT/src/lskun_kit/cli_org.py` (env 주입 시)
+          - `~/.claude/plugins/cache/LSKunCompanyKit/LSKunCompanyKit/*/src/.../cli_org.py`
+            (sort -V tail -1 로 최신 자동 선택)
+          - `<cwd>/src/lskun_kit/cli_org.py` (repo clone 직접 실행)
+          LLM 이 매번 다른 path 를 hardcode 할 여지 0. `PYTHONPATH` / 버전
+          hardcode / `python3 -m` 금지를 명시 박제.
+       2. 옛 plugin install 디렉토리 15개 (`0.1.0-dev` ~ `0.15.0`) 즉시 정리.
+          0.16.0 만 잔존 → sort -V tail -1 결과 안정화.
+
+       진단 (doctor 17번):
+       - `$CLAUDE_PLUGIN_ROOT` 주입 여부 (미주입은 정상, 정보성 ℹ️)
+       - plugin install 디렉토리 개수 (0=❌, 1=✅, 2+=⚠️ "옛 버전 잔존")
+       - canonical resolve chain 이 단일 파일에 도달하는지 시뮬레이션 검증
+       - 16개 → 17개 항목으로 확장. backend 무관하게 항상 수행.
+
+       검증: env 미주입 상태에서 canonical 1줄 실행 → fallback 으로
+       `~/.claude/plugins/cache/.../0.16.0/.../cli_org.py` 자동 resolve →
+       조직도 정상 출력. 274 tests 회귀 0건.
+
+       제약:
+       - 셸이 zsh / bash 가정 (`${VAR:-}` / `[ -f ]` / 명령치환). fish 미지원
+         이나 Claude Code Bash tool 은 zsh 사용으로 무관
+       - sort -V 는 macOS/Linux coreutils 가정. 동일 환경에서만 보장
 ```
 
 ### Phase 13 (P76 — reflection 입력 방식 재설계 + 강제 메커니즘, 4 에이전트 합의안)
