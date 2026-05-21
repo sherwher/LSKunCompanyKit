@@ -37,11 +37,15 @@ class HooksManifestTests(unittest.TestCase):
         self.assertTrue(any("stop_reflect.py" in c for c in commands), commands)
 
     def test_hook_matchers_are_expected(self) -> None:
-        """SessionStart / Stop 은 '*'. PreToolUse 는 'Task' 로 좁힘 (P31)."""
+        """SessionStart / Stop 은 '*'. PreToolUse / PostToolUse 는 'Task' 로 좁힘.
+
+        P76 — PostToolUse:Task 추가 (reflection 박제 reminder hook).
+        """
         expected = {
             "SessionStart": "*",
             "Stop": "*",
             "PreToolUse": "Task",
+            "PostToolUse": "Task",
         }
         for event, entries in self.manifest["hooks"].items():
             for e in entries:
@@ -49,6 +53,16 @@ class HooksManifestTests(unittest.TestCase):
                     e.get("matcher"), expected.get(event, "*"),
                     f"{event} hook matcher 불일치 (현재: {e.get('matcher')!r})",
                 )
+
+    def test_post_tool_use_registered(self) -> None:
+        """P76 — PostToolUse:Task reminder hook 박제 (reflection 박제 누락 surface)."""
+        self.assertIn("PostToolUse", self.manifest["hooks"])
+        commands = [
+            h["command"]
+            for e in self.manifest["hooks"]["PostToolUse"]
+            for h in e["hooks"]
+        ]
+        self.assertTrue(any("post_tool_use.py" in c for c in commands), commands)
 
     def test_pre_tool_use_registered(self) -> None:
         """P31 — 워커 → 워커 chain 차단 hook 이 박제돼있어야 한다."""

@@ -17,7 +17,7 @@ from lskun_kit.audit import (
     AuditError,
     new_request_id,
 )
-from lskun_kit import org, persona_sync
+from lskun_kit import audit_diagnostics, org, persona_sync
 from lskun_kit.errors import (
     InvalidWorkerSchemaError,
     LSKunKitError,
@@ -67,4 +67,5 @@ __all__ = [
     "new_request_id",
     "org",
     "persona_sync",
+    "audit_diagnostics",
 ]

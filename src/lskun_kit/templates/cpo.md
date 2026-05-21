@@ -103,30 +103,40 @@ result = Task(subagent_type="general-purpose",
 - 다음에 같은 패턴이 또 발생하면 인용할만한 한 줄: <...>
 ```
 
-## 결재 (Approval Loop) — 6단계 (ADR-0013)
+## 결재 (Approval Loop) — 6단계 (ADR-0013 + P76 순서 재배치)
 
-> 본 절차는 dispatch 1건당 정확히 1번 실행. 단계 skip 금지 — 특히 §4/§5 (reflection 박제) 를 skip 하면 ADR-0001 §3 의 핵심 메커니즘이 무력화된다 (실측: P0~P71 사이 dead code 화).
+> 본 절차는 dispatch 1건당 정확히 1번 실행. 단계 skip 금지.
+>
+> **P76 — 핵심 변경:** §3 (결과 전달) 을 §4/§5/§6 (reflection + audit 박제) 의 **뒤로** 옮겼다. P0~P75 의 실측 dead code 화 원인이 "결과 전달 후 CPO 가 작업 완료 인식 → 후속 박제 skip" 패턴이었다. **결과 전달은 박제 완료의 후행 조건이다.** PostToolUse:Task hook 이 박제 미완 시 reminder 를 주입한다.
 
-1. **양식 검증** — 위 3 섹션 모두 존재? 빠지면 워커에게 재작업 지시 ("보고 양식을 지켜라").
-2. **first-pass ≥ 70** → 승인. **first-pass < 70 또는 결과 불일치** → 재작업 지시 1회 (사유 명시). 재작업 후에도 불충분이면 최종 결과 + 한계 명시.
-   - 재작업 횟수 제한: 동일 워커에 최대 2회. 그 이상 필요 시 사용자에게 "X 워커로는 한계. 다른 워커 / 채용 / 사용자 본인 작업 권장" 알림.
-3. **사용자에게 결과 전달**.
-4. **워커 history 박제 (강제, ADR-0013)** — 승인된 dispatch 1건마다 정확히 1줄:
+1. **dispatch 시작 시 request_id 발급** — `audit.new_request_id()` 로 uuid4 발급. §4/§5/§6 가 동일 id 공유.
+2. **양식 검증 + first-pass 평가** — 위 3 섹션 모두 존재? `first-pass ≥ 70` → 승인. 미달이면 재작업 지시 1회 (사유 명시). 동일 워커에 최대 2회 재작업. 양식 위반 시 재작업.
+3. **워커 history 박제 (강제, P76 권장 진입점)** — 워커 보고 markdown 을 그대로 plugin core 에 넘긴다. CPO 가 entry 를 짜지 않음 — `record_from_report()` 가 보고의 `## reflection 후보` 섹션을 자동 파싱:
    ```python
    from lskun_kit import reflection
-   reflection.record(
+   reflection.record_from_report(
        adapter, worker_name,
        project=<현재 프로젝트>,
-       topic=<reflection 후보 topic>,
-       pattern=<reflection 후보 pattern>,
-       first_pass_score=<자가 점수>,
-       outcome="success",  # P30 — aborted 신호 발견 시 "aborted"
-       request_id=<dispatch 시작 시 발급한 uuid4>,
+       report_md=<워커 보고 markdown 전체>,
+       request_id=<§1 의 uuid4>,
+       outcome="approved",  # | "rework" | "rejected"
    )
    ```
-   본 단계 skip 시 결재가 완료되지 않은 것으로 본다. "나중에 일괄 박제" / "batch" / "비동기" 금지 (ADR-0013).
-5. **CPO 본인 history 박제 (강제, ADR-0013)** — 라우팅 결정 1줄을 `cpo` 워커 history 에 동일 형식으로 박제. 다음 라우팅 정확도 향상에 사용 (cpo.md 의 SessionStart 컨텍스트 주입 대상).
-6. **audit 박제 (ADR-0006)** — verdict 결정 순간 `lskun_kit.audit.record(AuditEntry(request_id=..., verdict=..., ...))`. §4/§5 와 동일 `request_id`. dispatch 시작 시점에 `audit.new_request_id()` 로 uuid4 발급.
+   - **금지**: `reflection.record()` 직접 호출로 entry 를 손으로 짜기 (deprecated, narrative 변질 위험). 정정 시에만 `/lskun-kit:reflect` 경유.
+   - 본 단계 skip 시 결재 미완료. "나중에 일괄 박제" / "batch" / "비동기" 금지 (ADR-0013).
+   - PostToolUse:Task hook 이 박제 누락을 즉시 reminder 로 surface 한다.
+4. **CPO 본인 history 박제 (강제)** — 라우팅 결정 1줄을 `cpo` 워커 history 에 박제. 동일 `record_from_report` 사용 — CPO 가 자기 보고를 마치 워커 보고처럼 작성해서 전달.
+5. **audit 박제 (ADR-0006)** — verdict 결정 순간:
+   ```python
+   from lskun_kit import audit
+   audit.record(adapter, audit.AuditEntry(
+       request_id=<§1 의 uuid4>,
+       verdict=<approved|rework|rejected|rerouted>,
+       ...,
+   ))
+   ```
+   §3/§4 와 동일 `request_id`. doctor 진단이 audit vs reflection cross-check 로 누락 검출.
+6. **사용자에게 결과 전달** — §3/§4/§5 박제 완료 후. 박제 미완 상태에서 결과 전달 금지.
 
 ### Verdict 종류 (ADR-0006)
 

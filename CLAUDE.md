@@ -24,7 +24,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 12 — P75 `/org` self-bootstrap + 필터/export (4 에이전트 합의안)
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 13 — P76 reflection 입력 방식 재설계 + 강제 메커니즘 (4 에이전트 합의 + 추천안 7개)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -293,6 +293,45 @@ P25 ✅ CPO/HR persona 본문 재작성 (Leader-Worker dispatch)   (#16)
 P26 ✅ 모델 라우팅 + hire/work --model --domain 옵션        (#17)
 P27 ✅ README / CLAUDE.md / docs 갱신 + version bump        (본 PR)
 P28 - 일상 사용. KPI 검증 없음 (ADR-0002 §5 정책 유지).
+```
+
+### Phase 13 (P76 — reflection 입력 방식 재설계 + 강제 메커니즘, 4 에이전트 합의안)
+
+```
+P76 ✅ DcodeJob 세션 실측 사건 (CPO 가 4명 워커 dispatch 후 reflection 박제 4건
+       모두 skip + 사용자 지적 후 사후 bulk 박제, 1줄당 200~530자 narrative)
+       의 근본 해결. P0~P71 + P75 = 3회 반복된 dead code 화 패턴 종결.
+
+       4 에이전트 (critic / architect / analyst / planner) 합의 + 사용자
+       추천안 7개 박제:
+
+       1. dispatch 단위 = Task tool 호출 1회 = history 1줄 (audit request_id 정합)
+       2. cpo.md 결재 절차 §3/§4 순서 뒤집기 — reflection 박제가 사용자 결과
+          전달의 *선행 조건*. "결과 후 작업 완료 인식 → §4 skip" 패턴 차단
+       3. HistoryEntry 에 outcome (approved|rework|rejected) + request_id 필드 추가.
+          h=N 카운트가 audit log 와 1:1 cross-check 가능해짐
+       4. topic / pattern 길이 가드 (HISTORY_FIELD_MAX_LEN=80) + 줄바꿈 금지.
+          530자 narrative 재발 방지
+       5. reflection.record_from_report() 신규 API — 워커 보고 markdown 의
+          ## reflection 후보 섹션을 plugin core 가 자동 파싱. CPO 가 entry 를
+          직접 짜지 않음 → narrative 변질 원천 차단. 옛 record() 는 deprecated
+          (사용자 정정 경로 /lskun-kit:reflect 용 하위호환)
+       6. PostToolUse:Task hook 신규 — Task dispatch 직후 reminder 1줄 stdout
+          주입. *자동 박제가 아닌* nudge (ADR-0013 §"자동 박제 금지" 와 구분).
+          비활성화: LSKUN_SKIP_REFLECTION_REMINDER=1
+       7. /lskun-kit:doctor 에 audit ↔ reflection cross-check 진단 항목 0번
+          추가 — audit approved 인데 history 박제 누락된 request_id 검출.
+          coverage % + 누락 목록 표시. 자동 복구 X
+
+       신규 모듈: src/lskun_kit/audit_diagnostics.py, hooks/post_tool_use.py
+       신규 테스트: tests/test_reflection_p76.py (15) + test_audit_diagnostics_p76.py (5)
+       총 274 tests 통과 (기존 256 + 신규 18).
+
+       제약:
+       - record_from_report 가 보고 양식 ## reflection 후보 섹션을 못 찾으면
+         ReportParseError. CPO 는 워커에게 양식 재작업을 지시해야 함
+       - PostToolUse hook 은 "자동 박제 alert" 라 ADR-0013 §"자동 박제 금지" 와
+         분리. 별도 ADR 박제 불필요 (architect 판단)
 ```
 
 ### Phase 12 (P75 — `/org` self-bootstrap + 필터/export, 4 에이전트 합의안)
