@@ -14,7 +14,8 @@
 > - [ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) — Persona sync (`/lskun-kit:sync-persona`) + provenance + 조직도 view (`/lskun-kit:org`)
 > - [ADR-0011](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0011-2026-05-20-jd-based-hiring.md) — **JD 기반 채용 + 정체성 보강** (persona body 의 JD inline + 자산 누적 2 차원)
 > - [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) — Plugin version single-source SSOT (`plugin.json` 단일 진실원)
-> - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — **조직도 stable markdown table + CPO 결재 절차에 reflection 박제 강제** (워커 history dead code 화 결함 해결)
+> - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — ~~조직도 stable markdown table + CPO 결재 절차에 reflection 박제 강제~~ — **부분 supersede by ADR-0014** (조직도 stable table 부분 유지, reflection 박제 강제는 폐기)
+> - [ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — **Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** (4 전문가 5차 만장일치). 워커 = 채용 시 완성형, 시간 흐름으로 진화하지 않음. 자산 = JD only (정적 단일 차원). ADR-0001 §3, ADR-0011 §6 supersede. ~1,528 LoC + ~80 tests 제거 예정 (P79)
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -30,16 +31,18 @@
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
 - **라이선스:** MIT
 
-### 한 줄 정체성 (ADR-0011 갱신)
+### 한 줄 정체성 (ADR-0014 갱신, 2026-05-22)
 
-> "Claude Code 의 메인 세션 자체가 회사의 CPO 로 동작하여, 사용자 요청마다 최적 전문가를 매칭·dispatch 한다.
-> 채용 시 HR Lead 가 작성한 JD (persona body) 와 작업 이력 (reflection history) 이 회사 자산으로 누적된다.
-> 사용자 요청 → CPO 라우팅 → 워커 dispatch → 결재 → 응답. 부재 워커는 JD 기반 자동 채용.
+> "Claude Code 의 메인 세션 자체가 회사의 CPO 로 동작하여, 사용자 요청마다 도메인 적합 전문가를 매칭·dispatch 한다.
+> 워커는 채용 시점에 HR Lead 가 작성한 JD (도메인 날리지 + 전문성) 로 **완성형** 이며, 시간 흐름으로 진화하지 않는다.
+> 회사 성장 = 인원 추가 + 도메인 확장. 부재 워커는 JD 기반 자동 채용.
 > 저장 위치는 사용자 선택, 마이그레이션은 LSKunCompanyKit 책임."
 
-자산은 두 차원으로 정의된다 (ADR-0011 §6):
-- **정적 자산 = persona body (JD inline)** — 채용 시점 1회 박제, 자동 갱신 금지
-- **동적 자산 = reflection history** — 매 작업 종료 시 1줄 append (ADR-0001 §3)
+자산은 **JD only, 정적 단일 차원** (ADR-0014):
+- **정적 자산 = persona body (JD inline)** — 채용 시점 1회 박제, 사용자 명시 갱신 외 자동 진화 금지
+- ~~동적 자산 = reflection history~~ — **ADR-0014 로 폐기**. "워커가 시간으로 성장한다" 모델 부정
+
+**Stateful Workers 의 재해석**: state = JD (time-invariant). 채용 = 완성형 전문가 박제. 시간 흐름과 무관.
 
 ### Slash commands (현재)
 
@@ -57,18 +60,20 @@
 
 ---
 
-## 2. 핵심 메커니즘 — 3개 (ADR-0001 + ADR-0003 + ADR-0004)
+## 2. 핵심 메커니즘 — 2개 (ADR-0004 + ADR-0003, ADR-0014 갱신)
 
-### 2.1 Reflection — 작업 종료 시 자동 기록 (ADR-0001)
+### 2.1 ~~Reflection~~ — **ADR-0014 로 폐기 (2026-05-22)**
 
-```
-작업 종료 hook → storage backend 에 자동 append:
-  hired/<worker>.md 의 ## Project History 에 1줄 추가
-        ↓
-다음 작업 → 워커 자기 history 자동 주입 → 과거 패턴 인용
-```
+옛 메커니즘: 작업 종료 hook → 워커 markdown 의 `## Project History` 1줄 append → 다음 dispatch context 주입.
 
-원칙: 시작/종료에 `.md` 1줄씩만. **ceremony 0.**
+폐기 사유 (4 전문가 5차 만장일치):
+- 6일 실측: 41명 중 8명만 박제 (누락률 80.5%)
+- 박힌 8건 모두 80자 가드 우회 (100~1400자 narrative)
+- score 필드 의사결정 미사용 (architect 코드 검증)
+- 평가 자산 4 조건 모두 미충족 (analyst 정량)
+- 사용자 정체성 박제: "역사를 주입해서 커가는 것이 아니다"
+
+P79 에서 코드 제거 (~1,528 LoC + ~80 tests). 기존 사용자 자산 (LSKun 8명 박힌 narrative) 은 `## Archived History (pre-0.18)` 로 rename, read-only 보존.
 
 ### 2.2 Leader–Worker, 메인 세션 = CPO (ADR-0004)
 
