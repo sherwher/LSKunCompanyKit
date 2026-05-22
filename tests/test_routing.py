@@ -148,9 +148,13 @@ class CpoPersonaSpecTests(unittest.TestCase):
         self.assertIn("[사용자 검토 요청]", body)
 
     def test_direct_response_does_not_imply_persona_evolution(self) -> None:
-        """직접 응답 조건이 추가됐어도 금지 사항(persona evolution 등)은 유지된다."""
+        """직접 응답 조건이 추가됐어도 금지 사항(워커 진화 등)은 유지된다.
+
+        ADR-0014 — 옛 "persona evolution narrative" 문구가 "워커 진화 narrative"
+        로 변경됨. ADR-0014 가 reflection 메커니즘 자체 폐기.
+        """
         body = self._read_rendered_cpo()
-        self.assertIn("persona evolution narrative", body)
+        self.assertIn("워커 진화 narrative", body)
         self.assertIn("워커 → 워커 chain", body)
 
 
@@ -338,14 +342,14 @@ class P69CpoPersonaTests(unittest.TestCase):
             adapter = _init_local(Path(tmp))
             return adapter.read_worker(CPO_WORKER_NAME).body
 
-    def test_routing_heuristics_5_steps_present(self) -> None:
+    def test_routing_heuristics_steps_present(self) -> None:
+        """ADR-0014 — history tie-break 3단계 폐기로 5단계 → 4단계로 축소."""
         body = self._read_rendered_cpo()
-        self.assertIn("결정 절차 5단계", body)
+        self.assertIn("결정 절차 4단계", body)
         self.assertIn("1단계", body)
         self.assertIn("2단계", body)
         self.assertIn("3단계", body)
         self.assertIn("4단계", body)
-        self.assertIn("5단계", body)
 
     def test_no_company_specific_lookup_table(self) -> None:
         """cpo.md 는 회사 특화 워커 이름을 박지 않는다 (generic 유지)."""
@@ -391,7 +395,10 @@ class P70JdBasedHiringTests(unittest.TestCase):
         self.assertIn("domain: web", rendered)
 
     def test_body_override_none_preserves_template_read(self) -> None:
-        """기존 호출자 0 변경 — body_override 없으면 template 그대로 읽는다."""
+        """기존 호출자 0 변경 — body_override 없으면 template 그대로 읽는다.
+
+        ADR-0014 — 결정 절차 5단계 → 4단계로 축소 (history tie-break 폐기).
+        """
         from lskun_kit.templates import render_default_worker
         rendered = render_default_worker(
             name="cpo",
@@ -402,7 +409,7 @@ class P70JdBasedHiringTests(unittest.TestCase):
         )
         # cpo.md template 의 본문이 그대로 들어와야 함
         self.assertIn("Chief Product Officer", rendered)
-        self.assertIn("결정 절차 5단계", rendered)
+        self.assertIn("결정 절차 4단계", rendered)
 
     def test_keywords_param_renders_when_present(self) -> None:
         """P70 — keywords 인자가 frontmatter 에 박힘."""

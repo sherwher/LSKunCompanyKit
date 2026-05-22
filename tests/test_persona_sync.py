@@ -183,9 +183,10 @@ class TemplateBodyTests(unittest.TestCase):
 
     def test_cpo_template_exists(self) -> None:
         # _read_template 은 templates/<filename> 을 읽음
+        # ADR-0014 — Project History 섹션 폐기. 핵심 책임 / 결재 절차만 검증.
         body = _read_template("cpo.md")
         self.assertIn("CPO", body)
-        self.assertIn("Project History", body)
+        self.assertIn("결재", body)
 
     def test_hr_lead_template_exists(self) -> None:
         body = _read_template("hr-lead.md")
