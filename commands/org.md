@@ -69,8 +69,8 @@ backend: vault → <your-vault>/03_Companies/Acme
 1. **self-bootstrap**: `cli_org.py` 가 `sys.path` 자체 보정 (PYTHONPATH 환경변수 불필요)
 2. backend 결정: `LSKUN_VAULT` + `LSKUN_COMPANY` → Vault, 없으면 cwd 상향 `.company/` 탐색
 3. `company.md` 에서 회사 이름 + 도메인 읽기
-4. `hired/*.md` 각 파일 frontmatter + body 파싱
-    - `## Project History` 섹션의 ` - ... first-pass ` 줄을 카운트해 `h=N` 표시
+4. `hired/*.md` 각 파일 frontmatter 파싱
+    - ADR-0014 — h=N 카운트 폐기. `hired_at` (채용 시점) 으로 시간축 교체.
     - schema 위반 파일은 자동 skip (doctor 에서 별도 검증)
 5. CPO → HR → Worker (이름순) 으로 정렬
 6. `--domain` 지정 시 prefix 매칭으로 필터
@@ -86,7 +86,7 @@ backend: vault → <your-vault>/03_Companies/Acme
 
 `org-chart.md` 정적 인덱스 도입 안은 4 에이전트 (critic / architect / analyst / planner) 합의로 **폐기**:
 - SSOT 이중화 (워커 md frontmatter ↔ org-chart.md)
-- `reflection.record()` SRP 위반 + dual-write 비원자성
+- 자동 write SRP 위반 + dual-write 비원자성
 - ADR-0009 self-contained 원칙 위반 위험 (Obsidian 관습 박제)
 - 41명 1인 운영 규모에 over-engineering
 

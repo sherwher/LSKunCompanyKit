@@ -43,9 +43,7 @@ model: <"sonnet" | "opus" | 모델 ID>   # optional, 생략 시 default
 
 # <worker>
 
-## Project History
-
-_(empty — first task will append the first line)_
+<JD 본문 — Responsibilities / Qualifications / Guidelines 3 섹션 (ADR-0011 + ADR-0014)>
 ```
 
 3. 이미 존재하면 ❌ 와 함께 거부한다 (덮어쓰기 방지).
@@ -81,7 +79,7 @@ adapter.create_worker(
         "display_name": "앨리스 박",
         # "model": "opus",  # optional
     },
-    body="# alice\n\n## Project History\n\n_(empty)_\n",
+    body="# alice\n\n<JD 본문 ADR-0011>\n",
 )
 # 해고는 adapter.archive_worker("alice") — hired/ → archived/ 이동, 삭제 X
 ```

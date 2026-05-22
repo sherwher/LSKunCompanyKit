@@ -1,6 +1,6 @@
 ---
 name: lskun-kit:work
-description: 워커 호출 — 자기 history 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 메인 세션 = CPO 가 직접 라우팅·자동 채용·결재 수행
+description: 워커 호출 — JD 컨텍스트 주입 + 세션 활성화. 워커 이름 생략 시 메인 세션 = CPO 가 직접 라우팅·자동 채용·결재 수행 (ADR-0014)
 arguments:
   - name: worker
     description: 호출할 워커 이름. 생략 시 메인 세션의 CPO persona 가 처리
@@ -15,7 +15,7 @@ arguments:
 
 # /lskun-kit:work
 
-워커를 활성화하고 자기 history 를 컨텍스트로 주입한다.
+워커를 활성화하고 JD (persona body) 를 컨텍스트로 주입한다. ADR-0014 (2026-05-22) — 워커 history 주입 폐기, JD only.
 
 ## 분기
 
@@ -23,7 +23,7 @@ arguments:
 |---|---|
 | `/lskun-kit:work backend-engineer "..."` | **직통 호출.** 메인 세션 (CPO persona) 이 결재 생략하고 워커 직통 dispatch. cheap path. |
 | `/lskun-kit:work cpo "..."` | CPO 와 직접 전략 대화 (CPO 가 워커 dispatch 안 하고 직접 응답). |
-| `/lskun-kit:work hr-lead "..."` | HR Lead 직접 호출 (해고 / 평가 명시 요청용). |
+| `/lskun-kit:work hr-lead "..."` | HR Lead 직접 호출 (해고 명시 요청용). |
 | `/lskun-kit:work "..."` (워커 이름 생략) | **메인 세션 = CPO** 가 받아 라우팅 → 결재 → 응답. 부재 워커 시 자동 채용. |
 
 ## 동작
@@ -31,10 +31,10 @@ arguments:
 ### 직통 (워커 이름 명시)
 
 1. 활성 backend 결정 (`/hire` 와 동일 규칙)
-2. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → 컨텍스트 주입
+2. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → JD 컨텍스트 주입 (ADR-0014 — history 섹션 주입 폐기)
 3. `lskun_kit.session.start(<root>, <worker>)` 호출 → 세션 파일 작성
 4. `--model` 옵션이 있으면 해당 모델로 dispatch; 없으면 워커 frontmatter `model` → default(`sonnet`)
-5. 사용자가 자유롭게 일을 시킨다. 종료 시 Stop hook 또는 `/lskun-kit:reflect` 가 1줄 박제.
+5. 사용자가 자유롭게 일을 시킨다.
 
 ### 메인 세션 CPO 라우팅 (워커 이름 생략)
 
@@ -43,9 +43,9 @@ arguments:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
    - 적합 워커 있음 → `Task` tool 로 dispatch (model 결정 = frontmatter / CPO 판단 / default)
    - 없음 → `Task` tool 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
-3. CPO 가 워커 보고를 받아 **결재** (first-pass ≥ 70 승인 / 재작업 최대 2회)
-4. 사용자에게 결재된 결과 전달
-5. Reflection 후보를 워커 history 에 자동 박제 (`reflection.record`)
+3. CPO 가 워커 보고를 받아 **결재** (자가 평가 통과 → 승인 / 재작업 최대 2회)
+4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
+5. 사용자에게 결재된 결과 전달
 
 > 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.
 

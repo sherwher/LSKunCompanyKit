@@ -1,6 +1,6 @@
 ---
 name: lskun-kit:migrate-schema
-description: 기존 회사의 워커·company.md frontmatter 누락 필드를 현재 schema 로 보강. CLAUDE.md marker 도 함께 박제. Project History 절대 보존, 백업 자동 생성
+description: 기존 회사의 워커·company.md frontmatter 누락 필드를 현재 schema 로 보강. CLAUDE.md marker 도 함께 박제. 기존 history 섹션 절대 보존 (ADR-0014 — Archived History 로 rename), 백업 자동 생성
 arguments:
   - name: dry_run
     description: 변경 없이 plan 만 출력 (--dry-run)
@@ -29,13 +29,13 @@ arguments:
 5. `schema_migration.execute(adapter, plan, answers)` 호출:
    - 변경 전 모든 파일 자동 백업 (`<file>.lskun-pre-migrate.bak`)
    - frontmatter 의 **누락 필드만 추가** — 기존 값 절대 덮어쓰지 않음
-   - `## Project History` 섹션 한 줄도 건드리지 않음
+   - ADR-0014 — 기존 `## Project History` 섹션이 있으면 `## Archived History (pre-0.18)` 로 rename. 내부 entry 는 한 줄도 변경하지 않음 (사용자 자산 보존)
    - CLAUDE.md marker 박제 (없으면 신규, 손편집 감지되면 추가 백업)
 6. 결과 리포트 출력 — 변환 항목 / 백업 위치 / 손실 0 검증
 
 ## 안전 가드 (불가침)
 
-- **history 절대 보존** — `## Project History` 의 어떤 줄도 추가·수정·삭제 X
+- **history entry 절대 보존** — 기존 `## Project History` 의 어떤 줄도 추가·수정·삭제 X. 헤딩만 `## Archived History (pre-0.18)` 로 rename (ADR-0014)
 - **frontmatter 기존 키 덮어쓰기 금지** — 누락된 키만 추가
 - **백업 강제** — 모든 변경 파일에 `.lskun-pre-migrate.bak` 사전 생성
 - **developer SSOT 거부** — `02_Projects/LSKunCompanyKit/` 경로면 즉시 ❌
