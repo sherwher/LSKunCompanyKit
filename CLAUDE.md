@@ -99,9 +99,9 @@ CPO 는 **결재 라인 + 단독 채용 권한**. 부재 워커 발견 시 HR Le
 
 ```
 LSKunCompanyKit core (interface 만 알고 구현은 모름)
-   └── StorageAdapter
-         read_worker(name), append_history(name, entry),
-         list_workers(), read_company()
+   └── StorageAdapter (ADR-0014 — append_history 제거)
+         read_worker(name), list_workers(), read_company()
+         create_worker / archive_worker / append_audit (default NotImplementedError)
               ↓
        Local (default, self-contained) | Vault (Optional Integration)
 ```
@@ -147,7 +147,7 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 | 옛 clone 폴더 / CLI / plugin install | 사용자 측에서 정리 완료 |
 | Git history | 새 repo, 새 commit history |
 
-**컨셉만 승계:** Stateful Workers + Reflection + Storage Abstraction + SSOT 분리.
+**컨셉만 승계 (ADR-0014 갱신):** JD-driven Workers (time-invariant state) + Storage Abstraction + SSOT 분리. ~~Reflection~~ — ADR-0014 (2026-05-22) 로 폐기.
 
 ---
 
@@ -188,9 +188,12 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **JD 측정 지표** — "밀도" / "Context Coverage Rate" / "First-pass Approval Rate" 등 KPI 자동 산출 금지 (ADR-0011 + ADR-0002 §5)
 - **`org.render()` 의 컬럼 폭 동적 계산 재도입** — markdown table 단일 SSOT. ASCII 정렬 미려함 추구로 동적 padding 복귀 금지 (ADR-0013)
 - **조직도 출력에 한글 폭 보정 (`east_asian_width`) 도입** — markdown table 로 회피한 의도 위반. 다른 format 필요 시 별도 ADR (ADR-0013)
-- **CPO 결재 절차의 reflection 박제 단계 생략** — 1건 dispatch = 1 `reflection.record()`. 일괄 / batch / 비동기 / "나중에" 금지 (ADR-0013)
-- **워커가 자기 reflection 을 직접 박제하는 경로** — reflection 박제는 CPO 결재 절차의 일부, 워커 → 워커 chain 금지와 동일 결 (ADR-0004 §8 + ADR-0013)
-- **새 hook (PostToolUse / SubagentStop 등) 으로 자동 reflection 박제 시도** — Claude Code hook spec 의존 자동 박제는 silent failure 누적 위험. 절차 박제 + 기존 `reflection.record()` 로 충분 (ADR-0013)
+- ~~CPO 결재 절차의 reflection 박제 단계 생략~~ — **ADR-0014 로 폐기** (reflection 메커니즘 자체 폐기)
+- ~~워커가 자기 reflection 을 직접 박제하는 경로~~ — **ADR-0014 로 자연 폐기** (reflection 대상 자체 소멸). 워커 → 워커 chain 금지는 유지 (ADR-0004 §8)
+- ~~새 hook 으로 자동 reflection 박제 시도~~ — **ADR-0014 로 자연 폐기**. Stop / PostToolUse hook 도 제거됨 (P79-1).
+- **reflection / history 메커니즘 재도입** — ADR-0014 로 폐기. 재도입 시 새 ADR + 정체성 재정의 선행 필수
+- **워커 진화 narrative** (ADR-0014) — "워커가 시간으로 성장한다" 류 슬로건 박제 금지. ADR-0011 의 "AI 직원 진화" 슬로건 금지와 일관
+- **JD 자동 갱신** (ADR-0014) — JD 는 채용 시 1회 박제. 사용자 명시 갱신 (`/lskun-kit:work hr-lead "..."`) 외 자동 진화 금지
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
@@ -210,7 +213,7 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ### ADR-0005 가 폐기한 ADR-0004 §6 조항
 
 - ~~"frontmatter 5→6 자동 마이그레이션 X / 사용자가 display_name 1줄 수동 추가"~~ → `/lskun-kit:migrate-schema` 로 사용자 confirm 기반 plugin 책임 마이그레이션 (ADR-0005)
-- 단, **history 보존 / frontmatter 덮어쓰기 금지 / 백업 강제** 가드는 불변
+- 단, **history entry 보존 / frontmatter 덮어쓰기 금지 / 백업 강제** 가드는 불변 (ADR-0014 — heading 만 archived 로 rename 가능, entry 불변)
 
 ---
 
@@ -222,41 +225,39 @@ LSKunCompanyKit/
 │   ├── plugin.json           # version SSOT (ADR-0012)
 │   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
 ├── hooks/
-│   └── hooks.json            # SessionStart hook 등록 (P24)
-├── commands/                  # 6개 slash command
+│   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거)
+├── commands/                  # 8개 slash command (ADR-0014 — /reflect 제거)
 │   ├── init.md               # /lskun-kit:init
-│   ├── doctor.md             # /lskun-kit:doctor          (16개 진단 항목)
+│   ├── doctor.md             # /lskun-kit:doctor          (17개 진단 항목)
 │   ├── hire.md               # /lskun-kit:hire            (--domain --model)
 │   ├── work.md               # /lskun-kit:work            (메인 세션 = CPO, --model)
-│   ├── reflect.md            # /lskun-kit:reflect
 │   ├── migrate.md            # /lskun-kit:migrate         (Local ↔ Vault)
-│   ├── migrate-schema.md     # /lskun-kit:migrate-schema
+│   ├── migrate-schema.md     # /lskun-kit:migrate-schema  (ADR-0014 — legacy history rename 포함)
 │   ├── sync-persona.md       # /lskun-kit:sync-persona    (cpo/hr-lead body sync)
 │   └── org.md                # /lskun-kit:org             (조직도 read-only)
 ├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
 │   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
-│   ├── hooks/                # stop_reflect (P6) + session_start (P24)
-│   ├── templates/            # CPO / HR persona markdown — P25 본문 (Leader-Worker dispatch)
-│   ├── models.py             # Worker / HistoryEntry / Company + REQUIRED_WORKER_FIELDS (6) + MODEL_ALIASES
+│   ├── hooks/                # session_start (P24) + pre_tool_use (P31, chain 차단)
+│   ├── templates/            # CPO / HR persona markdown (ADR-0014 갱신, JD-driven)
+│   ├── models.py             # Worker / Company + REQUIRED_WORKER_FIELDS (6) + MODEL_ALIASES
 │   ├── errors.py             # LSKunKitError 계층
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
-│   ├── context.py            # build_worker_context (history 컨텍스트 주입)
-│   ├── reflection.py         # record (history 1줄 append)
-│   ├── audit.py              # CPO 결재 audit log — AuditEntry/record/new_request_id
+│   ├── context.py            # build_worker_context (ADR-0014 — JD only)
+│   ├── audit.py              # CPO 결재 audit log — AuditEntry/record/new_request_id (ADR-0006)
 │   ├── persona_sync.py       # 메타 워커 body sync — plan/execute (cpo, hr-lead)
-│   ├── org.py                # 조직도 read-only view — OrgReport.render()
+│   ├── org.py                # 조직도 read-only view (ADR-0014 — Hired 컬럼)
 │   ├── migration.py          # plan / execute (Local ↔ Vault)
-│   ├── schema_migration.py   # v0.2/v0.3 → v0.4 frontmatter 보강 (P50/ADR-0005)
+│   ├── schema_migration.py   # frontmatter 보강 + legacy history rename (ADR-0005 + ADR-0014)
 │   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log
 │   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
 │   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
-│   └── routing.py            # CPO 라우팅 컨텍스트 빌더 (P14)
-├── tests/                     # stdlib unittest, 110+ tests
-├── docs/                      # storage-adapter-spec, reflection-spec, migration-spec
-│                              # (p8-dogfooding-guide.md → deprecated, ADR-0002 §5)
+│   ├── routing.py            # CPO 라우팅 컨텍스트 빌더 (ADR-0014 — keywords/domain/role only)
+│   └── cli_org.py            # /lskun-kit:org canonical entrypoint (P75)
+├── tests/                     # stdlib unittest, 215 tests (ADR-0014 후 -59)
+├── docs/                      # storage-adapter-spec, migration-spec, p78-plan
 ├── CLAUDE.md                 # 본 문서
 ├── LICENSE                   # MIT
-└── README.md                 # P27 — Phase 3 갱신
+└── README.md                 # P80 — Phase 14 갱신
 ```
 
 **hired/ 같은 회사 운영 데이터는 본 repo 에 절대 작성 금지.**
@@ -265,6 +266,28 @@ LSKunCompanyKit/
 ---
 
 ## 8. 로드맵
+
+### Phase 14 (P78~P82 — Reflection 메커니즘 폐기, ADR-0014 박제)
+
+```
+P78 ✅ ADR-0014 박제 + CLAUDE.md/README/plugin.json/marketplace.json/hub 정체성 동기화
+       (commit e8dcbde + 63c5c3e + 12c3c40)
+P79 ✅ 코드 + tests 제거 (5 sub-commit, 274 → 215 tests, 순 -2316 LoC)
+       - P79-1+2: reflection.py / audit_diagnostics.py / Stop hook / PostToolUse hook
+                  / HistoryEntry / append_history ABC / context.py 재작성
+       - P79-3:   routing.py history tie-break + org.py h=N 카운트
+       - P79-4a:  templates/cpo.md + hr-lead.md 재작성 (JD-driven)
+       - P79-4b:  commands + docs (work/sync-persona/doctor/migrate-schema/hire/org)
+       - P79-5:   migrate-schema 의 legacy `## Project History` →
+                  `## Archived History (pre-0.18)` rename + tests
+P80 ✅ docs: CLAUDE.md §3/§5/§6/§7/§8 + README ADR 참조 표 갱신 (본 phase)
+P81 ❌ Dogfooding 실측 — 폐기 (ADR-0002 §5 + ADR-0014 정책. analyst 4차 정량
+       에서 "측정 시도 자체가 정책 위반" 명시. LSKun 사용자 자연 사용으로 위임)
+P82 - version 0.18.0-dev → 0.18.0 + 8 commit push (사용자 confirm 게이트)
+```
+
+핵심 결정: 워커 = 채용 시 완성형 (time-invariant JD). 자산 = JD only (정적 단일 차원).
+회사 성장 = 인원 추가 + 도메인 확장.
 
 ### Phase 1 (P0~P7 완료, P8/P9 폐기 by ADR-0002)
 

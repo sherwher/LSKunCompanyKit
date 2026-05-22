@@ -287,7 +287,25 @@ P52 ✅ ADR-0006 박제 + lskun_kit/audit.py (CPO 결재 audit log)
        — raw 로그만 박제, 자동 분석/대시보드/KPI 금지 (ADR-0002 §5 유지)
 ```
 
-### Phase 7 (현재 — 0.7.0-dev)
+### Phase 14 (P78~P82 — Reflection 폐기, ADR-0014, 0.18.0)
+
+```
+P78 ✅ ADR-0014 박제 + 정체성 동기화 (CLAUDE.md / README / manifest / hub)
+P79 ✅ 코드 + tests 제거 (5 sub-commit, 274 → 215 tests, 순 -2316 LoC)
+       - reflection.py / audit_diagnostics.py / Stop hook / PostToolUse hook 제거
+       - HistoryEntry / append_history ABC / context.py "Past Patterns" 제거
+       - routing.py history tie-break / org.py h=N 카운트 제거
+       - templates/cpo.md + hr-lead.md 재작성 (JD-driven)
+       - commands + docs 일괄 갱신
+       - migrate-schema 의 legacy `## Project History` → `## Archived History (pre-0.18)` rename
+P80 ✅ docs 일괄 갱신 (CLAUDE.md §3/§5/§6/§7/§8 + README ADR 표 + Phase 14)
+P81 ❌ Dogfooding 실측 폐기 (ADR-0002 §5 정책 위반 회피)
+P82 - version 0.18.0 + push (사용자 confirm 게이트)
+```
+
+핵심 결정: 워커 = 채용 시 완성형 (time-invariant JD). 자산 = JD only (정적 단일 차원). 회사 성장 = 인원 추가 + 도메인 확장.
+
+### Phase 7 (이전 — 0.7.0-dev)
 
 ```
 P53~P56 ❌ ADR-0007 (SSOT 3축 + .claude/lskun-kit.json link) — 박제 후 전체 폐기
@@ -317,8 +335,10 @@ P58     ✅ ADR-0009 박제 — self-contained default, vault optional, no futur
 - [ADR-0008](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0008-2026-05-19-local-first-no-link.md) — Local-first, vault optional, link 미도입
 - [ADR-0009](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0009-2026-05-19-self-contained-default.md) — Self-contained default + 외부 통합은 명시 opt-in (Notion 등 "future" promise 폐기)
 - [ADR-0010](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0010-2026-05-19-persona-sync-and-provenance.md) — Persona sync + provenance + 조직도 view (`/lskun-kit:sync-persona` / `/lskun-kit:org`)
-
-이전 [`docs/p8-dogfooding-guide.md`](docs/p8-dogfooding-guide.md) 는 deprecated. 역사적 참조용으로만 보존됩니다.
+- [ADR-0011](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0011-2026-05-20-jd-based-hiring.md) — JD 기반 채용 (persona body 의 JD inline 박제)
+- [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) — Plugin version single-source SSOT (`plugin.json` 단일 진실원)
+- [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — 조직도 stable markdown table (reflection 박제 강제는 ADR-0014 로 부분 폐기)
+- **[ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** (4 전문가 5차 만장일치). 워커 = 채용 시 완성형. ADR-0001 §3, ADR-0011 §6 supersede.
 
 ---
 
