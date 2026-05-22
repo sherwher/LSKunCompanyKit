@@ -87,12 +87,7 @@ class OrgBuildTests(unittest.TestCase):
         )]
         self.assertEqual(names, ["cpo", "hr-lead", "alpha", "zulu"])
 
-    def test_history_count_counts_first_pass_lines(self) -> None:
-        self._put("alice", role="backend-engineer", display="A", domain="web",
-                  history_lines=3)
-        r = org.build(self.adapter)
-        alice = next(e for e in r.entries if e.name == "alice")
-        self.assertEqual(alice.history_count, 3)
+    # test_history_count_counts_first_pass_lines — ADR-0014 reflection 폐기로 삭제
 
     def test_invalid_schema_silently_skipped(self) -> None:
         # 필수 필드 누락
@@ -141,22 +136,23 @@ class OrgBuildTests(unittest.TestCase):
         self.assertIn("meta 2", text)
 
     def test_render_uses_stable_markdown_table(self) -> None:
-        """ADR-0013 — markdown table format 박제 강제.
+        """ADR-0013 + ADR-0014 — markdown table format 박제 강제.
 
+        ADR-0014: History 컬럼 → Hired 컬럼 (hired_at 표시).
         호출마다 형식이 흔들리는 동적 padding 회귀를 방지한다.
         """
         self._put("cpo", role="chief-product-officer", display="자비스")
         self._put("hr-lead", role="hr-lead", display="요니찡")
         self._put("alice", role="backend-engineer", display="앨리스 Kim",
-                  domain="web", history_lines=3)
+                  domain="web")
         text = org.build(self.adapter).render()
-        # 고정 header / separator
+        # 고정 header / separator (ADR-0014 — Hired 컬럼)
         self.assertIn(
-            "| Cat    | Name | Display | Role | Domain | Model | History |",
+            "| Cat    | Name | Display | Role | Domain | Model | Hired |",
             text,
         )
         self.assertIn(
-            "|--------|------|---------|------|--------|-------|---------|",
+            "|--------|------|---------|------|--------|-------|-------|",
             text,
         )
         # 한글 display name 이 폭 보정 없이 그대로 박힘
@@ -166,9 +162,9 @@ class OrgBuildTests(unittest.TestCase):
         self.assertIn("| CPO    |", text)
         self.assertIn("| HR     |", text)
         self.assertIn("| Worker |", text)
-        # history 카운트가 정수로 직접 박힘 (history=3 형식 회귀 방지)
-        self.assertIn("| 3 |", text)
+        # ADR-0014 — history=N 형식 회귀 방지 + hired_at 박힘
         self.assertNotIn("history=", text)
+        self.assertNotIn("h=", text)
 
     def test_render_is_stable_across_dataset_changes(self) -> None:
         """ADR-0013 — 워커 추가/제거 시 기존 줄의 형식이 흔들리지 않는다."""

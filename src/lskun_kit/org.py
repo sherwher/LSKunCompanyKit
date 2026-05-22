@@ -21,14 +21,18 @@ class OrgError(LSKunKitError):
 
 @dataclass(frozen=True)
 class OrgEntry:
-    """조직도 한 줄."""
+    """조직도 한 줄.
+
+    ADR-0014 (2026-05-22) — ``history_count`` 필드 제거. 워커 = 채용 시 완성형
+    이므로 history 누적 개념 없음. hired_at (채용 시점) 으로 시간축 교체.
+    """
 
     name: str
     role: str
     display_name: str
     domain: str
     model: str | None
-    history_count: int
+    hired_at: str
     persona_synced_from: str | None
     persona_synced_at: str | None
     archived: bool = False
@@ -52,8 +56,9 @@ class OrgReport:
     archived_entries: list[OrgEntry] = field(default_factory=list)
 
     #: ADR-0013 — 조직도 stable format. 동적 padding 폐지, markdown table 단일 SSOT.
-    _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | History |"
-    _TABLE_SEP = "|--------|------|---------|------|--------|-------|---------|"
+    #: ADR-0014 — History 컬럼 제거 → Hired (채용 시점) 로 교체.
+    _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | Hired |"
+    _TABLE_SEP = "|--------|------|---------|------|--------|-------|-------|"
 
     def render(self, include_archived: bool = False, compact: bool = False) -> str:
         lines = [
@@ -73,12 +78,13 @@ class OrgReport:
         )
         if compact:
             # ADR-0013 add-on — compact 1줄. role==name 인 경우 role 생략 (중복 제거).
+            # ADR-0014 — h=N 제거, hired_at 로 교체.
             for e in sorted_entries:
                 model = e.model or "default"
                 role_part = "" if e.role == e.name else f" · {e.role}"
                 lines.append(
                     f"[{e.category[0]}] {e.name} ({e.display_name})"
-                    f"{role_part} · {e.domain} · {model} · h={e.history_count}"
+                    f"{role_part} · {e.domain} · {model} · hired={e.hired_at}"
                 )
         else:
             # ADR-0013 — markdown table. 컬럼 폭 동적 계산 금지.
@@ -88,7 +94,7 @@ class OrgReport:
                 model = e.model or "default"
                 lines.append(
                     f"| {e.category:<6} | {e.name} | {e.display_name} | "
-                    f"{e.role} | {e.domain} | {model} | {e.history_count} |"
+                    f"{e.role} | {e.domain} | {model} | {e.hired_at} |"
                 )
         # 요약
         cpo_n = sum(1 for e in sorted_entries if e.category == "CPO")
@@ -124,20 +130,9 @@ class OrgReport:
                 model = e.model or "default"
                 lines.append(
                     f"| arch   | {e.name} | {e.display_name} | "
-                    f"{e.role} | {e.domain} | {model} | {e.history_count} |"
+                    f"{e.role} | {e.domain} | {model} | {e.hired_at} |"
                 )
         return "\n".join(lines) + "\n"
-
-
-def _count_history(body: str) -> int:
-    """``- `` 로 시작하는 줄 수를 history entry 로 카운트."""
-    if "## Project History" not in body:
-        return 0
-    section = body.split("## Project History", 1)[1]
-    return sum(
-        1 for line in section.splitlines()
-        if line.lstrip().startswith("- ") and "first-pass" in line
-    )
 
 
 def _read_company_meta(company_md_path: Path) -> tuple[str, str]:
@@ -168,7 +163,7 @@ def _read_entry(path: Path, archived: bool = False) -> OrgEntry | None:
         display_name=str(f["display_name"]),
         domain=str(f["domain"]),
         model=f.get("model"),
-        history_count=_count_history(parsed.body),
+        hired_at=str(f.get("hired_at", "?")),
         persona_synced_from=f.get(PROV_FROM),
         persona_synced_at=f.get(PROV_AT),
         archived=archived,
