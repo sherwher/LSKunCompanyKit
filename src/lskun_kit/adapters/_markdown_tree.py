@@ -22,11 +22,14 @@ from lskun_kit.models import (
     OPTIONAL_WORKER_FIELDS,
     REQUIRED_WORKER_FIELDS,
     Company,
-    HistoryEntry,
     Worker,
 )
 
-HISTORY_HEADING = "## Project History"
+# ADR-0014 (2026-05-22) — Reflection 폐기. 옛 history 섹션 heading 은
+# migrate-schema 의 `## Project History` → `## Archived History (pre-0.18)`
+# rename 로직에서만 참조됨 (사용자 자산 보존 정책).
+LEGACY_HISTORY_HEADING = "## Project History"
+ARCHIVED_HISTORY_HEADING = "## Archived History (pre-0.18)"
 
 # ADR-0001 §5 — 개발자 SSOT 경로 단편. root 에 포함되면 거부.
 DEVELOPER_SSOT_MARKERS = ("02_Projects/LSKunCompanyKit",)
@@ -105,15 +108,6 @@ class MarkdownTreeAdapter(StorageAdapter):
                 if k not in known_fields
             },
         )
-
-    def append_history(self, name: str, entry: HistoryEntry) -> None:
-        path = self._worker_path(name)
-        if not path.exists():
-            raise WorkerNotFoundError(f"hired/{name}.md not found under {self._root}")
-
-        text = path.read_text(encoding="utf-8")
-        updated = _append_history_line(text, entry.render())
-        path.write_text(updated, encoding="utf-8")
 
     def list_workers(self) -> list[str]:
         if not self._hired_dir.exists():
@@ -203,34 +197,3 @@ def _parse_date(value: str) -> date:
     return date.fromisoformat(value)
 
 
-def _append_history_line(text: str, line: str) -> str:
-    """``## Project History`` 섹션 끝에 1줄 append. 섹션 없으면 생성."""
-
-    if HISTORY_HEADING not in text:
-        suffix = "" if text.endswith("\n") else "\n"
-        return f"{text}{suffix}\n{HISTORY_HEADING}\n\n{line}\n"
-
-    lines = text.splitlines(keepends=False)
-    out: list[str] = []
-    inserted = False
-    i = 0
-    while i < len(lines):
-        out.append(lines[i])
-        if not inserted and lines[i].strip() == HISTORY_HEADING:
-            j = i + 1
-            section_lines: list[str] = []
-            while j < len(lines) and not lines[j].lstrip().startswith("## "):
-                section_lines.append(lines[j])
-                j += 1
-            while section_lines and section_lines[-1].strip() == "":
-                section_lines.pop()
-            out.extend(section_lines)
-            out.append(line)
-            i = j - 1
-            inserted = True
-        i += 1
-
-    result = "\n".join(out)
-    if not result.endswith("\n"):
-        result += "\n"
-    return result

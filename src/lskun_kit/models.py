@@ -1,11 +1,11 @@
 """LSKunCompanyKit 의 도메인 모델.
 
-ADR-0001 §3 (Reflection) 와 §4 (Storage Backend 추상화) 에서 정의된
-4-method interface 가 다루는 데이터 구조.
+ADR-0001 §4 (Storage Backend 추상화) 의 interface 가 다루는 데이터 구조.
 
 ADR-0003 — Worker frontmatter 필수 필드 4개 → 5개 (``domain`` 추가).
 ADR-0004 §6 — Worker frontmatter 필수 5개 → 6개 (``display_name`` 추가),
               optional 1개 (``model``) 신설.
+ADR-0014 — Reflection 메커니즘 폐기. ``HistoryEntry`` / ``HISTORY_FIELD_MAX_LEN`` 제거.
 """
 
 from __future__ import annotations
@@ -66,47 +66,6 @@ def resolve_model(value: str | None) -> str | None:
     if value is None:
         return None
     return MODEL_ALIASES.get(value, value)
-
-
-#: P76 — topic / pattern 각 필드 길이 상한. 본 값 초과 시 ValueError.
-#: 530자 narrative 박제 재발 방지 (analytics-engineer 2026-05-21 사건).
-HISTORY_FIELD_MAX_LEN = 80
-
-
-@dataclass(frozen=True)
-class HistoryEntry:
-    """Reflection 1줄. 워커의 ## Project History 섹션에 append 된다.
-
-    포맷 (P76, v2):
-        ``- {date} / {project} / {topic} / {pattern} / first-pass {score}% / [{outcome}] / req:{request_id[:8]}``
-
-    P76 변경:
-        - ``outcome`` 필드 도입 — ``approved`` | ``rework`` | ``rejected``.
-          h=N 카운트의 의미를 "총 호출" → "approved 호출" 로 명확화.
-        - ``request_id`` 필드 도입 (8자 hex) — audit log 와 1:1 cross-check.
-        - ``topic`` / ``pattern`` 길이 가드 (각 ``HISTORY_FIELD_MAX_LEN``).
-        - 옛 entry (outcome/request_id 없는 5필드 format) 도 ``render_legacy()`` 로 유지.
-    """
-
-    date: date
-    project: str
-    topic: str
-    pattern: str
-    first_pass_score: int  # 0..100
-    outcome: str = "approved"  # P76 — approved | rework | rejected
-    request_id: str = ""  # P76 — audit cross-check (uuid4 hex 또는 빈문자열=legacy)
-
-    def render(self) -> str:
-        base = (
-            f"- {self.date.isoformat()} / {self.project} / {self.topic} "
-            f"/ {self.pattern} / first-pass {self.first_pass_score}%"
-        )
-        if self.request_id:
-            return f"{base} / [{self.outcome}] / req:{self.request_id[:8]}"
-        # legacy 모드 — outcome=approved 가 default, request_id 없으면 옛 format 그대로
-        if self.outcome != "approved":
-            return f"{base} / [{self.outcome}]"
-        return base
 
 
 @dataclass

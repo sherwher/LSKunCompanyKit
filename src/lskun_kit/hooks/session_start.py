@@ -2,7 +2,10 @@
 
 ADR-0004 §1 의 2-layer persona 주입 중 layer B (보조):
     - layer A: 사용자 프로젝트 root 의 ``CLAUDE.md`` marker 구간 (정적 persona) — P23
-    - **layer B (본 모듈): 매 세션 시작 시 회사/hired/CPO history 동적 주입** — P24
+    - **layer B (본 모듈): 매 세션 시작 시 회사/hired 동적 주입** — P24
+
+ADR-0014 (2026-05-22) — Reflection 메커니즘 폐기. CPO history 컨텍스트 주입
+제거. 회사 + hired 워커 목록만 동적 주입한다.
 
 ADR-0004 §7 — 활성 회사 없으면 silent no-op (출력 0). 사용자가 LSKunCompanyKit 을
 설치만 했고 회사 셋업을 안 했다면 본 hook 은 침묵.
@@ -43,7 +46,6 @@ if _SRC_DIR not in sys.path:
 # stdlib only — plugin 정책
 
 MAX_PARENT_DEPTH = 5
-RECENT_HISTORY_LINES = 5
 
 # P36 — Prompt injection 가드 (Vault 공유 환경의 악성 markdown 차단).
 #: HTML comment 패턴 — <!-- system: ... --> 류 hijack 시도 제거.
@@ -100,9 +102,8 @@ def _build_context() -> str:
 
     company_meta = _read_company_meta(company_root)
     workers = _list_workers_with_meta(company_root)
-    cpo_history = _read_cpo_recent_history(company_root, RECENT_HISTORY_LINES)
 
-    # P36 — 모든 외부 입력 (frontmatter / history line) 을 inject 전에 sanitize.
+    # P36 — 모든 외부 입력 (frontmatter) 을 inject 전에 sanitize.
     company_name = _sanitize_inline(company_meta.get("name", "(이름 미박제)"))
     company_domain = _sanitize_inline(company_meta.get("domain", ""))
 
@@ -131,12 +132,6 @@ def _build_context() -> str:
     else:
         lines.append("_(없음)_")
 
-    if cpo_history:
-        lines.extend(["", f"### CPO 최근 history ({len(cpo_history)} lines)"])
-        lines.extend(
-            _sanitize_inline(ln, max_len=MAX_LINE_LENGTH) for ln in cpo_history
-        )
-
     lines.extend(
         [
             "",
@@ -144,8 +139,8 @@ def _build_context() -> str:
             "> CPO 의 책임 / 직접 응답 조건 / Task dispatch 절차 / 결재 / 자동 채용 /"
             " 에스컬레이션 / 금지 사항은 모두 **CLAUDE.md 의 LSKUN-CPO marker 구간 박제**"
             " (cpo.md SSOT) 를 따른다.",
-            "> P44 (#14) — 본 hook 은 회사·hired·history 동적 정보만 주입한다."
-            " 행동 지시는 CLAUDE.md 가 단일 SSOT.",
+            "> ADR-0014 (2026-05-22) — Reflection 폐기. 본 hook 은 회사·hired"
+            " 동적 정보만 주입한다. 행동 지시는 CLAUDE.md 가 단일 SSOT.",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -209,25 +204,6 @@ def _list_workers_with_meta(company_root: Path) -> list[dict[str, str]]:
         fm.setdefault("name", p.stem)
         out.append(fm)
     return out
-
-
-def _read_cpo_recent_history(company_root: Path, n: int) -> list[str]:
-    cpo_md = company_root / "hired" / "cpo.md"
-    if not cpo_md.exists():
-        return []
-    try:
-        text = cpo_md.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    marker = "## Project History"
-    if marker not in text:
-        return []
-    body = text.split(marker, 1)[1]
-    # 다음 ## 헤딩 전까지
-    if "\n## " in body:
-        body = body.split("\n## ", 1)[0]
-    history_lines = [ln for ln in body.splitlines() if ln.startswith("- ")]
-    return history_lines[-n:]
 
 
 def _parse_frontmatter_dict(text: str) -> dict[str, str]:

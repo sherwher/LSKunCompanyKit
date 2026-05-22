@@ -90,28 +90,8 @@ class SessionStartHookTests(unittest.TestCase):
             ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
             self.assertIn("이세근", ctx)
 
-    def test_includes_cpo_history_when_present(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            init_run(Path(tmp), cpo_name="이세근", hr_name="김지혜", env={})
-            # CPO 에 history 한 줄 박제
-            from lskun_kit.adapters.local import LocalAdapter
-            from lskun_kit.models import HistoryEntry
-            from datetime import date
-
-            LocalAdapter(Path(tmp) / ".company").append_history(
-                "cpo",
-                HistoryEntry(
-                    date=date(2026, 5, 18),
-                    project="onboarding",
-                    topic="routing",
-                    pattern="domain-first",
-                    first_pass_score=88,
-                ),
-            )
-            rc, out, _ = _capture(session_start.main, env={}, cwd=Path(tmp))
-            ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
-            self.assertIn("CPO 최근 history", ctx)
-            self.assertIn("domain-first", ctx)
+    # test_includes_cpo_history_when_present — ADR-0014 (2026-05-22) reflection 폐기로 삭제
+    # CPO history 컨텍스트 주입은 P79-2 의 session_start.py 갱신에서 제거 예정
 
     def test_sanitizes_html_comments_in_frontmatter(self) -> None:
         """P36 — Vault 공유 환경의 악성 markdown injection 차단.

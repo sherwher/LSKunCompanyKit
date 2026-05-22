@@ -19,14 +19,12 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import (  # noqa: E402
     Company,
-    HistoryEntry,
     InvalidWorkerSchemaError,
     LocalAdapter,
     SSOTContaminationError,
     Worker,
     WorkerNotFoundError,
 )
-from lskun_kit.adapters.local import HISTORY_HEADING, _append_history_line  # noqa: E402
 
 
 WORKER_MD = dedent(
@@ -146,58 +144,7 @@ class LocalAdapterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.adapter.read_worker("../escape")
 
-    # ---- append_history ----
-
-    def test_append_history_adds_line_at_end_of_section(self) -> None:
-        entry = HistoryEntry(
-            date=date(2026, 5, 15),
-            project="music-pay",
-            topic="refund-flow",
-            pattern="saga",
-            first_pass_score=88,
-        )
-        self.adapter.append_history("alice", entry)
-        text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
-        self.assertIn(entry.render(), text)
-        # 기존 라인도 유지
-        self.assertIn("stripe-key-as-idem", text)
-        # 순서 검증: 기존 라인이 새 라인보다 위에 있어야 함
-        self.assertLess(
-            text.index("stripe-key-as-idem"), text.index("music-pay")
-        )
-
-    def test_append_history_creates_section_when_absent(self) -> None:
-        skinny = dedent(
-            """\
-            ---
-            name: carol
-            role: designer
-            domain: meta
-            hired_at: 2026-05-15
-            storage_backend: local
-            display_name: Carol Kim
-            ---
-
-            # carol
-            """
-        )
-        (self.root / "hired" / "carol.md").write_text(skinny, encoding="utf-8")
-        entry = HistoryEntry(
-            date=date(2026, 5, 15),
-            project="brand",
-            topic="logo",
-            pattern="iterative",
-            first_pass_score=70,
-        )
-        self.adapter.append_history("carol", entry)
-        text = (self.root / "hired" / "carol.md").read_text(encoding="utf-8")
-        self.assertIn(HISTORY_HEADING, text)
-        self.assertIn(entry.render(), text)
-
-    def test_append_history_missing_worker_raises(self) -> None:
-        entry = HistoryEntry(date(2026, 5, 15), "p", "t", "x", 1)
-        with self.assertRaises(WorkerNotFoundError):
-            self.adapter.append_history("ghost", entry)
+    # ---- append_history tests — ADR-0014 (2026-05-22) reflection 폐기로 삭제 ----
 
     # ---- list_workers ----
 
@@ -359,32 +306,7 @@ class ArchiveWorkerTests(unittest.TestCase):
         self.assertTrue((self.root / "hired" / "alice.md").exists())
 
 
-class AppendHistoryHelperTests(unittest.TestCase):
-    """순수 함수 _append_history_line 의 엣지케이스."""
-
-    def test_appends_when_section_at_end_with_no_trailing_newline(self) -> None:
-        src = "# x\n\n## Project History\n\n- old"
-        result = _append_history_line(src, "- new")
-        self.assertTrue(result.endswith("- new\n"))
-        self.assertLess(result.index("- old"), result.index("- new"))
-
-    def test_inserts_before_next_section(self) -> None:
-        src = dedent(
-            """\
-            # x
-
-            ## Project History
-
-            - old
-
-            ## Notes
-
-            tail
-            """
-        )
-        result = _append_history_line(src, "- new")
-        self.assertLess(result.index("- new"), result.index("## Notes"))
-        self.assertIn("tail", result)
+# AppendHistoryHelperTests — ADR-0014 (2026-05-22) reflection 폐기로 삭제
 
 
 if __name__ == "__main__":

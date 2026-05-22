@@ -1,4 +1,4 @@
-"""LSKunCompanyKit — AI workers that remember their work."""
+"""LSKunCompanyKit — Domain-expert AI workers, hired complete (ADR-0014)."""
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ from lskun_kit.audit import (
     AuditError,
     new_request_id,
 )
-from lskun_kit import audit_diagnostics, org, persona_sync
+from lskun_kit import org, persona_sync
 from lskun_kit.errors import (
     InvalidWorkerSchemaError,
     LSKunKitError,
     SSOTContaminationError,
     WorkerNotFoundError,
 )
-from lskun_kit.models import Company, HistoryEntry, Worker
+from lskun_kit.models import Company, Worker
 
 
 def _read_plugin_version() -> str:
@@ -56,7 +56,6 @@ __all__ = [
     "VaultCompanyNotFoundError",
     "list_companies",
     "Company",
-    "HistoryEntry",
     "Worker",
     "LSKunKitError",
     "SSOTContaminationError",
@@ -67,5 +66,4 @@ __all__ = [
     "new_request_id",
     "org",
     "persona_sync",
-    "audit_diagnostics",
 ]

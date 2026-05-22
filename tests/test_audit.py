@@ -151,24 +151,7 @@ class RequestIdLinkTests(unittest.TestCase):
         ids = {audit.new_request_id() for _ in range(50)}
         self.assertEqual(len(ids), 50)
 
-    def test_reflection_accepts_request_id_kwarg(self) -> None:
-        from lskun_kit import reflection
-        # 기존 호출자 영향 없음 검증 — kwarg 만 받고 무시 가능해야
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / ".company"
-            (root / "hired").mkdir(parents=True)
-            (root / "hired" / "alice.md").write_text(
-                "---\nname: alice\nrole: r\ndomain: d\n"
-                "hired_at: 2026-01-01\nstorage_backend: local\n"
-                "display_name: A\n---\n# alice\n## Project History\n",
-                encoding="utf-8",
-            )
-            adapter = LocalAdapter(root)
-            rid = audit.new_request_id()
-            entry = reflection.record(
-                adapter, "alice", "p", "t", "pat", 80, request_id=rid,
-            )
-            self.assertEqual(entry.first_pass_score, 80)
+    # test_reflection_accepts_request_id_kwarg — ADR-0014 (2026-05-22) 폐기로 삭제
 
 
 if __name__ == "__main__":  # pragma: no cover

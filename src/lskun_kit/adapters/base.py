@@ -2,13 +2,12 @@
 
 ADR-0001 §4 — core 는 이 interface 만 알고 구현은 모른다.
 
-P45 — write-path 확장:
-    원래 4-method (read_worker / append_history / list_workers / read_company) 만
-    있었고 hire/archive 는 slash command 가 파일을 직접 썼다. 외부 add-on 이
-    파일 쓰기가 아닌 호출 기반 backend 를 구현해야 할 때 hire/fire 로직을
-    다시 작성해야 하는 abstraction 누수가 있었다.
+ADR-0014 — Reflection 메커니즘 폐기. ``append_history`` 메서드 + ``HistoryEntry``
+import 제거. 워커는 채용 시 완성형 (JD only) 이며 시간 흐름으로 진화하지 않는다.
 
-    create_worker / archive_worker 를 ABC 에 추가하되, 기존 4-method 와 달리
+P45 — write-path 확장:
+    원래 3-method (read_worker / list_workers / read_company) + 옛 append_history.
+    create_worker / archive_worker 를 ABC 에 추가하되, 기존 메서드와 달리
     ``@abstractmethod`` 가 아닌 default ``NotImplementedError`` raise 로 둔다.
     외부 구현자가 점진적으로 채택할 수 있다. ``MarkdownTreeAdapter`` 가 file
     기반 구현을 제공.
@@ -23,7 +22,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from lskun_kit.models import Company, HistoryEntry, Worker
+from lskun_kit.models import Company, Worker
 
 
 class StorageAdapter(ABC):
@@ -36,13 +35,6 @@ class StorageAdapter(ABC):
         Raises:
             WorkerNotFoundError: 워커가 존재하지 않을 때.
             InvalidWorkerSchemaError: frontmatter 필수 필드 누락 시.
-        """
-
-    @abstractmethod
-    def append_history(self, name: str, entry: HistoryEntry) -> None:
-        """워커의 ``## Project History`` 섹션에 1줄을 append.
-
-        섹션이 없으면 생성한다. 중복 라인은 검사하지 않는다 — 호출자 책임.
         """
 
     @abstractmethod

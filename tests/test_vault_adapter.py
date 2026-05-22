@@ -16,7 +16,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import (  # noqa: E402
-    HistoryEntry,
     SSOTContaminationError,
     VaultAdapter,
     VaultCompanyNotFoundError,
@@ -87,24 +86,7 @@ class VaultAdapterTests(unittest.TestCase):
         self.assertEqual(worker.name, "alice")
         self.assertEqual(worker.storage_backend, "vault")
 
-    def test_append_history_writes_under_company(self) -> None:
-        entry = HistoryEntry(
-            date=date(2026, 5, 15),
-            project="vault-pay",
-            topic="reconcile",
-            pattern="event-sourcing",
-            first_pass_score=80,
-        )
-        self.adapter.append_history("alice", entry)
-        text = (
-            self.vault / "03_Companies" / "LSKun" / "hired" / "alice.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn("event-sourcing", text)
-        # 다른 회사 (Acme) 는 영향 없음
-        acme = (
-            self.vault / "03_Companies" / "Acme" / "hired" / "alice.md"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("event-sourcing", acme)
+    # test_append_history_writes_under_company — ADR-0014 reflection 폐기로 삭제
 
     def test_read_company_metadata(self) -> None:
         company = self.adapter.read_company()
