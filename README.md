@@ -23,8 +23,7 @@
 
 | 기능 | MetaGPT | ChatDev | CrewAI | MemGPT | **LSKunCompanyKit** |
 |---|---|---|---|---|---|
-| Stateful Workers | ❌ | ❌ | ❌ | ⚠️ | ✅ |
-| Reflection 자동 | ❌ | ❌ | ❌ | ❌ | ✅ |
+| JD-driven workers (채용 시 완성형) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Leader–Worker 결재 | ❌ | ❌ | ❌ | ❌ | ✅ |
 | 도메인 전문가 채용 | ❌ | ❌ | ❌ | ❌ | ✅ |
 | 자동 채용 (사용자 알림만) | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -34,20 +33,30 @@
 
 ---
 
-## 메커니즘 1 — Reflection (ADR-0001)
+## 메커니즘 1 — JD-driven Workers (ADR-0014, 2026-05-22)
 
-작업 종료 hook 이 storage backend 에 1줄 append:
+워커는 채용 시점에 HR Lead 가 작성한 JD (persona body) 로 **완성형**. 시간 흐름으로 진화하지 않으며, 자산은 JD only 단일 차원.
 
 ```markdown
-## Project History
-- 2026-05-15 / payment-svc / idempotency / stripe-key-as-idem / first-pass 92%
+---
+name: backend-engineer-medical
+role: backend-engineer
+domain: medical-saas
+display_name: Alex Kim
+---
+
+# backend-engineer-medical (Alex Kim)
+
+## 도메인 전문성
+- HIPAA PHI 마스킹 패턴
+- HL7 FHIR R4 / FHIR R5 차이
+- EHR 통합 (Epic / Cerner) API quirk
+...
 ```
 
-다음 작업 시 워커는 자기 history 를 자동 주입받고 과거 패턴을 인용합니다:
+채용 = 완성형 전문가 박제. 회사 성장 = 인원 추가 + 도메인 확장. **워커가 시간으로 성장한다 모델 부정** (ADR-0014).
 
-> "이전 음원 결제에서 idempotency key 패턴을 썼습니다. 이번 케이스에도 적합해 보입니다."
-
-시작/종료에 `.md` 1줄씩만. **ceremony 0.**
+> 옛 메커니즘 (Reflection — 작업 종료 시 history 1줄 append → 다음 dispatch context 주입) 은 ADR-0014 로 폐기. 6일 실측 누락률 80.5% + 4 전문가 5차 만장일치. 코드 제거는 P79 진행 예정.
 
 ---
 
@@ -63,10 +72,10 @@
 메인 세션 = CPO 가 결재 → 사용자 응답
 ```
 
-- **결재:** 워커 보고의 first-pass 점수와 사용자 요청 부합 여부 검수, 미달 시 재작업 (최대 2회)
+- **결재:** 워커 보고의 사용자 요청 부합 여부 검수, 미달 시 재작업 (최대 2회). audit log (ADR-0006) 박제 유지
 - **자동 채용:** 적합 워커 없으면 HR Lead 를 Task tool 로 호출 → 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch (사용자 차단 X)
 - **모델 라우팅:** 워커 default = Sonnet, frontmatter `model` 또는 CPO 동적 override 로 Opus
-- **금지:** 워커 → 워커 chain (sub-leader 출현 방지), CPO/HR 외 임원 자동 추가, persona evolution narrative
+- **금지:** 워커 → 워커 chain (sub-leader 출현 방지), CPO/HR 외 임원 자동 추가, 워커 진화 narrative (ADR-0014)
 
 ---
 
@@ -86,7 +95,7 @@ model: opus               # optional (default: sonnet)
 ---
 ```
 
-- 같은 `role` 이라도 `domain` 마다 reflection history 가 분리 → "HIPAA PHI 마스킹 로깅 패턴" 같은 도메인 자산이 누적
+- 같은 `role` 이라도 `domain` 마다 JD 가 분리 → "HIPAA PHI 마스킹 패턴" 같은 도메인 지식이 JD 본문에 박제 (ADR-0014 재해석)
 - CPO 라우팅 0순위 = 회사 `domain` 일치 워커
 - 도메인 미일치 시 일반 워커 fallback + "도메인 전문가 채용 권장" 메시지
 - 사전 정의 카탈로그 없음 (`medical`, `fintech` 등 enum 강제 X) — 자유 입력

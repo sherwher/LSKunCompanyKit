@@ -91,7 +91,7 @@ CPO 는 **결재 라인 + 단독 채용 권한**. 부재 워커 발견 시 HR Le
 
 ### 2.3 Role × Domain — 도메인 인지 워커 (ADR-0003)
 
-같은 `role` 이라도 회사 `domain` 별로 reflection history 가 분리 → 시간이 갈수록 도메인 자산 (예: HIPAA PHI 마스킹, HL7 FHIR 함정) 누적. CPO 라우팅 0순위 = 도메인 일치. 사전 enum 강제 X (자유 입력).
+같은 `role` 이라도 회사 `domain` 별로 JD (persona body) 가 분리 → 채용 시점에 도메인 지식 (예: HIPAA PHI 마스킹, HL7 FHIR 함정) 이 JD 본문에 박제. CPO 라우팅 0순위 = 도메인 일치. 사전 enum 강제 X (자유 입력). ADR-0014 재해석 — "domain 별 history 분리" → "domain 별 JD 분리".
 
 ---
 
