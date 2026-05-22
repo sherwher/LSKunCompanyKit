@@ -1,11 +1,14 @@
-"""Schema 마이그레이션 — ADR-0005.
+"""Schema 마이그레이션 — ADR-0005 + ADR-0014.
 
 기존에 v0.2 (4 필수 필드) 또는 v0.3 (5 필수 필드) 으로 생성된 회사를 v0.4 schema
-(6 필수 필드 + CLAUDE.md marker 박제) 로 끌어올린다. history 는 한 줄도 건드리지
-않으며, frontmatter 의 누락 필드만 보강한다.
+(6 필수 필드 + CLAUDE.md marker 박제) 로 끌어올린다. frontmatter 의 누락 필드만 보강.
+
+ADR-0014 (2026-05-22) — Reflection 폐기. 기존 ``## Project History`` 섹션이 있으면
+``## Archived History (pre-0.18)`` 로 heading 만 rename (entry 는 한 줄도 변경 X).
+plugin core 는 이 archived section 을 읽지 않으나 사용자 자산은 보존한다.
 
 원칙 (불변):
-    - history 절대 보존 (Project History 섹션 read-only)
+    - history entry 절대 보존 — heading rename 외 어떤 줄도 추가·수정·삭제 X
     - frontmatter 기존 키 덮어쓰기 금지 — 누락된 키만 추가
     - 변경 전 ``<file>.lskun-pre-migrate.bak`` 자동 백업
     - dry-run 으로 사전 확인 가능
@@ -25,6 +28,10 @@ from lskun_kit.models import REQUIRED_WORKER_FIELDS
 from lskun_kit.persona_injection import detect as detect_persona
 
 BACKUP_SUFFIX = ".lskun-pre-migrate.bak"
+
+#: ADR-0014 — legacy heading rename. plugin 0.18 부터 plugin core 가 사용하지 않음.
+LEGACY_HISTORY_HEADING = "## Project History"
+ARCHIVED_HISTORY_HEADING = "## Archived History (pre-0.18)"
 
 #: v0.2 schema — ADR-0001 시점의 4 필드 (name, role, hired_at, storage_backend)
 SCHEMA_V0_2_FIELDS = ("name", "role", "hired_at", "storage_backend")
@@ -58,6 +65,8 @@ class MigrationPlan:
     company_missing_fields: tuple[str, ...]  # company.md frontmatter 의 누락 필드
     company_detected_schema: str
     worker_gaps: list[WorkerSchemaGap] = field(default_factory=list)
+    #: ADR-0014 — legacy `## Project History` 섹션이 있어 rename 이 필요한 워커 목록.
+    legacy_history_workers: list[str] = field(default_factory=list)
     claude_md_path: Path | None = None
     claude_md_marker_missing: bool = False
 
@@ -67,6 +76,7 @@ class MigrationPlan:
             not self.company_missing_fields
             and not self.worker_gaps
             and not self.claude_md_marker_missing
+            and not self.legacy_history_workers
         )
 
     def render(self) -> str:
@@ -93,9 +103,14 @@ class MigrationPlan:
                 f"CLAUDE.md     : {self.claude_md_path} "
                 + ("(marker 부재 — 박제 필요)" if self.claude_md_marker_missing else "(marker 정상)")
             )
+        if self.legacy_history_workers:
+            lines.append(
+                f"legacy history: {len(self.legacy_history_workers)} 워커 "
+                f"(ADR-0014 — `## Archived History (pre-0.18)` 로 heading rename 예정)"
+            )
         if self.is_no_op:
             lines.append("")
-            lines.append("결과: migration 불필요 — 이미 v0.4 schema.")
+            lines.append("결과: migration 불필요 — 이미 최신 schema.")
         return "\n".join(lines) + "\n"
 
 
@@ -175,18 +190,26 @@ def plan(
     company_schema, company_missing = detect_company_schema(company_fm)
 
     gaps: list[WorkerSchemaGap] = []
+    legacy_history: list[str] = []
     hired_dir = company_root / "hired"
     if hired_dir.exists():
         for p in sorted(hired_dir.glob("*.md")):
             if not p.is_file() or p.name.startswith("."):
                 continue
-            parsed_w = fm.parse(p.read_text(encoding="utf-8"))
+            text = p.read_text(encoding="utf-8")
+            parsed_w = fm.parse(text)
             schema, missing = detect_worker_schema(dict(parsed_w.frontmatter))
             if missing:
                 gaps.append(WorkerSchemaGap(
                     name=p.stem, path=p,
                     missing_fields=missing, detected_schema=schema,
                 ))
+            # ADR-0014 — legacy `## Project History` heading 감지 (이미 archived 면 skip)
+            if (
+                LEGACY_HISTORY_HEADING in text
+                and ARCHIVED_HISTORY_HEADING not in text
+            ):
+                legacy_history.append(p.stem)
 
     claude_md_path: Path | None = None
     marker_missing = False
@@ -201,12 +224,35 @@ def plan(
         company_missing_fields=company_missing,
         company_detected_schema=company_schema,
         worker_gaps=gaps,
+        legacy_history_workers=legacy_history,
         claude_md_path=claude_md_path,
         claude_md_marker_missing=marker_missing,
     )
 
 
 # ---- Execute ----
+
+def _rename_legacy_history_heading(text: str) -> str:
+    """ADR-0014 — ``## Project History`` heading 만 ``## Archived History (pre-0.18)`` 로
+    교체. entry 는 한 줄도 건드리지 않는다.
+
+    옛 heading 이 본문에 없으면 입력 그대로 반환. 이미 archived 만 있으면 그대로 반환.
+    """
+
+    if LEGACY_HISTORY_HEADING not in text:
+        return text
+    # exact heading 매치만 — 본문에 인용된 문자열을 건드리지 않도록.
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    for ln in lines:
+        if ln.rstrip("\r\n") == LEGACY_HISTORY_HEADING:
+            # 줄바꿈 보존
+            tail = ln[len(LEGACY_HISTORY_HEADING):]
+            out.append(ARCHIVED_HISTORY_HEADING + tail)
+        else:
+            out.append(ln)
+    return "".join(out)
+
 
 def _backup_file(path: Path) -> Path:
     """``<path>.lskun-pre-migrate.bak`` 으로 백업. 이미 있으면 timestamp 부여."""
@@ -308,8 +354,27 @@ def execute(
         new_text = _merge_frontmatter(
             gap.path.read_text(encoding="utf-8"), additions,
         )
+        # ADR-0014 — frontmatter 보강과 함께 legacy history heading rename 도 같은 write 에 포함
+        if gap.name in plan.legacy_history_workers:
+            new_text = _rename_legacy_history_heading(new_text)
         gap.path.write_text(new_text, encoding="utf-8")
         result.workers_updated.append(gap.name)
+
+    # 2b) ADR-0014 — gap 없이 legacy history rename 만 필요한 워커 처리
+    workers_already_updated = set(result.workers_updated)
+    for name in plan.legacy_history_workers:
+        if name in workers_already_updated:
+            continue
+        worker_path = plan.company_root / "hired" / f"{name}.md"
+        if not worker_path.exists():
+            continue
+        bak = _backup_file(worker_path)
+        result.backups_created.append(bak)
+        old_text = worker_path.read_text(encoding="utf-8")
+        new_text = _rename_legacy_history_heading(old_text)
+        if new_text != old_text:
+            worker_path.write_text(new_text, encoding="utf-8")
+            result.workers_updated.append(name)
 
     # 3) CLAUDE.md marker 박제
     if plan.claude_md_marker_missing and plan.claude_md_path is not None:

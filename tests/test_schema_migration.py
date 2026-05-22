@@ -171,9 +171,22 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(p.worker_gaps[0].missing_fields, ("display_name",))
 
     def test_v0_4_no_op(self) -> None:
-        adapter = self._setup(COMPANY_V0_3, {"carol": WORKER_V0_4})
+        """ADR-0014 — `## Project History` 가 있으면 더 이상 no-op 아님 (archived 로 rename 필요).
+
+        legacy heading 이 없는 fixture 로 진짜 no-op 검증.
+        """
+        # WORKER_V0_4 본문에서 ## Project History 섹션 전체 제거
+        worker_no_history = WORKER_V0_4.split("## Project History", 1)[0].rstrip() + "\n"
+        adapter = self._setup(COMPANY_V0_3, {"carol": worker_no_history})
         p = sm.plan(adapter, self.root, backend="local")
         self.assertTrue(p.is_no_op)
+
+    def test_v0_4_with_legacy_history_is_not_no_op(self) -> None:
+        """ADR-0014 — legacy `## Project History` heading 이 있으면 rename 대상."""
+        adapter = self._setup(COMPANY_V0_3, {"carol": WORKER_V0_4})
+        p = sm.plan(adapter, self.root, backend="local")
+        self.assertFalse(p.is_no_op)
+        self.assertEqual(p.legacy_history_workers, ["carol"])
 
 
 class ExecuteTests(unittest.TestCase):
@@ -208,13 +221,16 @@ class ExecuteTests(unittest.TestCase):
         self.assertEqual(worker.domain, "payments")
         self.assertEqual(worker.display_name, "Alice Park")
 
-        # history 절대 보존
+        # history entry 절대 보존 (ADR-0014 — heading 만 archived 로 rename)
         a_text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
         self.assertIn("stripe-key", a_text)
         self.assertIn("first-pass 88%", a_text)
-        # body 의 ## Project History 섹션이 한 줄도 변경되지 않음
+        # heading 은 ADR-0014 에 따라 rename 됨
+        self.assertIn("## Archived History (pre-0.18)", a_text)
+        self.assertNotIn("\n## Project History\n", a_text)
+        # entry 본문은 보존
         before_hist = before_history.split("## Project History", 1)[1]
-        after_hist = a_text.split("## Project History", 1)[1]
+        after_hist = a_text.split("## Archived History (pre-0.18)", 1)[1]
         self.assertEqual(before_hist, after_hist)
 
         # 백업 파일 존재
@@ -272,7 +288,12 @@ class ExecuteTests(unittest.TestCase):
             sm.execute(self.adapter, p, answers)
 
     def test_v0_4_execute_is_no_op(self) -> None:
-        (self.root / "hired" / "alice.md").write_text(WORKER_V0_4.replace("name: carol", "name: alice"), encoding="utf-8")
+        """ADR-0014 — legacy history heading 이 없는 v0.4 fixture 로 no-op 검증."""
+        # WORKER_V0_4 본문에서 ## Project History 섹션 전체 제거 + name 변경
+        worker_no_history = (
+            WORKER_V0_4.split("## Project History", 1)[0].rstrip() + "\n"
+        ).replace("name: carol", "name: alice")
+        (self.root / "hired" / "alice.md").write_text(worker_no_history, encoding="utf-8")
         (self.root / "company.md").write_text(COMPANY_V0_3, encoding="utf-8")
         adapter = LocalAdapter(self.root)
         p = sm.plan(adapter, self.root, backend="local")
@@ -280,6 +301,23 @@ class ExecuteTests(unittest.TestCase):
         self.assertFalse(result.company_md_updated)
         self.assertEqual(result.workers_updated, [])
         self.assertEqual(result.backups_created, [])
+
+    def test_legacy_history_rename_only(self) -> None:
+        """ADR-0014 — v0.4 schema 통과 + legacy history heading 만 rename 필요한 케이스."""
+        worker_v0_4_with_history = WORKER_V0_4.replace("name: carol", "name: alice")
+        (self.root / "hired" / "alice.md").write_text(
+            worker_v0_4_with_history, encoding="utf-8"
+        )
+        (self.root / "company.md").write_text(COMPANY_V0_3, encoding="utf-8")
+        adapter = LocalAdapter(self.root)
+        p = sm.plan(adapter, self.root, backend="local")
+        self.assertFalse(p.is_no_op)
+        self.assertEqual(p.legacy_history_workers, ["alice"])
+        result = sm.execute(adapter, p, sm.MigrationAnswers())
+        a_text = (self.root / "hired" / "alice.md").read_text(encoding="utf-8")
+        self.assertIn("## Archived History (pre-0.18)", a_text)
+        self.assertNotIn("\n## Project History\n", a_text)
+        self.assertIn("alice", result.workers_updated)
 
 
 class ClaudeMdInjectionTests(unittest.TestCase):
