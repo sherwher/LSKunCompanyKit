@@ -1,7 +1,7 @@
 {
   "name": "LSKunCompanyKit",
   "version": "0.18.0-dev",
-  "description": "AI workers that remember their work — main session = CPO (Leader-Worker) with domain-aware stateful workers, Reflection, and pluggable storage backends for Claude Code.",
+  "description": "Domain-expert AI workers, hired complete — main session = CPO (Leader-Worker) with JD-driven domain-aware workers and pluggable storage backends for Claude Code.",
   "author": {
     "name": "이성근",
     "email": "sherwher@sherwher.org",
@@ -11,8 +11,8 @@
   "homepage": "https://github.com/sherwher/LSKunCompanyKit",
   "repository": "https://github.com/sherwher/LSKunCompanyKit",
   "keywords": [
-    "stateful-workers",
-    "reflection",
+    "jd-driven-workers",
+    "domain-experts",
     "storage-abstraction",
     "leader-worker",
     "cpo",

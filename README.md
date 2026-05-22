@@ -1,8 +1,8 @@
 # LSKunCompanyKit
 
-> AI workers that remember their work. The main session **is** the CPO.
+> Domain-expert AI workers, hired complete. The main session **is** the CPO.
 
-**LSKunCompanyKit** 은 Claude Code 에서 AI 직원이 작업을 기억하며 자라는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 자동으로 채용합니다. 도메인 (의료/금융/교육 등) 별 전문가 채용으로 reflection 자산이 도메인 단위로 축적됩니다.
+**LSKunCompanyKit** 은 Claude Code 에서 **도메인 적합 전문가** 를 채용·운영하는 시스템입니다. 메인 세션 자체가 회사의 **CPO** 로 동작하여 적합 워커를 자동 라우팅·결재하고, 없으면 JD 기반 자동 채용합니다. 워커는 채용 시점에 HR Lead 가 작성한 JD (도메인 날리지 + 전문성) 로 **완성형** 이며, 시간 흐름으로 진화하지 않습니다 (ADR-0014, 2026-05-22). 회사 성장 = 인원 추가 + 도메인 확장.
 
 - **Status:** Version 은 `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 가장 최근 design pivot 은 [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) (단일 SSOT version 정책)
 - **License:** MIT
@@ -12,12 +12,14 @@
 
 ## 왜 만드는가
 
-기존 multi-agent 프레임워크 (MetaGPT, ChatDev, CrewAI, MemGPT) 는 작업마다 워커의 기억이 초기화됩니다. LSKunCompanyKit 은 다음 4가지를 결합합니다:
+기존 multi-agent 프레임워크 (MetaGPT, ChatDev, CrewAI) 는 워커 정의가 매번 휘발됩니다. LSKunCompanyKit 은 다음 4가지를 결합합니다:
 
-1. **Stateful Workers + Reflection** — Stanford Generative Agents (UIST 2023, arXiv:2304.03442) 의 메커니즘을 markdown 1줄 단위로 자동화
+1. **JD-driven Workers** — 채용 시점에 도메인 날리지 + 전문성을 JD (persona body) 로 박제. 워커 = 채용 즉시 완성형 (ADR-0014)
 2. **Leader–Worker (메인 세션 = CPO)** — 사용자 요청 → CPO 라우팅 → 워커 dispatch → 결재 → 응답을 한 세션 안에서 수행
-3. **도메인 인지 (`role × domain`)** — 의료 backend-engineer vs 핀테크 backend-engineer 의 reflection 자산이 분리되어 시간이 갈수록 도메인 격차가 벌어짐
+3. **도메인 인지 (`role × domain`)** — 의료 backend-engineer vs 핀테크 backend-engineer 의 JD 가 도메인별로 분리되어 회사 도메인 폭이 자산
 4. **Storage Backend 추상화** — Local (`.company/`) 또는 Vault (`<vault>/03_Companies/<company>/`). 사용자 선택, plugin 이 마이그레이션 책임
+
+**Reflection 메커니즘 (history 누적) 은 ADR-0014 로 폐기** (2026-05-22). 6일 실측 (LSKun 41명 / 8건 박제 / 누락률 80.5%) + 4 전문가 5차 만장일치. 워커는 시간 흐름으로 진화하지 않으며, 자산은 JD only (정적 단일 차원). 코드 제거는 P79 진행 예정.
 
 | 기능 | MetaGPT | ChatDev | CrewAI | MemGPT | **LSKunCompanyKit** |
 |---|---|---|---|---|---|
