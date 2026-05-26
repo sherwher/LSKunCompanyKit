@@ -183,6 +183,37 @@ class LocalAdapterTests(unittest.TestCase):
             LocalAdapter("/tmp/obsidian-vault/02_Projects/LSKunCompanyKit/oops")
 
 
+class FromCompanyNameTests(unittest.TestCase):
+    """ADR-0015 결정 1-A — ``LocalAdapter.from_company_name`` 단일 진입점."""
+
+    def test_root_is_under_lskun_companies_home(self) -> None:
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as fake_home:
+            with mock.patch("lskun_kit.paths.Path.home",
+                            return_value=Path(fake_home)):
+                adapter = LocalAdapter.from_company_name("LSKun")
+                expected = Path(fake_home) / ".lskun-companies" / "LSKun"
+                self.assertEqual(adapter.root, expected)
+
+    def test_invalid_company_name_rejected_before_io(self) -> None:
+        """디렉토리 부재여도 invalid name 은 ``ValueError`` (IO 시도 전 차단)."""
+        for bad in ("..", ".backups", "a/b"):
+            with self.assertRaises(ValueError, msg=f"{bad!r}"):
+                LocalAdapter.from_company_name(bad)
+
+    def test_does_not_auto_create_company_directory(self) -> None:
+        """ADR-0015 결정 1-A — adapter 생성만으로 디렉토리 생성 금지.
+
+        디렉토리 생성 책임은 init.py (P87). adapter 는 path 만 알면 됨.
+        """
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as fake_home:
+            with mock.patch("lskun_kit.paths.Path.home",
+                            return_value=Path(fake_home)):
+                adapter = LocalAdapter.from_company_name("LSKun")
+                self.assertFalse(adapter.root.exists())
+
+
 class WorkerNameValidationTests(unittest.TestCase):
     """P39 (#5) — _worker_path allowlist 가드 검증."""
 
