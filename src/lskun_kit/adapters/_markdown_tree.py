@@ -143,8 +143,22 @@ class MarkdownTreeAdapter(StorageAdapter):
         text = frontmatter.dump(frontmatter_dict, body)
         path.write_text(text, encoding="utf-8")
 
-    def archive_worker(self, name: str) -> None:
-        """``hired/<name>.md`` → ``archived/<name>.md`` 이동. 삭제 금지."""
+    def archive_worker(
+        self,
+        name: str,
+        archived_at: str | None = None,
+        archived_reason: str | None = None,
+    ) -> None:
+        """``hired/<name>.md`` → ``archived/<name>.md`` 이동. 삭제 금지.
+
+        ADR-0015 결정 7-B — 이동 직전에 frontmatter 에 ``archived_at`` +
+        ``archived_reason`` 박제. 기존 ``display_name`` 은 보존 (자동 익명화 금지).
+
+        Args:
+            name: 해고할 워커 이름.
+            archived_at: 해고일 (ISO 문자열). ``None`` 이면 오늘 날짜 자동.
+            archived_reason: 해고 사유 1~2 문장. ``None`` 이면 ``""``.
+        """
 
         path = self._worker_path(name)
         if not path.exists():
@@ -159,7 +173,17 @@ class MarkdownTreeAdapter(StorageAdapter):
                 f"archived worker already exists: {dest} "
                 f"(이미 archive 된 동명 워커가 있음 — 수동 정리 필요)"
             )
-        path.rename(dest)
+
+        # ADR-0015 결정 7-B — archive 시점에 frontmatter 박제
+        stamp = archived_at or date.today().isoformat()
+        reason = archived_reason or ""
+        parsed = frontmatter.parse(path.read_text(encoding="utf-8"))
+        parsed.frontmatter["archived_at"] = stamp
+        parsed.frontmatter["archived_reason"] = reason
+        new_text = frontmatter.dump(parsed.frontmatter, parsed.body)
+        # atomic-ish: 새 frontmatter 를 dest 에 쓰고 원본 unlink
+        dest.write_text(new_text, encoding="utf-8")
+        path.unlink()
 
     def _worker_path(self, name: str) -> Path:
         # P39 (#5) — allowlist 검증. 기존 deny-list (``/``, ``.``, ``..``) 만으로는

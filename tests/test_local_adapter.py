@@ -323,6 +323,33 @@ class ArchiveWorkerTests(unittest.TestCase):
         # history 보존 — 파일 내용 살아있음
         self.assertIn("stripe-key-as-idem", archived.read_text(encoding="utf-8"))
 
+    def test_archive_stamps_archived_at_and_reason(self) -> None:
+        """ADR-0015 결정 7-B — archive 시점에 frontmatter 박제 + display_name 보존."""
+        from lskun_kit.adapters import frontmatter as fm
+        self.adapter.archive_worker(
+            "alice",
+            archived_at="2026-05-22",
+            archived_reason="role 중복 해소",
+        )
+        archived = self.root / "archived" / "alice.md"
+        parsed = fm.parse(archived.read_text(encoding="utf-8"))
+        self.assertEqual(parsed.frontmatter.get("archived_at"), "2026-05-22")
+        self.assertEqual(parsed.frontmatter.get("archived_reason"), "role 중복 해소")
+        # display_name 자동 익명화 금지 — 원본 보존
+        self.assertEqual(parsed.frontmatter.get("display_name"), "Alice Park")
+
+    def test_archive_default_archived_at_is_today(self) -> None:
+        """archived_at 생략 시 오늘 ISO 날짜 자동 사용."""
+        from datetime import date as _date
+        from lskun_kit.adapters import frontmatter as fm
+        self.adapter.archive_worker("alice")
+        archived = self.root / "archived" / "alice.md"
+        parsed = fm.parse(archived.read_text(encoding="utf-8"))
+        self.assertEqual(
+            parsed.frontmatter.get("archived_at"), _date.today().isoformat()
+        )
+        self.assertEqual(parsed.frontmatter.get("archived_reason"), "")
+
     def test_archive_missing_raises(self) -> None:
         with self.assertRaises(WorkerNotFoundError):
             self.adapter.archive_worker("ghost")

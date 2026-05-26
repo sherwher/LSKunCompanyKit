@@ -31,10 +31,16 @@ arguments:
 ### 직통 (워커 이름 명시)
 
 1. 활성 backend 결정 (`/hire` 와 동일 규칙)
-2. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → JD 컨텍스트 주입 (ADR-0014 — history 섹션 주입 폐기)
-3. `lskun_kit.session.start(<root>, <worker>)` 호출 → 세션 파일 작성
-4. `--model` 옵션이 있으면 해당 모델로 dispatch; 없으면 워커 frontmatter `model` → default(`sonnet`)
-5. 사용자가 자유롭게 일을 시킨다.
+2. **dispatch 가드 (ADR-0015 결정 7-E)** — worker 가 archived/ 에만 있고 hired/ 에 없으면 `WorkerArchivedError` raise. caller (LLM) 가 사용자에게 다음 메시지 출력 후 중단:
+   ```
+   [Skill 실패] worker '<name>' is archived (<archived_at> 해고됨).
+   재채용은 /lskun-kit:work hr-lead "<name> 재채용" 으로 진행하세요.
+   ```
+   **Task tool 우회 / fallback 금지** (ADR-0015 결정 3-A 정합).
+3. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → JD 컨텍스트 주입 (ADR-0014 — history 섹션 주입 폐기)
+4. `lskun_kit.session.start(<root>, <worker>)` 호출 → 세션 파일 작성
+5. `--model` 옵션이 있으면 해당 모델로 dispatch; 없으면 워커 frontmatter `model` → default(`sonnet`)
+6. 사용자가 자유롭게 일을 시킨다.
 
 ### 메인 세션 CPO 라우팅 (워커 이름 생략)
 

@@ -43,12 +43,22 @@ def decide_target(
     """워커 이름 입력 유무로 직통 / CPO / 에러 분기 결정.
 
     - ``requested_worker`` 가 비어 있지 않으면 → direct (CPO 경유 안 함)
+      - ADR-0015 결정 7-E — archived 만 존재 + hired 부재 시 ``WorkerArchivedError`` raise
     - 비어 있으면 → CPO 라우팅 시도
       - CPO 가 hired 되어 있지 않으면 → ``missing-cpo`` (사용자에게 init 안내)
     """
 
+    from lskun_kit.errors import WorkerArchivedError
+
     name = (requested_worker or "").strip()
     if name:
+        # ADR-0015 결정 7-E — archived 가드. hired 에 부재 + archived 에 존재 시 에러.
+        archived_info = _check_archived(adapter, name)
+        if archived_info is not None:
+            raise WorkerArchivedError(
+                worker_name=name,
+                archived_at=archived_info,
+            )
         return RoutingDecision(mode="direct", target_worker=name)
 
     workers = set(adapter.list_workers())
@@ -61,6 +71,32 @@ def decide_target(
             ),
         )
     return RoutingDecision(mode="cpo", target_worker=CPO_WORKER_NAME)
+
+
+def _check_archived(adapter: StorageAdapter, name: str) -> str | None:
+    """ADR-0015 결정 7-E — archived 만 존재하는지 확인.
+
+    Returns:
+        archived 워커가 있고 hired 에 없으면 archived_at (ISO 문자열) 또는 ``""``.
+        hired 에 있거나 archived 에 없으면 ``None``.
+    """
+
+    if name in set(adapter.list_workers()):
+        return None  # hired 에 있음 → archived 무시
+    # adapter.root 가 expose 되지 않는 추상 adapter 도 있으므로 안전 가드.
+    root_attr = getattr(adapter, "root", None)
+    if root_attr is None:
+        return None
+    archived_path = root_attr / "archived" / f"{name}.md"
+    if not archived_path.exists():
+        return None
+    # frontmatter parse 로 archived_at 추출 (best-effort)
+    try:
+        from lskun_kit.adapters import frontmatter
+        parsed = frontmatter.parse(archived_path.read_text(encoding="utf-8"))
+        return str(parsed.frontmatter.get("archived_at", ""))
+    except Exception:
+        return ""
 
 
 def build_cpo_routing_context(

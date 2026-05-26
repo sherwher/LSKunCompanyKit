@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import LocalAdapter, WorkerNotFoundError  # noqa: E402
+from lskun_kit.errors import WorkerArchivedError  # noqa: E402
 from lskun_kit.routing import (  # noqa: E402
     CPO_WORKER_NAME,
     HR_LEAD_WORKER_NAME,
@@ -102,6 +103,34 @@ class DecideTargetTests(unittest.TestCase):
             adapter = _init_local(Path(tmp))
             d = decide_target(adapter, requested_worker="   ")
             self.assertEqual(d.mode, "cpo")
+
+    def test_archived_worker_raises_worker_archived_error(self) -> None:
+        """ADR-0015 결정 7-E — archived 만 존재 + hired 부재 시 dispatch 가드."""
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            _hire_extra(adapter, "alice", "backend-engineer")
+            adapter.archive_worker(
+                "alice",
+                archived_at="2026-05-22",
+                archived_reason="test",
+            )
+            with self.assertRaises(WorkerArchivedError) as ctx:
+                decide_target(adapter, requested_worker="alice")
+            err = ctx.exception
+            self.assertEqual(err.worker_name, "alice")
+            self.assertEqual(err.archived_at, "2026-05-22")
+            self.assertIn("재채용", err.hint)
+
+    def test_hired_worker_with_same_name_in_archived_takes_priority(self) -> None:
+        """hired/ 에 있으면 archived/ 의 동명은 무시 (재채용 시나리오)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = _init_local(Path(tmp))
+            _hire_extra(adapter, "alice", "backend-engineer")
+            adapter.archive_worker("alice", archived_at="2026-05-01")
+            _hire_extra(adapter, "alice", "backend-engineer")  # 재채용
+            d = decide_target(adapter, requested_worker="alice")
+            self.assertEqual(d.mode, "direct")
+            self.assertEqual(d.target_worker, "alice")
 
 
 class BuildCpoRoutingContextTests(unittest.TestCase):
