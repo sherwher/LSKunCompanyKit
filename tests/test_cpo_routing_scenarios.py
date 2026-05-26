@@ -20,9 +20,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import LocalAdapter  # noqa: E402
-from lskun_kit.init import LOCAL_COMPANY_DIRNAME, run as init_run  # noqa: E402
 from lskun_kit.routing import build_cpo_routing_context  # noqa: E402
-from lskun_kit.templates import render_default_worker  # noqa: E402
+from lskun_kit.templates import (  # noqa: E402
+    iter_default_workers,
+    render_default_worker,
+)
 
 
 FIXTURE_PATH = ROOT / "tests" / "fixtures" / "cpo_routing_scenarios.jsonl"
@@ -39,9 +41,32 @@ def _load_scenarios() -> list[dict]:
 
 
 def _setup_company(tmp: Path, workers: list[dict]) -> LocalAdapter:
-    """init + 추가 워커 hire."""
-    init_run(tmp, cpo_name="이세근", hr_name="김지혜", env={})
-    adapter = LocalAdapter(tmp / LOCAL_COMPANY_DIRNAME)
+    """ADR-0015 — 임시 회사 root 에 CPO/HR + 추가 워커 hire.
+
+    test_routing 과 동일 패턴 — init.run() 풀체인 없이 직접 디렉토리 박제하여
+    Path.home() mock 의존도 0.
+    """
+    from datetime import date as _date
+    co_root = tmp / "company-root"
+    hired = co_root / "hired"
+    hired.mkdir(parents=True)
+    (co_root / "company.md").write_text(
+        "---\nname: Test\nfounded: 2026-05-22\ndomain: meta\n---\n# Test\n",
+        encoding="utf-8",
+    )
+    for worker_name, role, template_filename, default_model in iter_default_workers():
+        text = render_default_worker(
+            name=worker_name,
+            role=role,
+            template_filename=template_filename,
+            storage_backend="local",
+            display_name="이세근" if worker_name == "cpo" else "김지혜",
+            hired_at=_date(2026, 5, 22),
+            model=default_model,
+            synced_from="lskun-kit@test",
+        )
+        (hired / f"{worker_name}.md").write_text(text, encoding="utf-8")
+    adapter = LocalAdapter(co_root)
     for w in workers:
         rendered = render_default_worker(
             name=w["name"],
@@ -50,7 +75,6 @@ def _setup_company(tmp: Path, workers: list[dict]) -> LocalAdapter:
             storage_backend="local",
             display_name=w["name"].title(),
         )
-        # frontmatter 의 domain 만 교체 (단순 텍스트 replace)
         rendered = rendered.replace(
             "domain: meta", f"domain: {w['domain']}"
         ).replace(

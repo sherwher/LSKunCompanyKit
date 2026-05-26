@@ -33,16 +33,30 @@ MAX_PARENT_DEPTH = 5
 
 
 def _find_active_company_root() -> Path | None:
-    """cwd 부터 상위로 ``.company/`` 탐색 (최대 5 depth).
+    """cwd 부터 상위로 ``CLAUDE.md`` marker 탐색 → ``~/.lskun-companies/<name>/`` 반환.
 
-    ADR-0015 (2026-05-22) — Vault backend 폐기. ``LSKUN_VAULT`` env 분기 제거.
-    P88 에서 CLAUDE.md marker 기반으로 통일 예정.
+    ADR-0015 결정 1-A + 결정 2-B — CLAUDE.md marker 가 단일 진실원.
+    ``hooks/session_start.py`` 의 ``_find_active_company_root`` 와 동일 규칙.
     """
+    from lskun_kit.paths import company_root
+    from lskun_kit.persona_injection import (
+        CLAUDE_MD_FILENAME,
+        extract_company_name,
+    )
+
     cwd = Path.cwd()
     for _ in range(MAX_PARENT_DEPTH + 1):
-        candidate = cwd / ".company"
-        if (candidate / "company.md").exists():
-            return candidate
+        candidate_md = cwd / CLAUDE_MD_FILENAME
+        if candidate_md.exists():
+            name = extract_company_name(cwd)
+            if name:
+                try:
+                    co_root = company_root(name)
+                except ValueError:
+                    return None
+                if (co_root / "company.md").exists():
+                    return co_root
+                return None
         if (cwd / ".git").exists():
             break
         if cwd.parent == cwd:
@@ -52,7 +66,7 @@ def _find_active_company_root() -> Path | None:
 
 
 def _build_adapter(root: Path):
-    """ADR-0015 — Local single-backend. Vault adapter 분기 폐기."""
+    """ADR-0015 — Local single-backend."""
     from lskun_kit.adapters.local import LocalAdapter
 
     return LocalAdapter(root)
@@ -105,7 +119,8 @@ def main(argv: list[str] | None = None) -> int:
     root = _find_active_company_root()
     if root is None:
         sys.stderr.write(
-            "활성 회사를 찾지 못했다. cwd 또는 상위 디렉토리에 `.company/` 가 필요하다.\n"
+            "활성 회사를 찾지 못했다. cwd 또는 상위 디렉토리의 CLAUDE.md 에 "
+            "LSKUN-CPO marker 가 박제되어 있어야 한다 (`/lskun-kit:init <name>`).\n"
         )
         return 2
 

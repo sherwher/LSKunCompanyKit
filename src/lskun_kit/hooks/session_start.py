@@ -19,12 +19,14 @@ ADR-0004 §7 — 활성 회사 없으면 silent no-op (출력 0). 사용자가 L
     Claude Code 가 hook payload 를 JSON 으로 주입할 수 있으나, 본 hook 은 그것에
     의존하지 않고 환경변수 / 현재 작업 디렉토리만으로 활성 회사를 감지한다.
 
-활성 회사 감지 우선순위 (ADR-0015 — Vault backend 폐기):
-    1. ``$PWD/.company/`` → Local backend.
-    2. 부재 시 부모 디렉토리로 올라가며 ``.company/`` 탐색 (최대 5 depth, git root 경계).
-    3. 끝까지 없으면 silent no-op.
+활성 회사 감지 (ADR-0015 결정 1-A + 결정 2-B):
+    1. cwd 부터 상위로 ``CLAUDE.md`` 탐색 (최대 5 depth, git root 경계).
+    2. 발견된 ``CLAUDE.md`` 의 LSKUN-CPO marker 구간에서 회사 이름 추출.
+    3. ``~/.lskun-companies/<name>/`` 가 존재하면 그 root 의 컨텍스트 emit.
+    4. marker 부재 또는 회사 디렉토리 부재 시 silent no-op.
 
-P88 에서 CLAUDE.md marker 기반 통일 + ``~/.lskun-companies/<name>/`` 직접 read 로 교체 예정.
+CLAUDE.md marker 가 단일 진실원 — ``LSKUN_VAULT`` env var / cwd ``.company/`` 같은
+옛 경로 탐색은 모두 폐기 (결정 1-A).
 
 종료 코드: 항상 0 (hook 실패가 세션을 막으면 안 됨).
 """
@@ -147,26 +149,43 @@ def _build_context() -> str:
 
 
 def _find_active_company_root() -> Path | None:
-    """cwd 부터 상위로 ``.company/`` 탐색 (최대 5 depth, git root 경계).
+    """cwd 부터 상위로 ``CLAUDE.md`` 의 LSKUN-CPO marker 탐색 → 회사 root 반환.
 
-    ADR-0015 (2026-05-22) — Vault backend 폐기. ``LSKUN_VAULT`` env 분기 제거.
-    P88 에서 CLAUDE.md marker 기반 통일 예정.
+    ADR-0015 결정 1-A + 결정 2-B — CLAUDE.md marker 가 회사-프로젝트 결합의
+    단일 진실원. marker 의 회사 이름으로 ``~/.lskun-companies/<name>/`` 를
+    resolve.
+
+    git root 경계: monorepo 의 하위 프로젝트에서 세션을 열어도 상위의 다른
+    회사 marker 가 잘못 잡히지 않도록 차단.
+
+    Returns:
+        활성 회사 root path (``~/.lskun-companies/<name>/``) 또는 ``None``.
     """
 
+    from lskun_kit.paths import company_root
+    from lskun_kit.persona_injection import (
+        CLAUDE_MD_FILENAME,
+        extract_company_name,
+    )
+
     cwd = Path.cwd()
-    for i in range(MAX_PARENT_DEPTH + 1):
-        candidate = cwd / ".company"
-        if (candidate / "company.md").exists():
-            return candidate
-        # P38 (#17) — git repo root 를 넘지 않는다. monorepo 의 하위 프로젝트에서
-        # 세션을 열었을 때 상위의 다른 회사 .company/ 가 잘못 잡히는 것을 방지.
+    for _ in range(MAX_PARENT_DEPTH + 1):
+        candidate_md = cwd / CLAUDE_MD_FILENAME
+        if candidate_md.exists():
+            name = extract_company_name(cwd)
+            if name:
+                try:
+                    co_root = company_root(name)
+                except ValueError:
+                    return None
+                if (co_root / "company.md").exists():
+                    return co_root
+                return None  # marker 는 있는데 회사 디렉토리 부재 — silent
         if (cwd / ".git").exists():
             break
         if cwd.parent == cwd:  # filesystem root
             break
         cwd = cwd.parent
-        if i >= MAX_PARENT_DEPTH:
-            break
 
     return None
 

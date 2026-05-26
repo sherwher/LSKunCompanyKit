@@ -18,19 +18,46 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import LocalAdapter, WorkerNotFoundError  # noqa: E402
-from lskun_kit.init import LOCAL_COMPANY_DIRNAME, run  # noqa: E402
 from lskun_kit.routing import (  # noqa: E402
     CPO_WORKER_NAME,
     HR_LEAD_WORKER_NAME,
     build_cpo_routing_context,
     decide_target,
 )
-from lskun_kit.templates import render_default_worker  # noqa: E402
+from lskun_kit.templates import (  # noqa: E402
+    iter_default_workers,
+    render_default_worker,
+)
 
 
 def _init_local(tmp: Path) -> LocalAdapter:
-    run(tmp, cpo_name="이세근", hr_name="김지혜", env={})
-    return LocalAdapter(tmp / LOCAL_COMPANY_DIRNAME)
+    """ADR-0015 — `~/.lskun-companies/<name>/` 의 hired CPO/HR 셋업 헬퍼.
+
+    test_routing 은 routing 알고리즘만 검증. paths.Path.home() mock 대신
+    임시 root 에 직접 hired/cpo.md + hr-lead.md 박제. init.run() 풀체인을
+    호출할 필요 없음 (격리도 단순).
+    """
+    from datetime import date as _date
+    co_root = tmp / "company-root"
+    hired = co_root / "hired"
+    hired.mkdir(parents=True)
+    (co_root / "company.md").write_text(
+        "---\nname: Test\nfounded: 2026-05-22\ndomain: meta\n---\n# Test\n",
+        encoding="utf-8",
+    )
+    for worker_name, role, template_filename, default_model in iter_default_workers():
+        text = render_default_worker(
+            name=worker_name,
+            role=role,
+            template_filename=template_filename,
+            storage_backend="local",
+            display_name="이세근" if worker_name == "cpo" else "김지혜",
+            hired_at=_date(2026, 5, 22),
+            model=default_model,
+            synced_from="lskun-kit@test",
+        )
+        (hired / f"{worker_name}.md").write_text(text, encoding="utf-8")
+    return LocalAdapter(co_root)
 
 
 def _hire_extra(adapter: LocalAdapter, name: str, role: str) -> None:

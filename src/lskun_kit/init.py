@@ -1,18 +1,23 @@
 """신규 회사 셋업 — ``/lskun-kit:init`` 의 백엔드 로직.
 
-ADR-0002 §3 — 단일 진입점.
+ADR-0015 (2026-05-22) — Local SSOT 단일화 + ``/init`` 멱등성 4행 명세.
 
-ADR-0015 (2026-05-22) — Vault backend 폐기, Local SSOT 단일화. 본 모듈은
-P85 에서 vault 의존만 제거하여 P87 (멱등성 4행 명세) 까지 기존 local 동작을
-유지한다. 신규 회사 root 의 ``~/.lskun-companies/<name>/`` 이전은 P86,
-멱등성 분기 4행 (신규/joining/silent/confirm) 은 P87 에서 박제.
+회사 root 결정:
+    ``~/.lskun-companies/<name>/`` (``paths.company_root(name)`` 단일 진입점)
+    이전의 ``<project-root>/.company/`` 는 결정 1-A 로 폐기.
 
-동작 순서 (현재 — P85 기준):
-    1. backend = "local" 고정 (vault 분기 제거)
-    2. 회사 루트 경로 결정 = ``<project-root>/.company/`` (P86 에서 이전 예정)
-    3. ``company.md`` 박제 (이미 있으면 **덮어쓰지 않음**)
-    4. ``hired/`` 디렉토리 생성 후 CPO + HR 자동 hire (둘 다 이미 있으면 skip)
-    5. 진단 리포트 dataclass 반환 — caller (slash command) 가 사용자에게 출력
+멱등성 4행 명세 (결정 2-B):
+    | row | ~/.lskun-companies/<name>/ | 현재 프로젝트 marker | 동작 |
+    |-----|----------------------------|----------------------|------|
+    |  1  | ❌ 신규 회사                | ❌ 부재                | 회사 창설 + CPO/HR hire + marker 박제 |
+    |  2  | ✅ 기존 회사                | ❌ 부재 (joining)     | 회사 자원 skip (preserve) + marker 박제 |
+    |  3  | ✅ 기존 회사                | ✅ 같은 회사           | silent skip (멱등) |
+    |  4  | ✅ 기존 회사                | ✅ 다른 회사           | ConfirmRequired raise → caller 가 사용자 confirm 후 재호출 |
+
+Confirm 패턴 (ADR-0015 결정 2-B + 3-A):
+    Plugin core 는 stdin 을 잡지 않는다. row 4 에서 ``ConfirmRequired`` 를
+    raise 하고, caller (slash command 의 LLM) 가 사용자에게 묻고
+    ``confirmed_replace_marker=True`` 인자와 함께 재호출한다.
 """
 
 from __future__ import annotations
@@ -23,36 +28,42 @@ from datetime import date as date_cls
 from pathlib import Path
 
 from lskun_kit.adapters import frontmatter
-from lskun_kit.persona_injection import inject as inject_cpo_persona
+from lskun_kit.errors import ConfirmRequired
+from lskun_kit.paths import company_root, validate_company_name
+from lskun_kit.persona_injection import (
+    extract_company_name as _extract_marker_company,
+    inject as inject_cpo_persona,
+)
 from lskun_kit.templates import iter_default_workers, render_default_worker
-
-LOCAL_COMPANY_DIRNAME = ".company"
 
 
 @dataclass
 class InitResult:
     """``init.run()`` 의 결과 — slash command 가 사용자에게 출력할 진단."""
 
-    backend: str  # ADR-0015 — "local" 고정 (vault 폐기)
+    backend: str  # ADR-0015 — "local" 고정
     company_root: Path
     company_name: str
     company_md_created: bool
     company_md_path: Path
+    #: ADR-0015 결정 2-B 4행 중 어떤 행으로 분기됐는지.
+    idempotency_row: str  # "founded" | "joined" | "silent" | "marker_replaced"
     workers_created: list[str] = field(default_factory=list)
     workers_skipped: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
-    persona_action: str = "skipped"  # ADR-0004 §1 — "created" | "updated" | "unchanged" | "skipped"
+    persona_action: str = "skipped"  # "created" | "updated" | "unchanged" | "skipped"
     persona_path: Path | None = None
 
     def render(self) -> str:
         """사람이 읽는 진단 리포트."""
 
         lines = [
-            f"LSKunCompanyKit init",
-            f"================================================",
+            "LSKunCompanyKit init",
+            "================================================",
             f"backend       : {self.backend}",
             f"company       : {self.company_name}",
             f"company root  : {self.company_root}",
+            f"멱등 분기      : row={self.idempotency_row} (ADR-0015 결정 2-B)",
             f"company.md    : {'created' if self.company_md_created else 'preserved (already exists)'} → {self.company_md_path}",
             f"workers hired : {', '.join(self.workers_created) if self.workers_created else '(none)'}",
         ]
@@ -70,34 +81,25 @@ class InitResult:
 
 
 def resolve_company_root(
-    project_root: Path | str,
-    company_name: str | None = None,
+    company_name: str,
     env: dict[str, str] | None = None,
 ) -> tuple[str, str, Path]:
-    """회사 루트 디렉토리 경로 결정 (ADR-0015 — local 단일 backend).
+    """ADR-0015 — Local SSOT 단일 위치의 회사 root path 결정.
 
     Args:
-        project_root: 현재 프로젝트 루트. 회사 root = ``<project_root>/.company``.
-        company_name: 명시 지정. ``None`` 이면 project root 디렉토리 이름.
-        env: 환경변수 dict (테스트용 주입, P85 시점에는 사용 안 함).
+        company_name: 회사 이름. ``paths.validate_company_name`` 으로 검증됨.
+        env: 환경변수 dict (현재 미사용. legacy compatibility 만).
 
     Returns:
-        ``(backend, company_name, company_root_path)`` — backend 는 항상 ``"local"``.
+        ``(backend, company_name, company_root_path)`` —
+        backend 는 항상 ``"local"``. path 는 ``~/.lskun-companies/<name>/``.
 
-    Note:
-        P86 에서 회사 root 가 ``~/.lskun-companies/<name>/`` 로 이전 예정.
-        P87 에서 멱등성 분기 4행 (신규/joining/silent/confirm) 박제 예정.
+    Raises:
+        ValueError: 회사 이름이 invalid.
     """
 
-    backend = "local"
-    backend_root = Path(project_root).expanduser()
-    resolved_company = (
-        (company_name or "").strip()
-        or Path(project_root).expanduser().resolve().name
-    )
-    if "/" in resolved_company or resolved_company in (".", ".."):
-        raise ValueError(f"invalid company name: {resolved_company!r}")
-    return backend, resolved_company, backend_root / LOCAL_COMPANY_DIRNAME
+    validate_company_name(company_name)
+    return "local", company_name, company_root(company_name)
 
 
 def run(
@@ -110,46 +112,107 @@ def run(
     inject_persona: bool = True,
     env: dict[str, str] | None = None,
     today: date_cls | None = None,
+    confirmed_replace_marker: bool = False,
 ) -> InitResult:
-    """회사 초기 셋업 실행.
-
-    멱등 (idempotent) 동작:
-        - 회사 디렉토리 이미 있으면 그대로 재사용
-        - ``company.md`` 이미 있으면 절대 덮어쓰지 않음
-        - 워커가 이미 hired 되어 있으면 skip
+    """회사 초기 셋업 실행 (ADR-0015 결정 2-B 4행 멱등성).
 
     Args:
-        domain: ADR-0003 — 회사 도메인 (예: "의료 SaaS"). 자유 입력.
-                ``company.md`` 의 ``domain:`` frontmatter 에 박제된다.
-                빈 문자열이면 ``""`` 로 박제 (doctor 가 경고로 안내).
-                CPO / HR Lead 는 본 값과 무관하게 항상 ``domain="meta"`` 로 hire.
-        cpo_name: ADR-0004 §5 — CPO 의 ``display_name`` (사람 이름, 사용자가 직접 입력).
-                  CPO 가 이미 hired 되어 있지 않은 상태에서는 필수. 빈 문자열이면 ``ValueError``.
-                  이미 hired 인 경우는 무시.
-        hr_name:  ADR-0004 §5 — HR Lead 의 ``display_name``. 동일 규칙.
+        project_root: 현재 프로젝트 루트. CLAUDE.md marker 박제 대상.
+        company_name: 회사 이름. 생략 시 project root 디렉토리명 fallback.
+        one_liner: 회사 한 줄 소개 (신규 창설 시 company.md 본문).
+        domain: 회사 도메인 (예: "의료 SaaS"). 신규 창설 시 company.md frontmatter.
+        cpo_name: CPO 의 ``display_name``. 신규 hire 가 필요한 경우 필수.
+        hr_name: HR Lead 의 ``display_name``. 동일.
+        inject_persona: ``False`` 면 CLAUDE.md marker 박제 skip (테스트용).
+        env: 환경변수 dict (legacy compatibility).
+        today: 날짜 주입 (테스트용).
+        confirmed_replace_marker: row 4 (다른 회사 marker 재진입) 의 사용자
+            confirm 완료 신호. ``False`` 인데 row 4 에 진입하면 ``ConfirmRequired``
+            raise. ``True`` 면 marker 를 새 회사로 교체.
 
     Raises:
-        ValueError: 신규 CPO/HR hire 가 필요한데 ``cpo_name`` / ``hr_name`` 이 비어 있을 때.
+        ConfirmRequired: row 4 에 진입했고 ``confirmed_replace_marker=False`` 일 때.
+        ValueError: company_name 검증 실패 또는 신규 hire 필요한데 이름 누락 시.
     """
 
     env = env if env is not None else os.environ.copy()
     today = today or date_cls.today()
+    proj = Path(project_root).expanduser()
 
-    backend, resolved_company, company_root = resolve_company_root(
-        project_root, company_name=company_name, env=env
+    resolved_company = (
+        (company_name or "").strip()
+        or proj.resolve().name
+    )
+    backend, resolved_company, co_root = resolve_company_root(
+        resolved_company, env=env
     )
 
+    # --- ADR-0015 결정 2-B 멱등성 4행 분기 ---
+    marker_company = _extract_marker_company(proj) if inject_persona else None
+    company_existed = (co_root / "company.md").exists()
     notes: list[str] = []
 
-    company_root.mkdir(parents=True, exist_ok=True)
-    hired_dir = company_root / "hired"
+    if marker_company is not None and marker_company != resolved_company:
+        # row 4 — 다른 회사 marker 재진입
+        if not confirmed_replace_marker:
+            raise ConfirmRequired(
+                kind="marker_replace",
+                prompt=(
+                    f"기존 marker (회사 '{marker_company}') 를 "
+                    f"(회사 '{resolved_company}') 로 교체하시겠습니까? [y/N]"
+                ),
+                context={
+                    "current_marker_company": marker_company,
+                    "new_company": resolved_company,
+                    "project_root": str(proj),
+                },
+            )
+        idempotency_row = "marker_replaced"
+        notes.append(
+            f"marker 교체: '{marker_company}' → '{resolved_company}' "
+            f"(사용자 confirm 완료)"
+        )
+    elif marker_company == resolved_company and company_existed:
+        # row 3 — 같은 회사 silent skip (멱등)
+        idempotency_row = "silent"
+    elif company_existed:
+        # row 2 — 기존 회사 + 신규 프로젝트 (joining)
+        idempotency_row = "joined"
+        notes.append(
+            f"joining 모드 — 기존 회사 '{resolved_company}' 의 자원은 preserve, "
+            f"현재 프로젝트의 CLAUDE.md marker 만 박제"
+        )
+    else:
+        # row 1 — 신규 회사 창설
+        idempotency_row = "founded"
+
+    # --- 회사 자원 박제 (joining / silent 시 skip) ---
+    co_root.mkdir(parents=True, exist_ok=True)
+    hired_dir = co_root / "hired"
     hired_dir.mkdir(parents=True, exist_ok=True)
 
+    company_md = co_root / "company.md"
+    if idempotency_row == "silent":
+        # 완전 멱등 — 회사 자원 / 워커 / persona 모두 skip
+        return InitResult(
+            backend=backend,
+            company_root=co_root,
+            company_name=resolved_company,
+            company_md_created=False,
+            company_md_path=company_md,
+            idempotency_row=idempotency_row,
+            workers_created=[],
+            workers_skipped=[],
+            notes=["silent skip — 같은 회사 marker 가 이미 박제됨 (멱등)"],
+            persona_action="unchanged",
+            persona_path=proj / "CLAUDE.md",
+        )
+
     # company.md — 이미 있으면 보존, 없으면 신규 박제
-    company_md = company_root / "company.md"
     if company_md.exists():
         company_md_created = False
-        notes.append("기존 company.md 보존 — 내용 변경 안 함")
+        if idempotency_row in ("founded", "joined"):
+            notes.append("기존 company.md 보존 — 내용 변경 안 함")
     else:
         company_md.write_text(
             _render_company_md(resolved_company, today, one_liner, domain),
@@ -157,7 +220,7 @@ def run(
         )
         company_md_created = True
 
-    # CPO / HR auto-hire — ADR-0004 §5: display_name 은 사용자가 직접 입력.
+    # CPO / HR auto-hire (joining 시에도 부재면 hire — 회사 무결성 보장)
     display_name_by_worker = {"cpo": cpo_name, "hr-lead": hr_name}
     workers_created: list[str] = []
     workers_skipped: list[str] = []
@@ -173,9 +236,11 @@ def run(
                 f"(ADR-0004 §5 — CPO/HR 이름은 사용자가 직접 입력). "
                 f"`run(..., {'cpo_name' if worker_name == 'cpo' else 'hr_name'}='...')` 로 전달하라."
             )
-        # ADR-0010 — CPO/HR Lead 는 메타 워커. 첫 hire 시점에 plugin 버전 provenance 박제.
         from lskun_kit import __version__ as _kit_version
-        synced_from = f"lskun-kit@{_kit_version}" if worker_name in ("cpo", "hr-lead") else None
+        synced_from = (
+            f"lskun-kit@{_kit_version}"
+            if worker_name in ("cpo", "hr-lead") else None
+        )
         worker_path.write_text(
             render_default_worker(
                 name=worker_name,
@@ -191,7 +256,7 @@ def run(
         )
         workers_created.append(worker_name)
 
-    # ADR-0004 §1 — CPO persona 를 사용자 프로젝트 root 의 CLAUDE.md 에 inline 박제.
+    # CPO persona inline 박제 — joining / founded / marker_replaced 모두 박제
     persona_action = "skipped"
     persona_path: Path | None = None
     if inject_persona:
@@ -199,7 +264,7 @@ def run(
         if cpo_md.exists():
             parsed = frontmatter.parse(cpo_md.read_text(encoding="utf-8"))
             result = inject_cpo_persona(
-                project_root=Path(project_root).expanduser(),
+                project_root=proj,
                 company_name=resolved_company,
                 cpo_display_name=parsed.frontmatter.get("display_name", "CPO"),
                 cpo_body=parsed.body,
@@ -211,10 +276,11 @@ def run(
 
     return InitResult(
         backend=backend,
-        company_root=company_root,
+        company_root=co_root,
         company_name=resolved_company,
         company_md_created=company_md_created,
         company_md_path=company_md,
+        idempotency_row=idempotency_row,
         workers_created=workers_created,
         workers_skipped=workers_skipped,
         notes=notes,
@@ -240,7 +306,6 @@ def _render_company_md(
 
 __all__ = [
     "InitResult",
-    "LOCAL_COMPANY_DIRNAME",
     "resolve_company_root",
     "run",
 ]

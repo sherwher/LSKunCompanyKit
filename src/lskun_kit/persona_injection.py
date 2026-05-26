@@ -13,6 +13,7 @@ persona 주입 경로다.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -242,6 +243,40 @@ def detect(project_root: Path | str) -> bool:
     return find_marker_span(path.read_text(encoding="utf-8")) is not None
 
 
+#: marker 본문 첫 줄에서 회사 이름을 추출하는 패턴.
+#: ``render_persona_block`` 이 박는 ``# CPO Persona — {display} of {company} (auto-injected by ...)``
+#: 형식과 정합. ``of`` 뒤부터 ``(auto-injected`` 직전까지가 회사 이름.
+_MARKER_COMPANY_PAT = re.compile(
+    r"^#\s*CPO Persona\s*—\s*.+?\s+of\s+(.+?)\s+\(auto-injected\s+by\s+",
+    re.MULTILINE,
+)
+
+
+def extract_company_name(project_root: Path | str) -> str | None:
+    """``<project_root>/CLAUDE.md`` 의 marker 구간에서 회사 이름 추출.
+
+    ADR-0015 결정 2-B — ``/init <name>`` 멱등성 분기에서 marker 의 회사 이름과
+    인자의 회사 이름을 cross-check 하여 same / different 를 판정.
+
+    Returns:
+        회사 이름 (str) 또는 ``None`` (CLAUDE.md 부재 / marker 부재 / parse 실패).
+    """
+
+    path = Path(project_root).expanduser() / CLAUDE_MD_FILENAME
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8")
+    span = find_marker_span(text)
+    if span is None:
+        return None
+    start, end = span
+    block = text[start:end]
+    m = _MARKER_COMPANY_PAT.search(block)
+    if m is None:
+        return None
+    return m.group(1).strip()
+
+
 __all__ = [
     "CLAUDE_MD_FILENAME",
     "BACKUP_SUFFIX",
@@ -252,4 +287,5 @@ __all__ = [
     "find_marker_span",
     "inject",
     "detect",
+    "extract_company_name",
 ]
