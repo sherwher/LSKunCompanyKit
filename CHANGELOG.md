@@ -5,6 +5,28 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.21.1] — 2026-05-26
+
+### Fixed — `persona_sync._split_body_history` substring 오탐 시정
+
+`/lskun-kit:sync-persona` 실행 시 `hr-lead.md` template line 72 의 정당한 inline backtick 인용 `` `## Project History` `` (JD body 작성 §5 설명 줄) 을 splitter 가 history heading 으로 오탐 → body 73~165행 (해고 절차 / display_name 결합 해제 / audit dangling / 권한 경계 / 금지 사항 9항) 가 history_section 으로 잘려나가 sync 시 손상되는 버그 시정. 0.20.0 sync 시점에 실제 손상 발생 후 사용자 수동 복구로 확인.
+
+**근본 원인**:
+- `_split_body_history` 가 `heading in body` substring 매칭 사용
+- inline backtick / fenced code block 내부 인용도 매칭되어 false positive
+
+**Fixed**:
+- `src/lskun_kit/persona_sync.py` — substring 매칭 → 줄 시작 (`^## ...`) 매칭. fenced code block (``` ``` ``` / ``` ~~~ ```) 내부 라인 제외. inline backtick 인용은 줄 시작이 아니므로 자연 배제.
+
+**Tests**:
+- 신규 `SplitBodyHistorySplitterTests` 5 케이스 (inline backtick / fenced ``` / 진짜 heading / archived heading / ~~~ fenced)
+- 기존 `test_no_history_remains_no_history_after_sync` 갱신 — substring 검사 → 줄 시작 heading 검사로 정확화
+- 전체 251 → 256 tests, 회귀 0
+
+**복구 가이드 (0.20.0 sync 사용자)**:
+- 0.21.1 plugin 업데이트 후 `/lskun-kit:sync-persona` 재실행 — splitter 정상 동작으로 hr-lead.md body 전체가 정상 sync.
+- 0.20.0 sync 직후 손상 백업 (`<name>.md.lskun-pre-sync.bak`) 이 남아 있으면 진단 비교 가능.
+
 ## [0.21.0] — 2026-05-26
 
 ### Changed — Dispatch subagent_type Allowlist 정책 전환 ([ADR-0017](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0017-2026-05-26-dispatch-subagent-allowlist.md))

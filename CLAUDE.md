@@ -28,7 +28,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 17 (0.21.0) — Dispatch subagent_type Allowlist 정책 전환 (ADR-0017, ADR-0016 supersede). PreToolUse:Task hook 의 denylist → allowlist 반전 (`claude` 단일 허용), Skill 문서·persona template 에 `subagent_type="claude"` 강제 박제, escape hatch 2개 (`LSKUN_ALLOW_NON_CLAUDE_DISPATCH` 신규 + `LSKUN_ALLOW_OMC_FALLBACK` 별칭), doctor [22][23] 신규
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 17 (0.21.1) — Dispatch subagent_type Allowlist 정책 전환 (ADR-0017, ADR-0016 supersede). PreToolUse:Task hook 의 denylist → allowlist 반전 (`claude` 단일 허용), Skill 문서·persona template 에 `subagent_type="claude"` 강제 박제, escape hatch 2개 (`LSKUN_ALLOW_NON_CLAUDE_DISPATCH` 신규 + `LSKUN_ALLOW_OMC_FALLBACK` 별칭), doctor [22][23] 신규. **0.21.1 patch** = `persona_sync._split_body_history` substring 오탐 시정 (hr-lead.md inline backtick 인용을 history heading 으로 오탐 → body 손상 사건 fix).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -247,7 +247,7 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version SSOT (ADR-0012) — 0.21.0
+│   ├── plugin.json           # version SSOT (ADR-0012) — 0.21.1
 │   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
 ├── hooks/
 │   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거. ADR-0016 — denylist (supersede). ADR-0017 — Allowlist 정책 전환)
