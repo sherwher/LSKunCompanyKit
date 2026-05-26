@@ -57,26 +57,9 @@ class SessionStartHookTests(unittest.TestCase):
             self.assertIn("cpo", ctx)
             self.assertIn("hr-lead", ctx)
 
-    def test_emits_context_for_vault_company(self) -> None:
-        with tempfile.TemporaryDirectory() as vault:
-            with tempfile.TemporaryDirectory() as proj:
-                init_run(
-                    Path(proj),
-                    company_name="Acme",
-                    cpo_name="이세근",
-                    hr_name="김지혜",
-                    env={"LSKUN_VAULT": vault, "LSKUN_COMPANY": "Acme"},
-                )
-                rc, out, _ = _capture(
-                    session_start.main,
-                    env={"LSKUN_VAULT": vault, "LSKUN_COMPANY": "Acme"},
-                    cwd=Path(proj),
-                )
-                self.assertEqual(rc, 0)
-                payload = json.loads(out)
-                ctx = payload["hookSpecificOutput"]["additionalContext"]
-                self.assertIn("Acme", ctx)
-                self.assertIn("03_Companies", ctx)
+    # test_emits_context_for_vault_company — ADR-0015 (2026-05-22) Vault backend
+    # 폐기로 제거. Local SSOT (``~/.lskun-companies/<name>/``) 단일화. P88 에서
+    # CLAUDE.md marker 기반 통일로 추가 검증 예정.
 
     def test_finds_company_in_parent_directory(self) -> None:
         # 워크플로: 사용자가 회사 root 의 하위 디렉토리에서 작업

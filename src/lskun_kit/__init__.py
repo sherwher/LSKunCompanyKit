@@ -1,4 +1,9 @@
-"""LSKunCompanyKit — Domain-expert AI workers, hired complete (ADR-0014)."""
+"""LSKunCompanyKit — Domain-expert AI workers, hired complete (ADR-0014).
+
+ADR-0015 (2026-05-22) — Vault backend 폐기. 단일 SSOT 는 Local
+(``~/.lskun-companies/<name>/``). Vault 통합은 sync 명령 (P90) 의 파일시스템
+복사로만 제공. ``VaultAdapter`` 등 외부 노출 심볼 제거.
+"""
 
 from __future__ import annotations
 
@@ -7,11 +12,6 @@ from pathlib import Path
 
 from lskun_kit.adapters.base import StorageAdapter
 from lskun_kit.adapters.local import LocalAdapter
-from lskun_kit.adapters.vault import (
-    VaultAdapter,
-    VaultCompanyNotFoundError,
-    list_companies,
-)
 from lskun_kit.audit import (
     AuditEntry,
     AuditError,
@@ -52,9 +52,6 @@ __all__ = [
     "__version__",
     "StorageAdapter",
     "LocalAdapter",
-    "VaultAdapter",
-    "VaultCompanyNotFoundError",
-    "list_companies",
     "Company",
     "Worker",
     "LSKunKitError",

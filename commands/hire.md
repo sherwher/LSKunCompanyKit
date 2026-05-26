@@ -25,10 +25,9 @@ arguments:
 
 ## 동작
 
-1. 활성 backend 결정:
-   - `LSKUN_VAULT` 환경변수 → Vault backend
-   - 없으면 현재 디렉토리의 `.company/` (Local backend)
-2. 다음 frontmatter 로 `hired/<worker>.md` 생성:
+ADR-0015 (2026-05-22) — Local SSOT 단일 backend. `<project-root>/.company/hired/` 에 박제.
+
+1. 다음 frontmatter 로 `hired/<worker>.md` 생성:
 
 ```yaml
 ---
@@ -36,7 +35,7 @@ name: <worker>
 role: <role>
 domain: <domain or company.domain or "meta">
 hired_at: <오늘 ISO 날짜>
-storage_backend: <local|vault>
+storage_backend: local
 display_name: <사람 이름>
 model: <"sonnet" | "opus" | 모델 ID>   # optional, 생략 시 default
 ---
@@ -86,8 +85,8 @@ adapter.create_worker(
 
 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 외부 add-on
 이 파일 쓰기가 아닌 호출 기반 backend 를 구현할 때 깨진다. adapter API 를
-경유해야 backend 추상화가 유지된다 (core 는 파일 기반 Local/Vault
-만, 외부 시스템 통합은 add-on 책임).
+경유해야 backend 추상화가 유지된다 (core 는 파일 기반 Local 단일,
+외부 시스템 통합은 add-on 책임 — ADR-0009 + ADR-0015).
 
 ## CPO 자동 채용과의 관계
 

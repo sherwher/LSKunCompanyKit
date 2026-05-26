@@ -16,7 +16,7 @@ arguments:
 
 ## 동작 (멱등 · 안전 가드 4중)
 
-1. 활성 backend 결정 (`init.detect_backend`)
+1. 활성 backend = `"local"` 고정 (ADR-0015 — Vault backend 폐기)
 2. `schema_migration.plan(adapter, company_root, backend, project_root)` 호출
 3. **plan 출력** — 사용자에게 무엇이 바뀔지 보여줌:
    - company.md 의 누락 필드 (예: `domain`)
@@ -64,8 +64,8 @@ arguments:
 ```
 Migration Plan
 ================================================
-backend       : vault
-company root  : <your-vault>/03_Companies/<company>
+backend       : local
+company root  : <your-project>/.company
 company.md    : detected schema=v0.2, missing=['domain']
 workers:
   - cpo: schema=v0.2, missing=['domain', 'display_name']
@@ -99,9 +99,10 @@ backups       : 3 files
 from pathlib import Path
 from lskun_kit import schema_migration as sm
 from lskun_kit.adapters.local import LocalAdapter
-from lskun_kit.init import detect_backend, resolve_company_root
+from lskun_kit.init import resolve_company_root
 
-backend, _ = detect_backend(Path.cwd())
+# ADR-0015 — Vault backend 폐기. backend 는 "local" 단일.
+backend = "local"
 _, _, company_root = resolve_company_root(Path.cwd())
 adapter = LocalAdapter(company_root)
 

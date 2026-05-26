@@ -49,7 +49,7 @@ Bash 결과의 stdout 을 **그대로** 사용자에게 보여준다.
 LSKunCompanyKit org
 ================================================
 회사: Acme (domain=핀테크)
-backend: vault → <your-vault>/03_Companies/Acme
+backend: local → <your-project>/.company
 
 [C] cpo (자비스) · chief-product-officer · meta · default · h=12
 [H] hr-lead (요니찡) · meta · sonnet · h=3
@@ -67,7 +67,7 @@ backend: vault → <your-vault>/03_Companies/Acme
 ## 동작
 
 1. **self-bootstrap**: `cli_org.py` 가 `sys.path` 자체 보정 (PYTHONPATH 환경변수 불필요)
-2. backend 결정: `LSKUN_VAULT` + `LSKUN_COMPANY` → Vault, 없으면 cwd 상향 `.company/` 탐색
+2. backend = `"local"` 고정 (ADR-0015). cwd 부터 상위로 `.company/` 탐색 (git root 경계). P88 에서 CLAUDE.md marker 기반으로 통일 예정.
 3. `company.md` 에서 회사 이름 + 도메인 읽기
 4. `hired/*.md` 각 파일 frontmatter 파싱
     - ADR-0014 — h=N 카운트 폐기. `hired_at` (채용 시점) 으로 시간축 교체.

@@ -1,9 +1,9 @@
 ---
 name: lskun-kit:init
-description: 신규 회사 셋업 — backend 결정, company.md 생성, CPO/HR Lead 자동 hire, 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제
+description: 신규 회사 셋업 — Local SSOT 단일 backend (ADR-0015), company.md 생성, CPO/HR Lead 자동 hire, 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제
 arguments:
   - name: company
-    description: 회사 이름 (Vault backend 필수, Local 은 생략 가능)
+    description: 회사 이름 (생략 시 project 디렉토리명 fallback)
     required: false
   - name: one_liner
     description: 회사 한 줄 소개 (company.md 본문에 들어감)
@@ -16,9 +16,9 @@ arguments:
 
 ## 인터뷰 (Claude 가 사용자에게 순차 질문)
 
-본 명령이 호출되면 Claude 는 다음 4가지를 사용자에게 묻는다 (CLI 인자로 일부가 전달됐으면 해당 질문 skip):
+본 명령이 호출되면 Claude 는 다음 5가지를 사용자에게 묻는다 (CLI 인자로 일부가 전달됐으면 해당 질문 skip):
 
-1. **회사 이름** (Vault backend 일 때 필수, Local 은 디렉토리 이름 fallback)
+1. **회사 이름** (생략 시 project 디렉토리명 fallback. P87 의 멱등성 분기 4행에서 marker 회사명과 cross-check)
 2. **회사 한 줄 소개** (생략 가능, company.md 본문에 들어감)
 3. **회사 도메인** — 자유 입력 (예: "의료 SaaS", "핀테크", "K-POP 팬덤"). 빈 값이면 doctor 가 경고로 안내.
 4. **CPO 의 사람 이름 (`display_name`)** — 자유 입력. **자동 생성 금지** — 사용자가 직접 입력.
@@ -26,9 +26,9 @@ arguments:
 
 ## 동작 (멱등)
 
-1. **활성 backend 결정**
-   - `LSKUN_VAULT` 환경변수 있음 → Vault backend
-   - 없음 → Local backend (`<project-root>/.company/`)
+ADR-0015 (2026-05-22) — Local SSOT 단일 backend. Vault 통합은 `/lskun-kit:sync-in` / `/lskun-kit:sync-out` (P90) 의 파일시스템 복사로만 수행.
+
+1. **회사 root 결정** — 현재는 `<project-root>/.company/` (P86 에서 `~/.lskun-companies/<name>/` 로 이전 예정)
 2. **회사 루트 디렉토리 생성** (기존 디렉토리 있으면 그대로 재사용)
 3. **company.md 박제** — 이미 있으면 **절대 덮어쓰지 않음** (보존 정책). frontmatter 에 `domain` 박제.
 4. **CPO + 인사팀장(hr-lead) 자동 hire** — 이미 있으면 skip. frontmatter 6 필수 필드 (`name`, `role`, `domain="meta"`, `hired_at`, `storage_backend`, `display_name`) + HR Lead 는 optional `model: sonnet`.
@@ -38,11 +38,7 @@ arguments:
 ## 사용 예
 
 ```bash
-# Local backend (default — self-contained, 외부 의존성 0)
-/lskun-kit:init
-
-# Vault backend (Optional Integration — 사용자가 명시 opt-in 한 경우)
-export LSKUN_VAULT="<your-vault-root>"   # 예: $HOME/path/to/your-vault
+# Local SSOT 단일 backend (ADR-0015 — self-contained, 외부 의존성 0)
 /lskun-kit:init Acme "AI agents for SMB compliance"
 ```
 
@@ -51,10 +47,10 @@ export LSKUN_VAULT="<your-vault-root>"   # 예: $HOME/path/to/your-vault
 ```
 LSKunCompanyKit init
 ================================================
-backend       : vault
+backend       : local
 company       : Acme
-company root  : <your-vault>/03_Companies/Acme
-company.md    : created → <your-vault>/03_Companies/Acme/company.md
+company root  : <your-project>/.company
+company.md    : created → <your-project>/.company/company.md
 workers hired : cpo, hr-lead
 CPO persona   : created → <your-project>/CLAUDE.md
 ```

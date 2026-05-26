@@ -28,20 +28,16 @@ if str(_PKG_PARENT) not in sys.path:
     sys.path.insert(0, str(_PKG_PARENT))
 
 import argparse
-import os
 
 MAX_PARENT_DEPTH = 5
 
 
 def _find_active_company_root() -> Path | None:
-    """우선순위: ``LSKUN_VAULT`` + ``LSKUN_COMPANY`` → cwd 상향 ``.company/``."""
-    vault = os.environ.get("LSKUN_VAULT", "").strip()
-    company = os.environ.get("LSKUN_COMPANY", "").strip()
-    if vault and company:
-        candidate = Path(vault).expanduser() / "03_Companies" / company
-        if (candidate / "company.md").exists():
-            return candidate
+    """cwd 부터 상위로 ``.company/`` 탐색 (최대 5 depth).
 
+    ADR-0015 (2026-05-22) — Vault backend 폐기. ``LSKUN_VAULT`` env 분기 제거.
+    P88 에서 CLAUDE.md marker 기반으로 통일 예정.
+    """
     cwd = Path.cwd()
     for _ in range(MAX_PARENT_DEPTH + 1):
         candidate = cwd / ".company"
@@ -56,15 +52,9 @@ def _find_active_company_root() -> Path | None:
 
 
 def _build_adapter(root: Path):
+    """ADR-0015 — Local single-backend. Vault adapter 분기 폐기."""
     from lskun_kit.adapters.local import LocalAdapter
-    from lskun_kit.adapters.vault import COMPANIES_DIRNAME, VaultAdapter
 
-    parts = root.parts
-    if COMPANIES_DIRNAME in parts:
-        idx = parts.index(COMPANIES_DIRNAME)
-        vault = Path(*parts[:idx])
-        company = parts[idx + 1]
-        return VaultAdapter(vault, company)
     return LocalAdapter(root)
 
 
@@ -115,8 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     root = _find_active_company_root()
     if root is None:
         sys.stderr.write(
-            "활성 회사를 찾지 못했다. `LSKUN_VAULT` + `LSKUN_COMPANY` 환경변수 "
-            "또는 `.company/` 디렉토리가 필요하다.\n"
+            "활성 회사를 찾지 못했다. cwd 또는 상위 디렉토리에 `.company/` 가 필요하다.\n"
         )
         return 2
 

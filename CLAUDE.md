@@ -16,6 +16,7 @@
 > - [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) — Plugin version single-source SSOT (`plugin.json` 단일 진실원)
 > - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — ~~조직도 stable markdown table + CPO 결재 절차에 reflection 박제 강제~~ — **부분 supersede by ADR-0014** (조직도 stable table 부분 유지, reflection 박제 강제는 폐기)
 > - [ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — **Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** (4 전문가 5차 만장일치). 워커 = 채용 시 완성형, 시간 흐름으로 진화하지 않음. 자산 = JD only (정적 단일 차원). ADR-0001 §3, ADR-0011 §6 supersede. ~1,528 LoC + ~80 tests 제거 예정 (P79)
+> - [ADR-0015](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0015-2026-05-22-multi-project-company-sharing.md) — **Local SSOT 단일화 (`~/.lskun-companies/<name>/`) + `/init` 멱등성 + Vault Mirror 분리 + 권한 자동 박제 + 워커 해고 결합 해제 (결정 7 머지)**. ADR-0008 supersede (Local/Vault 동등 → Local 단일 SSOT). Phase 15 (P83~P93) 코드 변경 예정. 결정 7 = JD/display_name 분리, archived display_name 재사용 금지, audit log dangling cross-check
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -194,6 +195,15 @@ Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
 - **reflection / history 메커니즘 재도입** — ADR-0014 로 폐기. 재도입 시 새 ADR + 정체성 재정의 선행 필수
 - **워커 진화 narrative** (ADR-0014) — "워커가 시간으로 성장한다" 류 슬로건 박제 금지. ADR-0011 의 "AI 직원 진화" 슬로건 금지와 일관
 - **JD 자동 갱신** (ADR-0014) — JD 는 채용 시 1회 박제. 사용자 명시 갱신 (`/lskun-kit:work hr-lead "..."`) 외 자동 진화 금지
+- **해고 시 archived 의 frontmatter display_name 자동 익명화 / rewrite** (ADR-0015 결정 7-B) — 역사 자산 불변
+- **archived 의 옛 display_name 재사용** (ADR-0015 결정 7-C) — 같은 role 재채용 시 옛 이름 재사용 금지, 혼선 방지
+- **audit log (`.audit/decisions.jsonl`) 의 archived 워커 이름 rewrite** (ADR-0015 결정 7-D) — ADR-0006 정신, 역사 기록 불변
+- **CPO 라우팅 / SessionStart hook 의 archived 워커 노출** (ADR-0015 결정 7-B/7-E) — hired/ 만 스캔, archived/ 무시
+- **`<project>/.company/` 의 모든 형태** (ADR-0015 결정 1-A) — SSOT, cache, mirror 무엇으로도 도입 금지. Local SSOT 는 `~/.lskun-companies/<name>/` 단일 위치
+- **`$LSKUN_VAULT` env var 의 plugin core 참조** (ADR-0015 결정 1-A) — sync 명령의 `--target` / `--source` 인자로만 사용
+- **`adapters/vault.py` 재도입** (ADR-0015 결정 1-B) — plugin core 가 vault 직접 참조 금지, 파일시스템 복사 sync 만
+- **`/found` `/join` `/status` 신규 명령 / `.claude/lskun-link.json`** (ADR-0015 결정 2-A) — `/init` 멱등성으로 충분
+- **Skill 실패 시 Task tool 우회** (ADR-0015 결정 3-A) — LLM 의 학습 패턴 차단, 에러 보고 후 중단
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 

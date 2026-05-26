@@ -1,10 +1,16 @@
 """lskun_kit.init 단위 테스트.
 
-ADR-0002 §3 의 init 동작을 검증한다:
-    - backend 결정 (LSKUN_VAULT 우선)
-    - 회사 루트 디렉토리 생성
+ADR-0002 §3 + ADR-0015 (2026-05-22 — Vault backend 폐기, Local SSOT 단일화).
+
+본 모듈은 init 동작을 검증한다:
+    - resolve_company_root: project root 디렉토리명으로 회사명 fallback
+    - 회사 루트 디렉토리 생성 (현재 P85 기준: ``<project_root>/.company``)
     - company.md 보존 정책 (이미 있으면 덮어쓰지 않음)
     - CPO / HR 자동 hire + 멱등성 (재실행 시 skip)
+    - CLAUDE.md inline persona 박제
+
+P86 이후 회사 root 가 ``~/.lskun-companies/<name>/`` 로 이전되면 본 모듈도 갱신.
+P87 의 멱등성 4행 명세 (신규/joining/silent/confirm) 분기 test 도 P87 에서 박제.
 """
 
 from __future__ import annotations
@@ -17,14 +23,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lskun_kit import LocalAdapter, VaultAdapter  # noqa: E402
+from lskun_kit import LocalAdapter  # noqa: E402
 from lskun_kit.adapters import frontmatter  # noqa: E402
 from lskun_kit.init import (  # noqa: E402
-    ENV_COMPANY,
-    ENV_VAULT,
     LOCAL_COMPANY_DIRNAME,
-    detect_backend,
-    detect_dual_backend,
     resolve_company_root,
     run,
 )
@@ -35,122 +37,6 @@ from lskun_kit.persona_injection import (  # noqa: E402
 )
 
 
-class DetectDualBackendTests(unittest.TestCase):
-    """P33 — Local + Vault 양쪽에 company.md 가 있을 때 감지."""
-
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.proj = Path(self.tmp.name) / "proj"
-        self.proj.mkdir()
-        self.vault = Path(self.tmp.name) / "vault"
-
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
-
-    def _make_company(self, root: Path) -> None:
-        root.mkdir(parents=True, exist_ok=True)
-        (root / "company.md").write_text("---\nname: x\n---\n# x\n", encoding="utf-8")
-
-    def test_local_only_returns_none(self) -> None:
-        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
-        self.assertIsNone(detect_dual_backend(self.proj, env={}))
-
-    def test_vault_only_returns_none(self) -> None:
-        self._make_company(self.vault / "03_Companies" / "Acme")
-        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
-        self.assertIsNone(detect_dual_backend(self.proj, env=env))
-
-    def test_both_present_returns_paths(self) -> None:
-        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
-        self._make_company(self.vault / "03_Companies" / "Acme")
-        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
-        result = detect_dual_backend(self.proj, env=env)
-        self.assertIsNotNone(result)
-        assert result is not None
-        local_co, vault_co = result
-        self.assertTrue(local_co.exists())
-        self.assertTrue(vault_co.exists())
-
-    def test_vault_env_without_company_returns_none(self) -> None:
-        """LSKUN_COMPANY 누락 시 vault 경로 결정 불가 → 안전하게 None."""
-        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
-        env = {ENV_VAULT: str(self.vault)}
-        self.assertIsNone(detect_dual_backend(self.proj, env=env))
-
-    def test_run_emits_dual_backend_note(self) -> None:
-        """init.run 이 dual-backend 감지 시 InitResult.notes 에 경고 1줄."""
-        self._make_company(self.proj / LOCAL_COMPANY_DIRNAME)
-        self._make_company(self.vault / "03_Companies" / "Acme")
-        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
-        result = run(
-            self.proj, company_name="Acme",
-            cpo_name="L", hr_name="H",
-            inject_persona=False, env=env,
-        )
-        self.assertTrue(
-            any("dual-backend" in n for n in result.notes),
-            f"expected dual-backend note, got: {result.notes}",
-        )
-
-    def test_dual_backend_with_hand_edited_marker(self) -> None:
-        """P43 (#13) — dual-backend + CLAUDE.md marker 손편집 통합 시나리오.
-
-        두 가드 (dual-backend 경고 + marker 백업) 가 동시 발생해도 상호 간섭
-        없이 모두 동작해야 한다.
-        """
-        from lskun_kit.persona_injection import (
-            BACKUP_SUFFIX, CLAUDE_MD_FILENAME, inject,
-        )
-        proj_root = self.proj
-        # 1차 박제 후 사용자 손편집
-        inject(proj_root, "Acme", "이세근", "# cpo\n\nbody.\n")
-        claude_md = proj_root / CLAUDE_MD_FILENAME
-        text = claude_md.read_text(encoding="utf-8")
-        claude_md.write_text(text.replace("body.", "edited."), encoding="utf-8")
-
-        # dual-backend 환경 셋업 (양쪽 다 company.md)
-        self._make_company(proj_root / LOCAL_COMPANY_DIRNAME)
-        self._make_company(self.vault / "03_Companies" / "Acme")
-        env = {ENV_VAULT: str(self.vault), ENV_COMPANY: "Acme"}
-
-        result = run(
-            proj_root, company_name="Acme",
-            cpo_name="L", hr_name="H",
-            inject_persona=True, env=env,
-        )
-
-        # (a) dual-backend 경고 emit
-        self.assertTrue(
-            any("dual-backend" in n for n in result.notes),
-            f"dual-backend note missing: {result.notes}",
-        )
-        # (b) marker 손편집 백업 생성
-        backup = claude_md.with_suffix(claude_md.suffix + BACKUP_SUFFIX)
-        self.assertTrue(
-            backup.exists(),
-            f"marker 손편집 백업이 생성되지 않음: {backup}",
-        )
-        self.assertIn("edited.", backup.read_text(encoding="utf-8"))
-
-
-class DetectBackendTests(unittest.TestCase):
-    def test_no_env_returns_local(self) -> None:
-        backend, root = detect_backend("/tmp/proj", env={})
-        self.assertEqual(backend, "local")
-        self.assertEqual(root, Path("/tmp/proj"))
-
-    def test_vault_env_returns_vault(self) -> None:
-        backend, root = detect_backend(
-            "/tmp/proj", env={ENV_VAULT: "/tmp/vault"}
-        )
-        self.assertEqual(backend, "vault")
-        self.assertEqual(root, Path("/tmp/vault"))
-
-    def test_blank_vault_env_falls_back_to_local(self) -> None:
-        backend, _ = detect_backend("/tmp/proj", env={ENV_VAULT: "   "})
-        self.assertEqual(backend, "local")
-
-
 class ResolveCompanyRootTests(unittest.TestCase):
     def test_local_uses_dotcompany_subdir(self) -> None:
         backend, name, root = resolve_company_root("/tmp/myproj", env={})
@@ -158,35 +44,16 @@ class ResolveCompanyRootTests(unittest.TestCase):
         self.assertEqual(root, Path("/tmp/myproj") / LOCAL_COMPANY_DIRNAME)
         self.assertEqual(name, "myproj")  # directory name fallback
 
-    def test_vault_requires_company_name(self) -> None:
-        with self.assertRaises(ValueError):
-            resolve_company_root("/tmp/proj", env={ENV_VAULT: "/tmp/vault"})
-
-    def test_vault_uses_env_company_name(self) -> None:
-        backend, name, root = resolve_company_root(
-            "/tmp/proj",
-            env={ENV_VAULT: "/tmp/vault", ENV_COMPANY: "Acme"},
-        )
-        self.assertEqual(backend, "vault")
-        self.assertEqual(name, "Acme")
-        self.assertEqual(root, Path("/tmp/vault/03_Companies/Acme"))
-
-    def test_vault_explicit_arg_overrides_env(self) -> None:
+    def test_explicit_company_name_overrides_fallback(self) -> None:
         _, name, _ = resolve_company_root(
-            "/tmp/proj",
-            company_name="Beta",
-            env={ENV_VAULT: "/tmp/vault", ENV_COMPANY: "Acme"},
+            "/tmp/myproj", company_name="Acme", env={}
         )
-        self.assertEqual(name, "Beta")
+        self.assertEqual(name, "Acme")
 
     def test_invalid_company_name_rejected(self) -> None:
         for bad in ("a/b", ".", ".."):
             with self.assertRaises(ValueError):
-                resolve_company_root(
-                    "/tmp/proj",
-                    company_name=bad,
-                    env={ENV_VAULT: "/tmp/vault"},
-                )
+                resolve_company_root("/tmp/proj", company_name=bad, env={})
 
 
 class RunLocalBackendTests(unittest.TestCase):
@@ -314,44 +181,6 @@ class RunLocalBackendTests(unittest.TestCase):
             parsed = frontmatter.parse(company_md.read_text(encoding="utf-8"))
             self.assertIn("domain", parsed.frontmatter)
             self.assertEqual(parsed.frontmatter["domain"], "")
-
-
-class RunVaultBackendTests(unittest.TestCase):
-    def test_creates_vault_company_dir_and_workers(self) -> None:
-        with tempfile.TemporaryDirectory() as vault:
-            result = run(
-                Path("/nonexistent-project-root"),
-                company_name="Acme",
-                one_liner="Test compliance agents",
-                cpo_name="이세근",
-                hr_name="김지혜",
-                env={ENV_VAULT: vault},
-            )
-            self.assertEqual(result.backend, "vault")
-            self.assertEqual(result.company_name, "Acme")
-            company_root = Path(vault, "03_Companies", "Acme")
-            self.assertTrue(company_root.is_dir())
-            self.assertTrue((company_root / "company.md").exists())
-
-            adapter = VaultAdapter(vault, "Acme")
-            cpo = adapter.read_worker("cpo")
-            self.assertEqual(cpo.storage_backend, "vault")
-            self.assertEqual(adapter.read_company().name, "Acme")
-
-    def test_one_liner_lands_in_company_body(self) -> None:
-        with tempfile.TemporaryDirectory() as vault:
-            run(
-                Path("/p"),
-                company_name="Beta",
-                one_liner="hello world",
-                cpo_name="이세근",
-                hr_name="김지혜",
-                env={ENV_VAULT: vault},
-            )
-            body = Path(vault, "03_Companies", "Beta", "company.md").read_text(
-                encoding="utf-8"
-            )
-            self.assertIn("hello world", body)
 
 
 if __name__ == "__main__":  # pragma: no cover

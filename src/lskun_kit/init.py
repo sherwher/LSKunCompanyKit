@@ -2,10 +2,15 @@
 
 ADR-0002 §3 — 단일 진입점.
 
-동작 순서:
-    1. 활성 backend 결정 (``LSKUN_VAULT`` 환경변수 우선, 없으면 Local)
-    2. 회사 루트 경로 결정 + 디렉토리 생성 (사용자의 기존 회사 디렉토리 보존)
-    3. ``company.md`` 박제 (이미 있으면 **덮어쓰지 않음** — ADR-0002 §3 보존 정책)
+ADR-0015 (2026-05-22) — Vault backend 폐기, Local SSOT 단일화. 본 모듈은
+P85 에서 vault 의존만 제거하여 P87 (멱등성 4행 명세) 까지 기존 local 동작을
+유지한다. 신규 회사 root 의 ``~/.lskun-companies/<name>/`` 이전은 P86,
+멱등성 분기 4행 (신규/joining/silent/confirm) 은 P87 에서 박제.
+
+동작 순서 (현재 — P85 기준):
+    1. backend = "local" 고정 (vault 분기 제거)
+    2. 회사 루트 경로 결정 = ``<project-root>/.company/`` (P86 에서 이전 예정)
+    3. ``company.md`` 박제 (이미 있으면 **덮어쓰지 않음**)
     4. ``hired/`` 디렉토리 생성 후 CPO + HR 자동 hire (둘 다 이미 있으면 skip)
     5. 진단 리포트 dataclass 반환 — caller (slash command) 가 사용자에게 출력
 """
@@ -18,14 +23,8 @@ from datetime import date as date_cls
 from pathlib import Path
 
 from lskun_kit.adapters import frontmatter
-from lskun_kit.adapters.vault import COMPANIES_DIRNAME
 from lskun_kit.persona_injection import inject as inject_cpo_persona
 from lskun_kit.templates import iter_default_workers, render_default_worker
-
-#: ``$LSKUN_VAULT`` 환경변수 키 — Vault backend 선택 trigger.
-ENV_VAULT = "LSKUN_VAULT"
-#: ``$LSKUN_COMPANY`` 환경변수 키 — Vault 안 회사 이름. CLI 인자가 우선.
-ENV_COMPANY = "LSKUN_COMPANY"
 
 LOCAL_COMPANY_DIRNAME = ".company"
 
@@ -34,7 +33,7 @@ LOCAL_COMPANY_DIRNAME = ".company"
 class InitResult:
     """``init.run()`` 의 결과 — slash command 가 사용자에게 출력할 진단."""
 
-    backend: str  # "local" | "vault"
+    backend: str  # ADR-0015 — "local" 고정 (vault 폐기)
     company_root: Path
     company_name: str
     company_md_created: bool
@@ -70,99 +69,35 @@ class InitResult:
         return "\n".join(lines) + "\n"
 
 
-def detect_backend(
-    project_root: Path | str,
-    env: dict[str, str] | None = None,
-) -> tuple[str, Path]:
-    """``LSKUN_VAULT`` 가 있으면 Vault, 없으면 Local.
-
-    Returns:
-        ``(backend, backend_root)`` —
-        Vault: ``(vault_path, ...)`` 에서 vault path 반환
-        Local: project root 자체 반환
-    """
-
-    env = env if env is not None else os.environ.copy()
-    vault = env.get(ENV_VAULT, "").strip()
-    if vault:
-        return "vault", Path(vault).expanduser()
-    return "local", Path(project_root).expanduser()
-
-
-def detect_dual_backend(
-    project_root: Path | str,
-    env: dict[str, str] | None = None,
-) -> tuple[Path, Path] | None:
-    """P33 — Local + Vault 양쪽에 회사 데이터가 동시에 존재하는지 감지.
-
-    Returns:
-        ``(local_company_root, vault_company_root)`` 둘 다 ``company.md`` 를
-        포함하고 있으면 두 경로 반환. 아니면 ``None``.
-
-    감지 의도: ``LSKUN_VAULT`` 가 설정돼 Vault backend 가 선택되더라도,
-    예전에 만든 Local ``.company/`` 가 남아있으면 사용자가 모르는 사이에
-    history 박제가 한쪽에만 누적될 수 있다. doctor / init 가 본 함수로
-    경고를 emit 한다 (자동 마이그레이션은 하지 않음 — ADR-0001 §5 SSOT 정책).
-    """
-
-    env = env if env is not None else os.environ.copy()
-    proj = Path(project_root).expanduser()
-    local_co = proj / LOCAL_COMPANY_DIRNAME
-    if not (local_co / "company.md").exists():
-        return None
-
-    vault = env.get(ENV_VAULT, "").strip()
-    if not vault:
-        return None
-    company = env.get(ENV_COMPANY, "").strip()
-    if not company:
-        return None
-    vault_co = Path(vault).expanduser() / COMPANIES_DIRNAME / company
-    if not (vault_co / "company.md").exists():
-        return None
-
-    return local_co, vault_co
-
-
 def resolve_company_root(
     project_root: Path | str,
     company_name: str | None = None,
     env: dict[str, str] | None = None,
 ) -> tuple[str, str, Path]:
-    """backend + 회사명을 받아 회사 루트 디렉토리 경로 결정.
+    """회사 루트 디렉토리 경로 결정 (ADR-0015 — local 단일 backend).
 
     Args:
-        project_root: 현재 프로젝트 루트 (Local backend 시 ``<root>/.company``)
-        company_name: 명시 지정. Vault 에서만 의미 있음. ``None`` 이면 ``$LSKUN_COMPANY``
-        env: 환경변수 dict (테스트용 주입)
+        project_root: 현재 프로젝트 루트. 회사 root = ``<project_root>/.company``.
+        company_name: 명시 지정. ``None`` 이면 project root 디렉토리 이름.
+        env: 환경변수 dict (테스트용 주입, P85 시점에는 사용 안 함).
 
     Returns:
-        ``(backend, company_name, company_root_path)``
+        ``(backend, company_name, company_root_path)`` — backend 는 항상 ``"local"``.
 
-    Raises:
-        ValueError: Vault backend 인데 회사명이 결정되지 않을 때.
+    Note:
+        P86 에서 회사 root 가 ``~/.lskun-companies/<name>/`` 로 이전 예정.
+        P87 에서 멱등성 분기 4행 (신규/joining/silent/confirm) 박제 예정.
     """
 
-    env = env if env is not None else os.environ.copy()
-    backend, backend_root = detect_backend(project_root, env=env)
-
-    if backend == "local":
-        # Local backend 는 회사명을 굳이 받지 않는다 — project root 1개 = 1 회사.
-        # company.md 의 name 만 의미를 가지므로, 명시 안 됐으면 디렉토리 이름을 쓴다.
-        resolved_company = (company_name or env.get(ENV_COMPANY, "").strip()
-                            or Path(project_root).expanduser().resolve().name)
-        return backend, resolved_company, backend_root / LOCAL_COMPANY_DIRNAME
-
-    # vault
-    resolved_company = (company_name or env.get(ENV_COMPANY, "").strip()).strip()
-    if not resolved_company:
-        raise ValueError(
-            f"Vault backend 가 선택됐지만 회사명이 비어 있다. "
-            f"`{ENV_COMPANY}` 환경변수를 설정하거나 init 인자로 회사명을 넘겨라."
-        )
+    backend = "local"
+    backend_root = Path(project_root).expanduser()
+    resolved_company = (
+        (company_name or "").strip()
+        or Path(project_root).expanduser().resolve().name
+    )
     if "/" in resolved_company or resolved_company in (".", ".."):
         raise ValueError(f"invalid company name: {resolved_company!r}")
-    return backend, resolved_company, backend_root / COMPANIES_DIRNAME / resolved_company
+    return backend, resolved_company, backend_root / LOCAL_COMPANY_DIRNAME
 
 
 def run(
@@ -205,16 +140,6 @@ def run(
     )
 
     notes: list[str] = []
-
-    # P33 — dual-backend 경고 (자동 마이그레이션은 ADR-0001 §5 위반이므로 금지).
-    dual = detect_dual_backend(project_root, env=env)
-    if dual is not None:
-        local_co, vault_co = dual
-        notes.append(
-            f"dual-backend 감지: Local({local_co}) + Vault({vault_co}) 둘 다 "
-            f"company.md 보유. 활성 backend={backend} 만 갱신된다. "
-            f"양쪽 동기화가 필요하면 `/lskun-kit:migrate` 사용."
-        )
 
     company_root.mkdir(parents=True, exist_ok=True)
     hired_dir = company_root / "hired"
@@ -315,11 +240,7 @@ def _render_company_md(
 
 __all__ = [
     "InitResult",
-    "ENV_VAULT",
-    "ENV_COMPANY",
     "LOCAL_COMPANY_DIRNAME",
-    "detect_backend",
-    "detect_dual_backend",
     "resolve_company_root",
     "run",
 ]

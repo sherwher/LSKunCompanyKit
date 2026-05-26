@@ -19,11 +19,12 @@ ADR-0004 §7 — 활성 회사 없으면 silent no-op (출력 0). 사용자가 L
     Claude Code 가 hook payload 를 JSON 으로 주입할 수 있으나, 본 hook 은 그것에
     의존하지 않고 환경변수 / 현재 작업 디렉토리만으로 활성 회사를 감지한다.
 
-활성 회사 감지 우선순위:
-    1. ``LSKUN_VAULT`` 환경변수 → Vault backend. ``LSKUN_COMPANY`` 가 가리키는 회사.
-    2. ``$PWD/.company/`` → Local backend.
-    3. 위 둘 다 부재 → 부모 디렉토리로 올라가며 ``.company/`` 탐색 (최대 5 depth).
-    4. 끝까지 없으면 silent no-op.
+활성 회사 감지 우선순위 (ADR-0015 — Vault backend 폐기):
+    1. ``$PWD/.company/`` → Local backend.
+    2. 부재 시 부모 디렉토리로 올라가며 ``.company/`` 탐색 (최대 5 depth, git root 경계).
+    3. 끝까지 없으면 silent no-op.
+
+P88 에서 CLAUDE.md marker 기반 통일 + ``~/.lskun-companies/<name>/`` 직접 read 로 교체 예정.
 
 종료 코드: 항상 0 (hook 실패가 세션을 막으면 안 됨).
 """
@@ -31,7 +32,6 @@ ADR-0004 §7 — 활성 회사 없으면 silent no-op (출력 0). 사용자가 L
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -147,14 +147,11 @@ def _build_context() -> str:
 
 
 def _find_active_company_root() -> Path | None:
-    """우선순위: Vault env → cwd 의 .company → 부모 디렉토리 탐색."""
+    """cwd 부터 상위로 ``.company/`` 탐색 (최대 5 depth, git root 경계).
 
-    vault = os.environ.get("LSKUN_VAULT", "").strip()
-    company = os.environ.get("LSKUN_COMPANY", "").strip()
-    if vault and company:
-        candidate = Path(vault).expanduser() / "03_Companies" / company
-        if (candidate / "company.md").exists():
-            return candidate
+    ADR-0015 (2026-05-22) — Vault backend 폐기. ``LSKUN_VAULT`` env 분기 제거.
+    P88 에서 CLAUDE.md marker 기반 통일 예정.
+    """
 
     cwd = Path.cwd()
     for i in range(MAX_PARENT_DEPTH + 1):
