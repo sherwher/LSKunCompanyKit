@@ -30,7 +30,13 @@ from lskun_kit.errors import LSKunKitError
 #: ADR-0010 §1 — sync 대상 메타 워커. 일반 워커는 sync 대상이 아님.
 META_WORKER_NAMES = ("cpo", "hr-lead")
 
-HISTORY_HEADING = "## Project History"
+#: legacy heading — ADR-0014 이전 사용자 자산. migrate-schema 가 ARCHIVED_HEADING
+#: 로 rename. sync-persona 는 양쪽 모두 보존 대상으로 인식한다.
+LEGACY_HISTORY_HEADING = "## Project History"
+ARCHIVED_HISTORY_HEADING = "## Archived History (pre-0.18)"
+#: 호환성 alias — 기존 코드 / 외부 참조용. 신규 코드는 ``LEGACY_HISTORY_HEADING`` 사용.
+HISTORY_HEADING = LEGACY_HISTORY_HEADING
+
 BACKUP_SUFFIX = ".lskun-pre-sync.bak"
 
 #: ADR-0010 §3 — provenance 필드 키.
@@ -50,11 +56,22 @@ def _templates_dir() -> Path:
 def _split_body_history(body: str) -> tuple[str, str]:
     """body 를 (pre_history, history_section) 으로 분리.
 
-    ``## Project History`` 가 없으면 history_section 은 빈 문자열, pre_history 가 body 전체.
+    ADR-0014 (2026-05-22) — 두 heading 모두 보존 대상으로 인식한다:
+        - ``## Project History`` (legacy, 0.17.0 이전)
+        - ``## Archived History (pre-0.18)`` (migrate-schema 가 rename 한 결과)
+
+    어느 쪽도 없으면 history_section 은 빈 문자열, pre_history 가 body 전체.
+    둘 다 있는 비정상 케이스에는 먼저 등장하는 heading 을 기준으로 split
+    (그 이후의 텍스트는 전부 history_section 에 포함되어 보존).
     """
-    if HISTORY_HEADING not in body:
+
+    candidates = []
+    for heading in (LEGACY_HISTORY_HEADING, ARCHIVED_HISTORY_HEADING):
+        if heading in body:
+            candidates.append(body.index(heading))
+    if not candidates:
         return body, ""
-    idx = body.index(HISTORY_HEADING)
+    idx = min(candidates)
     return body[:idx], body[idx:]
 
 
@@ -287,9 +304,13 @@ def execute(
             continue
         # 변경 발생 — 백업
         bak = _backup_file(delta.path)
-        # body 재구성
+        # body 재구성. ADR-0014 — reflection 폐기로 빈 history fallback 박제하지 않음.
+        # co_hist 는 두 heading (legacy / archived) 모두 양쪽 포착 (위 _split_body_history 참고).
         new_pre = target_body.rstrip() + "\n\n"
-        new_body = new_pre + (co_hist if co_hist else HISTORY_HEADING + "\n\n_(empty — 첫 라우팅 결과부터 자동 append)_\n")
+        if co_hist:
+            new_body = new_pre + co_hist
+        else:
+            new_body = target_body.rstrip() + "\n"
         # frontmatter 갱신 (provenance 만)
         new_fm = dict(co_fm)
         new_fm[PROV_FROM] = delta.target_synced_from

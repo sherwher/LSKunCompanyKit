@@ -76,6 +76,139 @@ def _company_skeleton(tmp: Path, with_cpo_body: str = "", with_hr_body: str = ""
     return LocalAdapter(root)
 
 
+class SplitBodyHistoryTests(unittest.TestCase):
+    """ADR-0014 + ADR-0015 — _split_body_history 가 두 heading 모두 인식 (legacy + archived).
+
+    Bug: 0.18.0 이전에는 LEGACY_HISTORY_HEADING 1개만 검사해서 migrate-schema 가
+    rename 한 ARCHIVED_HISTORY_HEADING 을 sync 후 소실하는 데이터 손실 경로 존재.
+    """
+
+    def test_legacy_heading_split(self) -> None:
+        body = "intro.\n\n## Project History\n\n- 2026-01-15 / entry\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(pre, "intro.\n\n")
+        self.assertEqual(hist, "## Project History\n\n- 2026-01-15 / entry\n")
+
+    def test_archived_heading_split(self) -> None:
+        """migrate-schema 가 rename 한 결과를 sync 가 인식해야 함."""
+        body = (
+            "intro.\n\n"
+            "## Archived History (pre-0.18)\n\n"
+            "- 2026-01-15 / legacy entry\n"
+        )
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(pre, "intro.\n\n")
+        self.assertIn("Archived History (pre-0.18)", hist)
+        self.assertIn("legacy entry", hist)
+
+    def test_no_heading_returns_whole_body(self) -> None:
+        body = "intro only, no history section.\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(pre, body)
+        self.assertEqual(hist, "")
+
+    def test_both_headings_uses_first(self) -> None:
+        """비정상 케이스 (양쪽 다 박힌 파일) — 먼저 등장하는 heading 기준 split."""
+        body = (
+            "intro.\n\n"
+            "## Project History\n- legacy entry\n\n"
+            "## Archived History (pre-0.18)\n- archived entry\n"
+        )
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(pre, "intro.\n\n")
+        # 첫 heading 부터 끝까지 hist 에 포함 — 양쪽 모두 보존
+        self.assertIn("Project History", hist)
+        self.assertIn("Archived History", hist)
+        self.assertIn("legacy entry", hist)
+        self.assertIn("archived entry", hist)
+
+
+class ExecuteArchivedHistoryPreservationTests(unittest.TestCase):
+    """ADR-0015 (Phase 15 후속) — sync-persona 가 archived history 를 보존해야 한다.
+
+    Bug 재현 시나리오:
+        1. 0.17.0 사용자가 cpo.md 에 ## Project History 박제
+        2. /migrate-schema 가 ## Archived History (pre-0.18) 로 rename
+        3. /sync-persona --execute → archived history 소실 (옛 버그)
+
+    Fix 후: archived history 가 sync 후에도 그대로 보존.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name) / ".company"
+        (root / "hired").mkdir(parents=True)
+        (root / "company.md").write_text(
+            "---\nname: Acme\ndomain: payments\n---\n# Acme\n", encoding="utf-8"
+        )
+        cpo_text = dedent(
+            """\
+            ---
+            name: cpo
+            role: chief-product-officer
+            domain: meta
+            hired_at: 2026-01-01
+            storage_backend: local
+            display_name: 자비스
+            ---
+
+            # cpo
+
+            STALE BODY PLACEHOLDER
+
+            ## Archived History (pre-0.18)
+
+            - 2026-01-15 / payment / idempotency / stripe-key / first-pass 90%
+            - 2026-01-20 / hire / spec / canonical / first-pass 88%
+            """
+        )
+        # hr-lead 는 신규 회사로 history 부재 (ADR-0014 정합)
+        hr_text = dedent(
+            """\
+            ---
+            name: hr-lead
+            role: hr-lead
+            domain: meta
+            hired_at: 2026-01-01
+            storage_backend: local
+            display_name: 요니찡
+            ---
+
+            # hr-lead
+
+            STALE BODY PLACEHOLDER
+            """
+        )
+        (root / "hired" / "cpo.md").write_text(cpo_text, encoding="utf-8")
+        (root / "hired" / "hr-lead.md").write_text(hr_text, encoding="utf-8")
+        self.adapter = LocalAdapter(root)
+        self.cpo_path = root / "hired" / "cpo.md"
+        self.hr_path = root / "hired" / "hr-lead.md"
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_archived_history_preserved_after_sync(self) -> None:
+        p = ps.plan(self.adapter, "0.19.0")
+        ps.execute(self.adapter, p)
+        new_cpo = self.cpo_path.read_text(encoding="utf-8")
+        # archived heading + 두 entry 모두 살아있어야 함
+        self.assertIn("## Archived History (pre-0.18)", new_cpo)
+        self.assertIn("stripe-key / first-pass 90%", new_cpo)
+        self.assertIn("canonical / first-pass 88%", new_cpo)
+        # legacy heading 자동 박제 금지 (ADR-0014 reflection 폐기)
+        self.assertNotIn("## Project History", new_cpo)
+
+    def test_no_history_remains_no_history_after_sync(self) -> None:
+        """ADR-0014 — history 없는 워커는 sync 후에도 history fallback 자동 박제 X."""
+        p = ps.plan(self.adapter, "0.19.0")
+        ps.execute(self.adapter, p)
+        new_hr = self.hr_path.read_text(encoding="utf-8")
+        self.assertNotIn("## Project History", new_hr)
+        self.assertNotIn("## Archived History", new_hr)
+        self.assertNotIn("_(empty — 첫 라우팅", new_hr)
+
+
 class PlanTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
