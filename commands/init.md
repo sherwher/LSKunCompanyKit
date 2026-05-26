@@ -28,7 +28,7 @@ arguments:
 
 ADR-0015 (2026-05-22) — Local SSOT 단일 backend. Vault 통합은 `/lskun-kit:sync-in` / `/lskun-kit:sync-out` (P90) 의 파일시스템 복사로만 수행.
 
-1. **회사 root 결정** — 현재는 `<project-root>/.company/` (P86 에서 `~/.lskun-companies/<name>/` 로 이전 예정)
+1. **회사 root 결정** — `~/.lskun-companies/<name>/` (ADR-0015 결정 1-A — Local SSOT 단일 위치, `paths.company_root(name)` 단일 진입점)
 2. **회사 루트 디렉토리 생성** (기존 디렉토리 있으면 그대로 재사용)
 3. **company.md 박제** — 이미 있으면 **절대 덮어쓰지 않음** (보존 정책). frontmatter 에 `domain` 박제.
 4. **CPO + 인사팀장(hr-lead) 자동 hire** — 이미 있으면 skip. frontmatter 6 필수 필드 (`name`, `role`, `domain="meta"`, `hired_at`, `storage_backend`, `display_name`) + HR Lead 는 optional `model: sonnet`.
@@ -49,8 +49,9 @@ LSKunCompanyKit init
 ================================================
 backend       : local
 company       : Acme
-company root  : <your-project>/.company
-company.md    : created → <your-project>/.company/company.md
+company root  : /Users/<you>/.lskun-companies/Acme
+company.md    : created → /Users/<you>/.lskun-companies/Acme/company.md
+멱등 분기      : row=founded (ADR-0015 결정 2-B)
 workers hired : cpo, hr-lead
 CPO persona   : created → <your-project>/CLAUDE.md
 ```

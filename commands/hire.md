@@ -66,7 +66,8 @@ model: <"sonnet" | "opus" | 모델 ID>   # optional, 생략 시 default
 from datetime import date
 from lskun_kit.adapters.local import LocalAdapter
 
-adapter = LocalAdapter(".company")
+# ADR-0015 — Local SSOT 단일 위치. 회사 이름으로 생성 권장.
+adapter = LocalAdapter.from_company_name("LSKun")
 adapter.create_worker(
     name="alice",
     frontmatter_dict={
@@ -80,7 +81,9 @@ adapter.create_worker(
     },
     body="# alice\n\n<JD 본문 ADR-0011>\n",
 )
-# 해고는 adapter.archive_worker("alice") — hired/ → archived/ 이동, 삭제 X
+# 해고 (ADR-0015 결정 7-B): adapter.archive_worker("alice",
+#   archived_at="2026-05-22", archived_reason="role 중복 해소")
+# hired/ → archived/ 이동 + frontmatter 박제. display_name 보존, 삭제 X.
 ```
 
 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 외부 add-on

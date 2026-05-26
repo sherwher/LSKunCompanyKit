@@ -17,7 +17,7 @@
 1. **JD-driven Workers** — 채용 시점에 도메인 날리지 + 전문성을 JD (persona body) 로 박제. 워커 = 채용 즉시 완성형 (ADR-0014)
 2. **Leader–Worker (메인 세션 = CPO)** — 사용자 요청 → CPO 라우팅 → 워커 dispatch → 결재 → 응답을 한 세션 안에서 수행
 3. **도메인 인지 (`role × domain`)** — 의료 backend-engineer vs 핀테크 backend-engineer 의 JD 가 도메인별로 분리되어 회사 도메인 폭이 자산
-4. **Storage Backend 추상화** — Local (`.company/`) 또는 Vault (`<vault>/03_Companies/<company>/`). 사용자 선택, plugin 이 마이그레이션 책임
+4. **Storage Backend 추상화** — Local SSOT 단일 위치 (`~/.lskun-companies/<name>/`, ADR-0015). 외부 mirror (vault 등) 와의 동기화는 명시적 sync 명령 (`/lskun-kit:sync-in` / `/lskun-kit:sync-out`) 의 파일시스템 복사로만.
 
 **Reflection 메커니즘 (history 누적) 은 ADR-0014 로 폐기** (2026-05-22). 6일 실측 (LSKun 41명 / 8건 박제 / 누락률 80.5%) + 4 전문가 5차 만장일치. 워커는 시간 흐름으로 진화하지 않으며, 자산은 JD only (정적 단일 차원). 코드 제거는 P79 진행 예정.
 

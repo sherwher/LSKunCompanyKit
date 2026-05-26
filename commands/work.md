@@ -81,13 +81,20 @@ arguments:
 ## Python 진입점
 
 ```python
-from pathlib import Path
 from lskun_kit.routing import decide_target, build_cpo_routing_context
 from lskun_kit.context import build_worker_context
 from lskun_kit import session, LocalAdapter
+from lskun_kit.errors import WorkerArchivedError
 
-adapter = LocalAdapter(Path.cwd() / ".company")
-decision = decide_target(adapter, requested_worker=None)
+# ADR-0015 — 회사 이름으로 adapter 생성 (~/.lskun-companies/<name>/)
+adapter = LocalAdapter.from_company_name("LSKun")
+try:
+    decision = decide_target(adapter, requested_worker=None)
+except WorkerArchivedError as e:
+    # ADR-0015 결정 7-E — archived 가드. fallback 금지.
+    print(e.hint)
+    raise SystemExit(1)
+
 if decision.mode == "direct":
     ctx = build_worker_context(adapter, decision.target_worker)
 elif decision.mode == "cpo":

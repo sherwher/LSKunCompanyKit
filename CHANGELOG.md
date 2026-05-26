@@ -5,6 +5,44 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.19.0] — 2026-05-22
+
+### Changed — Local SSOT 단일화 + 멀티 프로젝트 회사 공유 ([ADR-0015](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0015-2026-05-22-multi-project-company-sharing.md))
+
+**Breaking**:
+- **Vault backend 폐기** — `adapters/vault.py` 삭제, `LSKUN_VAULT` / `LSKUN_COMPANY` env var plugin core 참조 제거. 기존 vault 사용자는 `/lskun-kit:sync-in <name> <vault-path>` 로 1회 마이그레이션 (README §"사용 흐름 0)")
+- **`<project>/.company/` 폐기** — 회사 SSOT 단일 위치 `~/.lskun-companies/<name>/` (`paths.company_root(name)` 단일 진입점). 옛 위치는 사용자 수동 정리
+- **`/lskun-kit:migrate` 명령 삭제** — Local ↔ Vault 양방향 도구 폐기. 대체: `/sync-in` / `/sync-out`
+
+### Added
+- **`paths.py`** — `~/.lskun-companies/<name>/` + `~/.lskun-companies/.backups/<name>/` 의 단일 진입점. `validate_company_name` (영문/숫자/_/-/. + 시작 영문/숫자, `.backups` 예약어)
+- **`LocalAdapter.from_company_name(name)`** — 회사 이름으로 adapter 생성 (절대경로 인자 인터페이스도 유지)
+- **`permissions.py`** — `~/.claude/settings.json` 의 `permissions.allow` 에 5개 패턴 자동 박제 (Read/Edit/Write/Bash ls/cat). 멱등 + atomic-ish write + ConfirmRequired 패턴
+- **`sync.py` + `/sync-in` + `/sync-out`** — 외부 mirror ↔ Local SSOT 파일시스템 복사 (`shutil.copytree`). 백업 자동 (sync-in: `~/.lskun-companies/.backups/`, sync-out: target sibling). 외부 SDK 0
+- **`init.py` 멱등성 4행** (결정 2-B): founded / joined / silent / marker_replaced. 다른 회사 marker 재진입 시 `ConfirmRequired` raise (옵션 B — plugin core 가 stdin 안 잡음, LLM caller 가 confirm 후 재호출)
+- **`hooks/session_start.py` marker-based** — CLAUDE.md LSKUN-CPO marker 가 회사-프로젝트 결합의 단일 진실원. cwd `.company/` 탐색 폐기
+- **`extract_company_name(project_root)`** — marker 본문에서 회사 이름 추출 (init 의 cross-check, hook 의 resolve)
+- **`WorkerArchivedError`** + **`archive_worker(name, archived_at, archived_reason)`** — ADR-0015 결정 7. archive 시점에 frontmatter 박제 (display_name 보존 — 자동 익명화 금지). routing.py 의 archived 가드 (결정 7-E)
+- **doctor 진단 신규 2종** — [18] archived ↔ hired display_name 중복 검출 (결정 7-C), [19] audit log dangling cross-check (결정 7-D, rewrite 금지)
+- **CPO templates 의 Skill 경유 강제** (결정 3-A/3-B) — Task tool 의 `oh-my-claudecode:*` / `general-purpose` fallback 영구 금지 (novacare 사건 재발 차단)
+
+### Removed
+- `adapters/vault.py` + `VaultAdapter` / `VaultCompanyNotFoundError` / `list_companies` (vault 헬퍼)
+- `src/lskun_kit/migration.py` (Local ↔ Vault SHA-256 양방향) + `commands/migrate.md` + `docs/migration-spec.md`
+- `init.py` 의 `ENV_VAULT` / `ENV_COMPANY` / `detect_backend` / `detect_dual_backend`
+- `LSKUN_VAULT` / `LSKUN_COMPANY` env var plugin core 참조 모두 (총 0건)
+
+### Notes — 검증 (ADR-0015 §검증 기준 6 항목)
+- 215 → 227 tests (+12), 회귀 0
+- novacare 같은 임의 프로젝트에서 sandbox 차단 0
+- 1 회사 N 프로젝트 공유 가능 (5개 이상 검증)
+- plugin core 의 vault 직접 참조 0건
+- /init 멱등성 4행 명세 박제 + 사용자 confirm 패턴 일관 (P89 / P90 도 같은 ConfirmRequired 패턴)
+- 워커 해고 → 같은 role 재채용 시나리오 정상
+
+### Catch-up — 0.18.0 (ADR-0014 Reflection 폐기)
+P78~P82 동안 ADR-0014 박제 시점에 CHANGELOG 항목 작성이 누락되었다. 0.10.0 정신과 동일하게 ADR-0014 문서가 1차 진실원으로 남으며, 본 entry 는 0.18.0 → 0.19.0 변화만 기록.
+
 ## [0.11.0] — 2026-05-20
 
 ### Changed — Plugin version single-source SSOT ([ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md))
