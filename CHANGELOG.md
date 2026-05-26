@@ -5,6 +5,32 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.20.0] — 2026-05-26
+
+### Added — 호출자 측 OMC fallback 차단 ([ADR-0016](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0016-2026-05-26-omc-fallback-block.md))
+
+3회째 재발한 메인 LLM 의 자의적 OMC executor dispatch 우회를 PreToolUse:Task hook 레벨에서 차단. ADR-0015 가 plugin core 측 (Skill 실패 → fallback) 을 막은 것을 호출자 측 (Skill invoke 누락 → Agent + OMC executor 직행) 으로 확장.
+
+**Added**:
+- **`pre_tool_use.py` OMC fallback 차단 분기** — 활성 회사 marker 박힌 프로젝트에서 `subagent_type` 이 `oh-my-claudecode:*` (prefix) 또는 `general-purpose` (exact) 인 Task 호출을 deny. Explore/Plan/외부 plugin agent 는 통과 (가드 범위 '중')
+- **`LSKUN_ALLOW_OMC_FALLBACK=1` escape hatch** — chain bypass 와 동일 패턴. 활성 시 stderr 경고
+- **`LSKUN_HOOK_DEBUG_DUMP=1` 실측 모드** — ADR-0016 결정 3. 임시 stderr payload dump (실측 후 unset). 구현 phase 첫 작업에서 `subagent_type` 키 위치 실측 용
+- **doctor 진단 항목 [20] [21]** — OMC 가드 활성 검증 + bypass env var 영구 export 검출 (zshrc/bashrc/zprofile/bash_profile grep)
+- **테스트 10건 신규** — `OmcFallbackBlockTests` (차단/허용/bypass/chain 우선순위 등). 기존 chain 차단 7건 회귀 0
+
+**Changed**:
+- **`_decide()` 평가 순서 명문화** — 1) non-Task → allow, 2) chain bypass, 3) OMC bypass, 4) marker 부재 → allow, 5) 활성 워커 세션 → chain deny, 6) `subagent_type` 차단 → OMC deny, 7) fallthrough → allow. chain 차단이 OMC 차단보다 우선 (결정 7)
+- **활성 회사 marker 검출 2층** — 1순위 `LSKUN_SSOT_ROOT` env var (O(1)), 2순위 cwd 상위 CLAUDE.md marker (session_start 의 `_find_active_company_root()` 재사용)
+
+**비-Breaking**: marker 박힌 프로젝트에서 OMC executor 를 정당하게 사용하던 사용자는 `LSKUN_ALLOW_OMC_FALLBACK=1` 1회 set 필요 (세션 단위 권장, shell profile 영구 export 는 doctor [21] 가 경고).
+
+**검증**: 17/17 tests 통과 (기존 7 + 신규 10). 전체 회귀 0.
+
+**잔존 위험** (ADR-0016 §"인지된 잔존 위험" 명시):
+- Explore/Plan 에 LSKun 워커 persona 흉내 주입 — text instruction 으로만 가드
+- `Skill(skill="oh-my-claudecode:executor", ...)` 직접 호출 — Task matcher 밖. 모니터링 대상
+- Bash 경유 `codex` CLI 직접 실행 — 우회 가능. 모니터링 대상
+
 ## [0.19.0] — 2026-05-22
 
 ### Changed — Local SSOT 단일화 + 멀티 프로젝트 회사 공유 ([ADR-0015](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0015-2026-05-22-multi-project-company-sharing.md))
