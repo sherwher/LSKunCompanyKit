@@ -200,13 +200,63 @@ class ExecuteArchivedHistoryPreservationTests(unittest.TestCase):
         self.assertNotIn("## Project History", new_cpo)
 
     def test_no_history_remains_no_history_after_sync(self) -> None:
-        """ADR-0014 — history 없는 워커는 sync 후에도 history fallback 자동 박제 X."""
+        """ADR-0014 — history 없는 워커는 sync 후에도 history fallback 자동 박제 X.
+
+        검사는 **줄 시작 heading** 으로만 수행. template body 내의
+        `` `## Project History` `` 같은 inline backtick 인용은 정당한 본문
+        (예: hr-lead.md 의 채용 알고리즘 §5 설명) 이므로 보존되어야 한다.
+        이전 substring 매칭 버그 (persona_sync._split_body_history 가 인라인
+        인용을 history heading 으로 오탐 → body 절단) 의 회귀 가드.
+        """
         p = ps.plan(self.adapter, "0.19.0")
         ps.execute(self.adapter, p)
         new_hr = self.hr_path.read_text(encoding="utf-8")
-        self.assertNotIn("## Project History", new_hr)
-        self.assertNotIn("## Archived History", new_hr)
+        # 줄 시작 heading 으로만 검사 — inline backtick 인용은 정당 본문.
+        hr_lines = new_hr.splitlines()
+        self.assertNotIn("## Project History", hr_lines, "줄 시작 Project History heading 자동 박제 금지")
+        self.assertFalse(
+            any(line.startswith("## Archived History") for line in hr_lines),
+            "줄 시작 Archived History heading 자동 박제 금지",
+        )
         self.assertNotIn("_(empty — 첫 라우팅", new_hr)
+
+
+class SplitBodyHistorySplitterTests(unittest.TestCase):
+    """ADR-0017 부수 fix — _split_body_history 의 substring 오탐 회귀 가드.
+
+    2026-05-26 사건: hr-lead.md template line 72 의 inline backtick
+    `` `## Project History` `` (JD body 작성 §5 설명의 정당 인용) 을
+    splitter 가 history heading 으로 오탐 → body 73~165행 절단.
+    fix 후 줄 시작 (`^## ...`) + fenced code block 제외 매칭으로 강화.
+    """
+
+    def test_inline_backtick_not_matched(self) -> None:
+        body = "본문 한 줄\n설명: `## Project History` 는 인용일 뿐.\n계속.\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(hist, "")
+        self.assertEqual(pre, body)
+
+    def test_fenced_code_block_not_matched(self) -> None:
+        body = "본문\n\n```\n## Project History\n- entry\n```\n계속.\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(hist, "")
+        self.assertEqual(pre, body)
+
+    def test_real_heading_matched(self) -> None:
+        body = "본문.\n\n## Project History\n\n- 2026-05-01: entry\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertTrue(hist.startswith("## Project History"))
+        self.assertEqual(pre.rstrip(), "본문.")
+
+    def test_archived_heading_matched(self) -> None:
+        body = "본문\n\n## Archived History (pre-0.18)\n\n- entry\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertTrue(hist.startswith("## Archived History (pre-0.18)"))
+
+    def test_fenced_block_with_tilde_not_matched(self) -> None:
+        body = "본문\n\n~~~\n## Project History\n~~~\n계속.\n"
+        pre, hist = ps._split_body_history(body)
+        self.assertEqual(hist, "")
 
 
 class PlanTests(unittest.TestCase):

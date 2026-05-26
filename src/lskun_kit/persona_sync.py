@@ -60,15 +60,45 @@ def _split_body_history(body: str) -> tuple[str, str]:
         - ``## Project History`` (legacy, 0.17.0 이전)
         - ``## Archived History (pre-0.18)`` (migrate-schema 가 rename 한 결과)
 
+    매칭 규칙 (substring 오탐 방지, hr-lead.md 손상 사건 2026-05-26 시정):
+        - heading 은 **줄 시작 (`^## ...$`)** 으로만 인식.
+        - **fenced code block** (```` ``` ```` / ``` ~~~ ```) 내부의 줄은 무시.
+        - inline backtick 안의 ``"## Project History"`` 같은 인용은 줄 시작이
+          아니므로 자연 배제 (코드 인용은 항상 inline backtick 또는 fenced block 안).
+
     어느 쪽도 없으면 history_section 은 빈 문자열, pre_history 가 body 전체.
-    둘 다 있는 비정상 케이스에는 먼저 등장하는 heading 을 기준으로 split
-    (그 이후의 텍스트는 전부 history_section 에 포함되어 보존).
+    둘 다 있는 비정상 케이스에는 먼저 등장하는 heading 을 기준으로 split.
     """
 
-    candidates = []
-    for heading in (LEGACY_HISTORY_HEADING, ARCHIVED_HISTORY_HEADING):
-        if heading in body:
-            candidates.append(body.index(heading))
+    candidates: list[int] = []
+    in_fence = False
+    fence_marker: str | None = None
+    char_pos = 0  # 줄 시작 시점의 char index
+
+    for line in body.splitlines(keepends=True):
+        stripped = line.lstrip()
+        # fenced code block 진입/탈출 (``` 또는 ~~~ 3개 이상).
+        if not in_fence:
+            for marker in ("```", "~~~"):
+                if stripped.startswith(marker):
+                    in_fence = True
+                    fence_marker = marker
+                    break
+        else:
+            if fence_marker is not None and stripped.startswith(fence_marker):
+                in_fence = False
+                fence_marker = None
+
+        if not in_fence:
+            # 본 줄이 heading 줄 자체인지 확인 (## 다음에 정확히 heading 텍스트).
+            line_no_nl = line.rstrip("\n").rstrip("\r")
+            for heading in (LEGACY_HISTORY_HEADING, ARCHIVED_HISTORY_HEADING):
+                if line_no_nl == heading or line_no_nl.startswith(heading + " "):
+                    candidates.append(char_pos)
+                    break
+
+        char_pos += len(line)
+
     if not candidates:
         return body, ""
     idx = min(candidates)
