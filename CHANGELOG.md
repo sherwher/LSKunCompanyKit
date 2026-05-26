@@ -5,6 +5,35 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.21.0] — 2026-05-26
+
+### Changed — Dispatch subagent_type Allowlist 정책 전환 ([ADR-0017](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0017-2026-05-26-dispatch-subagent-allowlist.md))
+
+4회째 재발한 메인 LLM 의 자의적 OMC executor dispatch 우회 (LSKun 본진 세션, 2026-05-26) 의 근본 시정. ADR-0016 의 denylist (OMC + general-purpose 만 차단) 가 4회째 우회됨을 입증 → **Allowlist 모델로 전환**. 활성 회사 marker 박힌 cwd 에서는 `subagent_type="claude"` 만 정식 dispatch 로 허용.
+
+**Changed (BREAKING for marker-active projects)**:
+- **`pre_tool_use.py` allowlist 전환** — `_OMC_BLOCK_PREFIXES` / `_OMC_BLOCK_EXACT` 제거. `_ALLOWED_SUBAGENT = frozenset({"claude"})` 신설. `subagent_type` 미지정/null 은 일반 Task 호출로 allow 유지.
+- **차단 범위 확장** — OMC + general-purpose + 외부 plugin subagent (vercel:* / codex:* / figma:* / posthog:* 등) + read-only agent (Explore / Plan) 모두 deny. 회사 외 작업이면 escape hatch 1회 set.
+- **평가 순서 7 → 8단계** — claude 정식 dispatch (#7) + allowlist fallthrough deny (#8) 추가.
+
+**Added**:
+- **신규 정식 escape hatch `LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`** — 의미 명확 (denylist 잔재 명칭 탈피). 활성 시 stderr 경고.
+- **ADR-0016 별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`** 영구 유지 — 하위호환 (기존 사용자 자산 보존). 둘 중 하나라도 set 이면 통과.
+- **Skill 문서 + persona template 박제** — `commands/work.md` §"메인 세션 CPO 라우팅" / §사양 / §"Python 진입점", `templates/cpo.md` §"Task tool 로 워커 dispatch" + §"폐기·금지", `templates/hr-lead.md` §채용 모두 `subagent_type="claude"` 강제 명시. Skill 문서가 dispatch subagent 를 규정 (4회 재발의 근본 원인 = Skill 문서 미규정 시정).
+- **doctor 진단 [22] [23]** — Allowlist 가드 활성 검증 + bypass env 영구 export 검출 (zshrc/bashrc/zprofile/bash_profile grep).
+- **테스트 8건 신규 + 10건 갱신** — `AllowlistAdr0017NewTests` (claude allow / vercel deny / codex deny / Explore deny / 두 bypass var / chain 우선 등). `DispatchAllowlistTests` 의 Explore/Plan/외부 plugin allow → deny 반전. 전체 회귀 0 (251 tests).
+
+**Breaking 가이드**:
+- marker 박힌 프로젝트에서 OMC executor 외 다른 plugin subagent (vercel/codex/figma 등) 를 정당 사용하던 사용자: 세션 단위로 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 또는 별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`. `.zshrc`/`.bashrc` 영구 export 는 doctor [23] 가 경고.
+- Explore / Plan 도 차단됨 — 사용자 의도 정당 사용은 escape hatch 필요.
+
+**검증**: 251/251 tests 통과 (기존 233 + 갱신 10 + 신규 8). 회귀 0.
+
+**잔존 위험** (ADR-0017 §"인지된 잔존 위험" 명시):
+- `subagent_type` 미지정 Task 호출에 prompt 만 워커 흉내 — 일반 Task 로 allow. text instruction 가드.
+- `Skill(skill="oh-my-claudecode:executor", ...)` 직접 호출 — Task matcher 가 Skill 미포착. 5회째 발생 시 새 ADR.
+- plugin 개발자 본인 dogfood 시나리오 (cwd mismatch) — marker 비활성. escape hatch 또는 cwd 이동.
+
 ## [0.20.0] — 2026-05-26
 
 ### Added — 호출자 측 OMC fallback 차단 ([ADR-0016](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0016-2026-05-26-omc-fallback-block.md))

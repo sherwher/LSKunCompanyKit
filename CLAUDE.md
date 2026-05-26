@@ -17,7 +17,8 @@
 > - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — ~~조직도 stable markdown table + CPO 결재 절차에 reflection 박제 강제~~ — **부분 supersede by ADR-0014** (조직도 stable table 부분 유지, reflection 박제 강제는 폐기)
 > - [ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — **Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** (4 전문가 5차 만장일치). 워커 = 채용 시 완성형, 시간 흐름으로 진화하지 않음. 자산 = JD only (정적 단일 차원). ADR-0001 §3, ADR-0011 §6 supersede. ~1,528 LoC + ~80 tests 제거 예정 (P79)
 > - [ADR-0015](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0015-2026-05-22-multi-project-company-sharing.md) — **Local SSOT 단일화 (`~/.lskun-companies/<name>/`) + `/init` 멱등성 + Vault Mirror 분리 + 권한 자동 박제 + 워커 해고 결합 해제 (결정 7 머지)**. ADR-0008 supersede (Local/Vault 동등 → Local 단일 SSOT). Phase 15 (P83~P93) 코드 변경 예정. 결정 7 = JD/display_name 분리, archived display_name 재사용 금지, audit log dangling cross-check
-> - [ADR-0016](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0016-2026-05-26-omc-fallback-block.md) — **메인 세션 측 OMC fallback 차단 (호출자 측 enforcement)** (4 전문가 만장일치). PreToolUse:Task hook 에 `subagent_type` 검사 분기 추가, 활성 회사 marker 박힌 프로젝트에서 `oh-my-claudecode:*` (prefix) / `general-purpose` 차단. ADR-0015 결정 3-A 의 plugin core 측 차단을 호출자 측으로 확장. 3회째 재발 패턴 시정. `LSKUN_ALLOW_OMC_FALLBACK=1` escape hatch. doctor [20] [21] 신규. 17 tests (기존 7 + 신규 10) 통과. v0.20.0
+> - [ADR-0016](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0016-2026-05-26-omc-fallback-block.md) — ~~**메인 세션 측 OMC fallback 차단 (호출자 측 enforcement)**~~ — **supersede by ADR-0017** (denylist → allowlist 정책 전환). 메커니즘은 계승 (PreToolUse:Task hook), 정책만 갱신. ADR-0016 의 escape hatch (`LSKUN_ALLOW_OMC_FALLBACK=1`) 은 별칭으로 영구 유지. v0.20.0
+> - [ADR-0017](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0017-2026-05-26-dispatch-subagent-allowlist.md) — **Dispatch subagent_type Allowlist (정식 dispatch = `claude` 단일)** (사용자 단독 결재). 4회째 OMC fallback 재발 (LSKun 본진, 2026-05-26) 시정. PreToolUse:Task hook 의 denylist → allowlist 반전 (`_ALLOWED_SUBAGENT = {"claude"}`). 차단 범위 확장 (OMC + general-purpose + 외부 plugin subagent vercel/codex/figma 등 + Explore/Plan). Skill 문서 + cpo/hr-lead persona template 에 `subagent_type="claude"` 강제 박제 (4회 재발의 근본 원인 = Skill 문서 미규정 시정). escape hatch 2개 (`LSKUN_ALLOW_NON_CLAUDE_DISPATCH` 신규 정식 + ADR-0016 별칭 영구 유지). doctor [22] [23] 신규. 25 tests (기존 7 + 갱신 10 + 신규 8) 통과, 전체 251 회귀 0. v0.21.0
 >
 > Plugin 개발자 SSOT 의 물리적 위치는 저자별로 다르다 (ADR-0009 §5). 본 plugin 문서는 저자 개인 SSOT 경로를 박제하지 않는다.
 
@@ -27,7 +28,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 16 (0.20.0) — 메인 세션 측 OMC fallback 차단 (호출자 측 enforcement), PreToolUse:Task hook 에 `subagent_type` 검사 분기 + escape hatch + doctor [20][21] (ADR-0016)
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 17 (0.21.0) — Dispatch subagent_type Allowlist 정책 전환 (ADR-0017, ADR-0016 supersede). PreToolUse:Task hook 의 denylist → allowlist 반전 (`claude` 단일 허용), Skill 문서·persona template 에 `subagent_type="claude"` 강제 박제, escape hatch 2개 (`LSKUN_ALLOW_NON_CLAUDE_DISPATCH` 신규 + `LSKUN_ALLOW_OMC_FALLBACK` 별칭), doctor [22][23] 신규
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -58,7 +59,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (19개 항목, ADR-0015 7-C/7-D 포함) |
+| `/lskun-kit:doctor` | 환경 진단 (23개 항목, ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23]) |
 
 ---
 
@@ -213,6 +214,11 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 - **PreToolUse hook 에서 `tool_input` 의 prompt/description 내용 파싱하여 의도 추론** (ADR-0016) — `subagent_type` 문자열 매칭만 허용. prompt 내용 기반 의도 판별은 brittle + false positive 원천
 - **`LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0016 결정 5) — 가드 무력화. 세션 단위 export 권장. doctor [21] 가 검출 + 경고
 - **PreToolUse:Skill 가드 추가로 사용자 명시 슬래시 `/oh-my-claudecode:*` 까지 차단** (ADR-0016) — 사용자 의도 무시. 본 ADR 범위는 메인 LLM 의 자의적 Agent → OMC 호출만
+- **Denylist 모델 재도입** (ADR-0017) — 4회째 재발 입증. allowlist 단일 정책 유지. 재도입 시 새 ADR + 5회째 재발 증거 필수
+- **Skill 문서·persona template 의 dispatch `subagent_type` 미규정** (ADR-0017) — `commands/work.md` / `templates/cpo.md` / `templates/hr-lead.md` 모두 `subagent_type="claude"` 명시 박제 필수. 누락 시 LLM 자의 선택 → ADR-0017 위반
+- **`subagent_type="claude"` 외 dispatch 의 silent 통과** (ADR-0017) — 반드시 stderr 안내 + escape hatch 경로 명시
+- **plugin 개발자 dogfood 시나리오를 위한 cwd-aware 가드 추가** (ADR-0017) — false positive 우려. escape hatch 1회 set 으로 처리
+- **`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` / `LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0017 결정 8) — allowlist 가드 무력화. 세션 단위 export 권장. doctor [23] 가 검출
 
 ### ADR-0002 로 **허용된 예외 (2명 한정)**
 
@@ -241,10 +247,10 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version SSOT (ADR-0012) — 0.20.0
+│   ├── plugin.json           # version SSOT (ADR-0012) — 0.21.0
 │   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
 ├── hooks/
-│   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거. ADR-0016 — OMC fallback 차단 분기 추가)
+│   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거. ADR-0016 — denylist (supersede). ADR-0017 — Allowlist 정책 전환)
 ├── commands/                  # 9개 slash command (ADR-0015 — /migrate 제거, /sync-in /sync-out 신규)
 │   ├── init.md               # /lskun-kit:init             (ADR-0015 멱등성 4행)
 │   ├── doctor.md             # /lskun-kit:doctor           (19개 진단 항목 — 7C/7D 추가)
@@ -323,6 +329,39 @@ P92 ✅ docs 일괄 갱신 + version 0.19.0 (본 phase)
 핵심 결정: Plugin core 가 회사 자원의 물리적 위치를 결정하는 유일한 모듈 = `paths.py`. 1 회사 N 프로젝트 공유 가능. Vault 통합은 사용자 명시 sync 명령으로만. 폐기 9종 (결정 1-A / 1-B / 2-A / 3-A / 5 정책 / 6 / 7-B/7-C/7-D/7-E) 모두 박제됨.
 
 215 → 227 tests (+12), 회귀 0.
+
+### Phase 17 (P100~P105 — Dispatch subagent_type Allowlist, ADR-0017, 0.21.0)
+
+```
+P100 ✅ ADR-0017 박제 — 사용자 단독 결재 (4 전문가 만장일치 시뮬레이션, "정석으로 완벽하게 해결" 지시)
+       — 4회째 재발 사실 박제 (LSKun 본진 세션, 2026-05-26)
+       — 9 결정 + 인지된 잔존 위험 5건 + 2축 방어 권고
+       — ADR-0016 supersede (메커니즘 계승, 정책 갱신: denylist → allowlist)
+P101 ✅ pre_tool_use.py 구현 변경 (ADR-0017 결정 1, 2, 7)
+       — _OMC_BLOCK_PREFIXES / _OMC_BLOCK_EXACT 제거
+       — _ALLOWED_SUBAGENT = frozenset({"claude"}) 신설
+       — escape hatch 2개 (LSKUN_ALLOW_NON_CLAUDE_DISPATCH 신규 + LSKUN_ALLOW_OMC_FALLBACK 별칭)
+       — 평가 순서 7 → 8단계 (claude 정식 + fallthrough deny)
+P102 ✅ tests/test_hooks_pre_tool_use.py 확장 (ADR-0017 결정 9)
+       — 기존 7 + 갱신 10 (Explore/Plan/외부 plugin allow → deny) + 신규 8 = 25 케이스
+       — 전체 회귀: 243 → 251 tests, 회귀 0
+P103 ✅ Skill 문서 + persona template 박제 (ADR-0017 결정 4, 5)
+       — commands/work.md §"메인 세션 CPO 라우팅" / §사양 / §"Python 진입점"
+       — templates/cpo.md §"Task tool 로 워커 dispatch" + §"폐기·금지"
+       — templates/hr-lead.md §채용
+       — 모두 subagent_type="claude" 강제 + escape hatch 안내
+P104 ✅ doctor [22] [23] 추가 (ADR-0017 결정 8)
+       — [22] Dispatch allowlist 가드 활성 (_ALLOWED_SUBAGENT / ENV_ALLOW_NON_CLAUDE / ADR-0017 marker)
+       — [23] LSKUN_ALLOW_NON_CLAUDE_DISPATCH / LSKUN_ALLOW_OMC_FALLBACK 영구 export 검출
+       — 진단 항목 21 → 23
+P105 ✅ docs + version bump 0.20.0 → 0.21.0 (본 phase)
+       — plugin.json, CHANGELOG 0.21.0 항목, CLAUDE.md §1/§7/§8/§6 갱신
+       — feedback_worker_dispatch_via_lskun_kit.md 메모리 정정 (denylist → allowlist)
+```
+
+핵심 결정: ADR-0016 의 denylist 한계가 4회째 재발로 입증. Allowlist 단호 전환으로 4회 패턴 종결. Skill 문서 미규정 = 4회 재발의 근본 원인 → 문서 박제로 정책 시정. Blast radius (외부 plugin subagent 함께 차단) 는 escape hatch 2개로 통제.
+
+243 → 251 tests (+8 신규, 갱신 10 케이스 기대값 반전), 회귀 0.
 
 ### Phase 16 (P95~P99 — 메인 세션 측 OMC fallback 차단, ADR-0016, 0.20.0)
 
