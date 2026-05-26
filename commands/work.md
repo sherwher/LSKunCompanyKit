@@ -47,13 +47,15 @@ arguments:
 1. 메인 세션은 **이미 CPO persona** 로 동작 중 (CLAUDE.md 박제 + SessionStart hook 으로 활성 회사 컨텍스트 주입)
 2. CPO 가 요청을 받아:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
-   - 적합 워커 있음 → `Task` tool 로 dispatch (model 결정 = frontmatter / CPO 판단 / default)
-   - 없음 → `Task` tool 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
+   - 적합 워커 있음 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = frontmatter / CPO 판단 / default.
+   - 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
 3. CPO 가 워커 보고를 받아 **결재** (자가 평가 통과 → 승인 / 재작업 최대 2회)
 4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
 5. 사용자에게 결재된 결과 전달
 
 > 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.
+
+> **dispatch 강제 (ADR-0017)**: Task tool 호출 시 반드시 `subagent_type="claude"`. OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업으로 다른 plugin subagent 가 정당 필요하면 세션 단위로 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 후 사용 (`.zshrc`/`.bashrc` 영구 export 금지, doctor [23] 가 검출).
 
 ## 사용 예
 
@@ -74,9 +76,10 @@ arguments:
 ## 사양
 
 - CPO 호출 — 워커 이름 생략 시 메인 세션의 CPO 가 받음
-- Leader-Worker dispatch — Task tool + 보고 양식
+- Leader-Worker dispatch — Task tool + 보고 양식 + `subagent_type="claude"` 강제 (ADR-0017)
 - 자동 채용 — 사용자 알림만, 차단 X
 - 모델 라우팅 — 워커 default=sonnet, override=opus
+- Dispatch allowlist — `claude` 외 subagent 는 PreToolUse hook 이 deny (ADR-0017). escape hatch=`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` (별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`).
 
 ## Python 진입점
 
@@ -102,4 +105,19 @@ elif decision.mode == "cpo":
     ctx = build_cpo_routing_context(adapter, user_request="...")
 else:  # missing-cpo
     print(decision.reason)
+
+# dispatch 직전 (ADR-0017 결정 1 — subagent_type="claude" 강제).
+# Task tool 호출은 host (메인 LLM) 측이므로 plugin core 가 직접 호출하지 않는다.
+# 호출자는 반드시 다음 형식으로 dispatch:
+#
+#   Task(
+#       subagent_type="claude",   # Allowlist 단일 허용 — claude 외는 PreToolUse hook 이 deny
+#       prompt=f"{ctx}\n\n{user_request}",
+#       description="<short>",
+#   )
+#
+# `subagent_type` 을 OMC executor / general-purpose / vercel:* / codex:* / Explore / Plan
+# 등으로 지정하면 hook 이 deny + stderr 안내. 회사 외 작업 의도면:
+#   export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1
+# 세션 단위 권장 (.zshrc/.bashrc 영구 export 금지, doctor [23] 가 검출).
 ```
