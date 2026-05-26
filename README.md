@@ -172,6 +172,29 @@ git clone https://github.com/sherwher/LSKunCompanyKit.git
 
 ## 사용 흐름 (Phase 3)
 
+### 0) 기존 vault 사용자 마이그레이션 (ADR-0015, Phase 15)
+
+ADR-0015 (2026-05-22) — Local SSOT 단일 위치 (`~/.lskun-companies/<name>/`) 로 통일. 기존 vault (`<your-vault>/03_Companies/<name>/`) 사용자는 **최초 1회만** sync-in 실행:
+
+```bash
+# 1. plugin 갱신 후 최초 1회만 실행
+/lskun-kit:sync-in LSKun ~/path/to/your-vault/03_Companies/LSKun
+
+# 2. plugin 이 vault → ~/.lskun-companies/LSKun/ 복사 + 권한 자동 박제 + 백업
+
+# 3. 이후 모든 프로젝트는 /init LSKun 으로 marker 박제만 수행
+cd <any-project>
+/lskun-kit:init LSKun
+```
+
+**자동 마이그레이션은 도입하지 않습니다** (ADR-0015 결정 1-A — plugin core 가 vault 직접 참조 영구 금지). `LSKUN_VAULT` env var 가 설정되어 있어도 plugin 은 자동 sync-in 하지 않으며, 사용자가 명시 호출해야 합니다.
+
+이후 vault 와의 동기화가 필요하면 양방향 sync 명령으로 진행:
+- `/lskun-kit:sync-out LSKun ~/path/to/your-vault/03_Companies/LSKun` (local → vault)
+- `/lskun-kit:sync-in LSKun ~/path/to/your-vault/03_Companies/LSKun` (vault → local)
+
+양방향 자동 merge 는 미도입 — 사용자가 시점 선택. 충돌이 빈번하면 사용자 측 워크플로 문제로 진단합니다.
+
 ### 1) 회사 셋업 — `init`
 
 신규 회사 셋업의 단일 진입점. backend 자동 감지 + 회사 `domain` 박제 + CPO/HR 자동 hire + 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제.
