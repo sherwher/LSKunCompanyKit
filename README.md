@@ -102,39 +102,43 @@ model: opus               # optional (default: sonnet)
 
 ---
 
-## Storage Backend
+## Storage Backend (ADR-0015 — Local 단일 SSOT)
 
 ```
 LSKunCompanyKit core (interface 만 알고 구현은 모름)
-   └── StorageAdapter
-         read_worker(name)
-         append_history(name, entry)
-         list_workers()
-         read_company()
+   └── StorageAdapter (read_worker / list_workers / read_company
+                       + create_worker / archive_worker / append_audit)
               ↓
-       Local (default, self-contained) | Vault (Optional Integration)
+       Local (단일 backend, ~/.lskun-companies/<name>/)
+              ↕ (사용자 명시 sync 명령만)
+       외부 mirror (vault / Obsidian / Notion local / Dropbox / 외장 디스크)
 ```
 
-| Backend | 경로 | 선택 조건 |
-|---|---|---|
-| **Local** (default) | `<project-root>/.company/` | 항상 사용 가능 — **plugin 자체 동작, 외부 의존성 0** |
-| **Vault** (Optional) | `<your-vault>/03_Companies/<company-name>/` | `LSKUN_VAULT` 환경변수 명시 설정 시 (opt-in) |
+| 항목 | 위치 |
+|---|---|
+| **회사 자원 SSOT** | `~/.lskun-companies/<name>/` |
+| **백업** | `~/.lskun-companies/.backups/<name>/<YYYYMMDD-HHMMSS>/` |
+| **외부 mirror** | 사용자 임의 경로 (vault 등) — plugin core 는 path 만 알고 SDK 0 |
 
-ADR-0009 — Local 만으로 Reflection / Stateful Workers / CPO 결재 / audit log 모두 완전 동작. Vault 는 사용자가 명시 opt-in 한 통합이며, 다른 외부 시스템 (Notion 등) 통합은 별도 add-on package 책임으로 본 core 에 두지 않는다.
+ADR-0015 (2026-05-22) — Plugin core 는 vault 를 직접 참조하지 않는다. Sync 는 명시적 액션 (`/lskun-kit:sync-in <name> <source>` / `/lskun-kit:sync-out <name> <target>`) 이며 `shutil.copytree` 만 사용. 양방향 자동 merge / 자동 스케줄링 / 외부 SDK 호출 모두 영구 금지.
 
-Backend 간 이동: `/lskun-kit:migrate --from=local --to=vault` (SHA-256 무결성 보장).
+ADR-0009 — Local 만으로 JD-driven Workers / CPO 결재 / audit log / 권한 자동 박제 모두 완전 동작. 외부 시스템 통합은 별도 add-on package 책임.
+
+권한: `/init` 신규 회사 창설 시 `~/.claude/settings.json` 에 5개 패턴 (Read/Edit/Write/Bash ls/cat 의 `~/.lskun-companies/<name>/**`) 자동 박제 (사용자 confirm 1회).
 
 ---
 
-## SSOT 분리
+## SSOT 분리 (ADR-0015)
 
 | 영역 | 위치 | 내용 |
 |---|---|---|
 | Plugin 개발자 SSOT | 본 repo (코드) + 저자별 별도 위치 (ADR / Phase 계획) | plugin 본 repo 의 문서는 저자 개인 SSOT 위치를 박제하지 않는다 (ADR-0009) |
-| 사용자 SSOT — Local (default) | `<project-root>/.company/` | `company.md` / `hired/` |
-| 사용자 SSOT — Vault (opt-in) | `<your-vault>/03_Companies/<name>/` | (동일 구조) |
+| **사용자 SSOT** (단일) | `~/.lskun-companies/<name>/` | `company.md` / `hired/` / `archived/` / `.audit/` |
+| 외부 mirror (선택) | 사용자 임의 경로 (vault 등) | sync 명령으로만 동기화. plugin core 는 path 만 알고 SDK 0 |
 
-두 SSOT 는 물리적으로 분리되며 `/lskun-kit:doctor` 가 cross-contamination 을 검증합니다.
+ADR-0015 (2026-05-22) — 사용자 SSOT 는 Local 단일 위치. `<project>/.company/` 는 모든 형태로 폐기 (SSOT / cache / mirror 무엇으로도 도입 금지). 1 회사 N 프로젝트 공유 가능 — 각 프로젝트의 `CLAUDE.md` LSKUN-CPO marker 가 회사-프로젝트 결합을 표현.
+
+두 SSOT (개발자 / 사용자) 는 물리적으로 분리되며 `/lskun-kit:doctor` 가 cross-contamination 을 검증합니다.
 
 또한 ADR-0004 §1 에 따라 **사용자 프로젝트 root 의 `CLAUDE.md`** 에 marker 구간 (`<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->`) 으로 CPO persona 가 inline 박제됩니다. marker 외 본문은 한 줄도 건드리지 않습니다.
 
@@ -195,16 +199,12 @@ cd <any-project>
 
 양방향 자동 merge 는 미도입 — 사용자가 시점 선택. 충돌이 빈번하면 사용자 측 워크플로 문제로 진단합니다.
 
-### 1) 회사 셋업 — `init`
+### 1) 회사 셋업 — `init` (ADR-0015 멱등성 4행)
 
-신규 회사 셋업의 단일 진입점. backend 자동 감지 + 회사 `domain` 박제 + CPO/HR 자동 hire + 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제.
+신규 회사 셋업의 단일 진입점. `~/.lskun-companies/<name>/` 에 회사 자원 박제 + 회사 `domain` 박제 + CPO/HR 자동 hire + 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제 + `~/.claude/settings.json` 권한 자동 박제.
 
 ```text
-# Local backend (default — self-contained)
-/lskun-kit:init
-
-# Vault backend (Optional — opt-in 통합)
-export LSKUN_VAULT="<your-vault-root>"
+# ADR-0015 — Local SSOT 단일 backend (외부 의존성 0)
 /lskun-kit:init Acme "AI agents for SMB compliance"
 ```
 
@@ -216,7 +216,16 @@ Claude 가 5가지를 순차 질문:
 4. CPO 의 사람 이름 (`display_name`, 자동 생성 금지)
 5. HR Lead 의 사람 이름 (`display_name`)
 
-기존 `company.md` 가 있으면 절대 덮어쓰지 않습니다.
+멱등성 4행 (ADR-0015 결정 2-B):
+
+| 회사 자원 | 프로젝트 marker | 동작 |
+|---|---|---|
+| 신규 | 부재 | 회사 창설 + hire + marker 박제 + 권한 박제 (`founded`) |
+| 기존 | 부재 (joining) | 자원 preserve + marker 박제 만 (`joined`) |
+| 기존 | 같은 회사 | silent skip — 완전 멱등 (`silent`) |
+| 기존 | 다른 회사 | confirm 강제 (`marker_replaced`) — `ConfirmRequired` 예외 |
+
+같은 회사를 5개 이상 프로젝트에서 공유 가능. 기존 `company.md` 가 있으면 절대 덮어쓰지 않습니다.
 
 ### 2) 작업 호출 — `work`
 
@@ -310,6 +319,32 @@ P52 ✅ ADR-0006 박제 + lskun_kit/audit.py (CPO 결재 audit log)
        — raw 로그만 박제, 자동 분석/대시보드/KPI 금지 (ADR-0002 §5 유지)
 ```
 
+### Phase 15 (P83~P93 — Local SSOT 단일화 + 멱등성 + Sync 분리 + 권한 자동 박제 + 워커 해고 결합 해제, ADR-0015, 0.19.0)
+
+```
+P83 ✅ ADR-0015 박제 (4 전문가 만장일치 + 사용자 confirm)
+P84 ✅ 기존 vault 사용자 마이그레이션 가이드 박제 (README)
+P85 ✅ adapters/vault.py + migration.py + tests 폐기 (-938 LoC)
+       — plugin core 의 vault 직접 참조 영구 차단
+P86 ✅ paths.py 신규 + LocalAdapter.from_company_name (+345 LoC)
+       — ~/.lskun-companies/<name>/ 단일 진입점
+P87+P88 ✅ init.py 멱등성 4행 + hook marker-based 통일 (+685/-392 LoC)
+       — ConfirmRequired 패턴 (옵션 B) + LSKUN_VAULT env 폐기
+P89 ✅ permissions.py 신규 (+412 LoC) — settings.json 자동 박제
+       — 5개 권한 패턴 (Read/Edit/Write/Bash ls/cat) + 멱등성
+P90 ✅ sync-in / sync-out 명령 + sync.py 신규 (+695 LoC)
+       — shutil.copytree 만, 외부 SDK 0, 사용자 시점 선택
+P91 ✅ CPO templates 의 dispatch Skill 경유 강제 (+32 LoC)
+       — Task tool 의 oh-my-claudecode:* / general-purpose fallback 금지
+P93 ✅ 워커 해고 결합 해제 (+240 LoC) — WorkerArchivedError + archive_worker
+       시그니처 확장 (archived_at + archived_reason) + doctor 진단 2종
+P92 ✅ docs 일괄 갱신 + version 0.19.0 (본 phase)
+```
+
+핵심 결정: Plugin core 가 회사 자원의 물리적 위치를 결정하는 유일한 모듈 (`paths.py`). 1 회사 N 프로젝트 공유 가능. Vault 통합은 사용자 명시 sync 명령으로만.
+
+215 → 227 tests (+12), 회귀 0.
+
 ### Phase 14 (P78~P82 — Reflection 폐기, ADR-0014, 0.18.0)
 
 ```
@@ -361,7 +396,8 @@ P58     ✅ ADR-0009 박제 — self-contained default, vault optional, no futur
 - [ADR-0011](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0011-2026-05-20-jd-based-hiring.md) — JD 기반 채용 (persona body 의 JD inline 박제)
 - [ADR-0012](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0012-2026-05-20-single-source-version.md) — Plugin version single-source SSOT (`plugin.json` 단일 진실원)
 - [ADR-0013](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0013-2026-05-20-stable-org-and-reflection-step.md) — 조직도 stable markdown table (reflection 박제 강제는 ADR-0014 로 부분 폐기)
-- **[ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** (4 전문가 5차 만장일치). 워커 = 채용 시 완성형. ADR-0001 §3, ADR-0011 §6 supersede.
+- [ADR-0014](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0014-2026-05-22-reflection-removal-and-jd-driven-identity.md) — Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제. 워커 = 채용 시 완성형.
+- **[ADR-0015](../../obsidian-vault/02_Projects/LSKunCompanyKit/decisions/ADR-0015-2026-05-22-multi-project-company-sharing.md) — Local SSOT 단일화 (`~/.lskun-companies/<name>/`) + `/init` 멱등성 + Vault Mirror 분리 + 권한 자동 박제 + 워커 해고 결합 해제** (결정 7 머지). ADR-0008 supersede. 1 회사 N 프로젝트 공유. Phase 15 (P83~P93) 구현 완료.
 
 ---
 

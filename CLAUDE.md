@@ -26,7 +26,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 13 — P77 `/org` env var 의존 제거 + plugin install 단일성 진단 추가
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 15 (0.19.0) — Local SSOT 단일화 (`~/.lskun-companies/<name>/`) + `/init` 멱등성 4행 + sync 명령 분리 + 권한 자동 박제 + 워커 해고 결합 해제 완료 (ADR-0015)
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -51,13 +51,13 @@
 |---|---|
 | `/lskun-kit:init` | 신규 회사 셋업 + CPO/HR 자동 hire |
 | `/lskun-kit:hire` | 신규 워커 박제 (primitive) |
-| `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 |
-| `/lskun-kit:reflect` | 작업 종료 1줄 기록 (수동) |
-| `/lskun-kit:migrate` | Local ↔ Vault 무결성 이동 |
+| `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 (ADR-0015 7-E archived 가드) |
+| `/lskun-kit:sync-in` | ADR-0015 — 외부 mirror → `~/.lskun-companies/<name>/` (백업 자동) |
+| `/lskun-kit:sync-out` | ADR-0015 — `~/.lskun-companies/<name>/` → 외부 mirror (백업 자동) |
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 |
+| `/lskun-kit:doctor` | 환경 진단 (19개 항목, ADR-0015 7-C/7-D 포함) |
 
 ---
 
@@ -96,35 +96,38 @@ CPO 는 **결재 라인 + 단독 채용 권한**. 부재 워커 발견 시 HR Le
 
 ---
 
-## 3. Storage Backend 추상화
+## 3. Storage Backend 추상화 (ADR-0015 — Local 단일 backend)
 
 ```
 LSKunCompanyKit core (interface 만 알고 구현은 모름)
-   └── StorageAdapter (ADR-0014 — append_history 제거)
+   └── StorageAdapter
          read_worker(name), list_workers(), read_company()
-         create_worker / archive_worker / append_audit (default NotImplementedError)
+         create_worker / archive_worker(name, archived_at, archived_reason)
+         append_audit (default NotImplementedError)
               ↓
-       Local (default, self-contained) | Vault (Optional Integration)
+       Local (단일 backend, ~/.lskun-companies/<name>/)
+              ↕ (사용자 명시 sync 명령만)
+       외부 mirror (vault / Obsidian / Notion local / 외장 디스크)
 ```
 
-v0.2 backend (2종, ADR-0002 §4 SSOT 야망 A 유지):
+ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-companies/<name>/` 단일 위치만 참조. 외부 mirror 통합은 `shutil.copytree` 만 사용하는 sync 명령으로:
 
-| Backend | 경로 | 선택 조건 |
+| 명령 | 방향 | 백업 위치 |
 |---|---|---|
-| Vault | `<vault>/03_Companies/<company-name>/` | `LSKUN_VAULT` 환경변수 설정 시 우선 |
-| Local (기본값) | `<project-root>/.company/` | 환경변수 없으면 자동 선택 |
+| `/lskun-kit:sync-in <name> <source>` | 외부 mirror → Local SSOT | `~/.lskun-companies/.backups/<name>/<YYYYMMDD-HHMMSS>/` |
+| `/lskun-kit:sync-out <name> <target>` | Local SSOT → 외부 mirror | `<target>.lskun-backup-<YYYYMMDD-HHMMSS>/` (target 측 sibling) |
 
-Migration tool: `/lskun-kit:migrate --from=X --to=Y`.
+권한 박제 (결정 4): `/init` 신규 회사 창설 시 `~/.claude/settings.json` 의 `permissions.allow` 에 5개 패턴 자동 추가 (사용자 confirm 1회).
 
 ---
 
-## 4. SSOT 분리 정책 (강제)
+## 4. SSOT 분리 정책 (강제, ADR-0015)
 
 | 영역 | 위치 | 내용 |
 |---|---|---|
-| **개발자 SSOT** | `02_Projects/LSKunCompanyKit/` (Vault) | ADR / Phase 계획 / interface 설계 |
-| **사용자 SSOT — Vault** | `03_Companies/<company-name>/` | hired/ / company.md (회사 일반 운영 문서와 공존) |
-| **사용자 SSOT — Local** | `<project-root>/.company/` | (동일 구조) |
+| **개발자 SSOT** | `02_Projects/LSKunCompanyKit/` (저자별 별도 위치) | ADR / Phase 계획 / interface 설계 |
+| **사용자 SSOT** (단일) | `~/.lskun-companies/<name>/` | hired/ / archived/ / company.md / .audit/ |
+| 외부 mirror (선택) | 사용자 임의 경로 | sync 명령으로만 동기화. plugin core 는 path 만 알고 SDK 0 |
 
 ### 강제 규칙
 
@@ -227,55 +230,93 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 
 ---
 
-## 7. 디렉토리 구조 (현재)
+## 7. 디렉토리 구조 (현재, ADR-0015 갱신)
 
 ```
 LSKunCompanyKit/
 ├── .claude-plugin/
-│   ├── plugin.json           # version SSOT (ADR-0012)
+│   ├── plugin.json           # version SSOT (ADR-0012) — 0.19.0
 │   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
 ├── hooks/
 │   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거)
-├── commands/                  # 8개 slash command (ADR-0014 — /reflect 제거)
-│   ├── init.md               # /lskun-kit:init
-│   ├── doctor.md             # /lskun-kit:doctor          (17개 진단 항목)
-│   ├── hire.md               # /lskun-kit:hire            (--domain --model)
-│   ├── work.md               # /lskun-kit:work            (메인 세션 = CPO, --model)
-│   ├── migrate.md            # /lskun-kit:migrate         (Local ↔ Vault)
-│   ├── migrate-schema.md     # /lskun-kit:migrate-schema  (ADR-0014 — legacy history rename 포함)
-│   ├── sync-persona.md       # /lskun-kit:sync-persona    (cpo/hr-lead body sync)
-│   └── org.md                # /lskun-kit:org             (조직도 read-only)
+├── commands/                  # 9개 slash command (ADR-0015 — /migrate 제거, /sync-in /sync-out 신규)
+│   ├── init.md               # /lskun-kit:init             (ADR-0015 멱등성 4행)
+│   ├── doctor.md             # /lskun-kit:doctor           (19개 진단 항목 — 7C/7D 추가)
+│   ├── hire.md               # /lskun-kit:hire             (--domain --model)
+│   ├── work.md               # /lskun-kit:work             (메인 세션 = CPO, --model, 7-E 가드)
+│   ├── sync_in.md            # /lskun-kit:sync-in          (ADR-0015 — 외부 mirror → Local SSOT)
+│   ├── sync_out.md           # /lskun-kit:sync-out         (ADR-0015 — Local SSOT → 외부 mirror)
+│   ├── migrate-schema.md     # /lskun-kit:migrate-schema   (ADR-0014 — legacy history rename)
+│   ├── sync-persona.md       # /lskun-kit:sync-persona     (cpo/hr-lead body sync)
+│   └── org.md                # /lskun-kit:org              (조직도 read-only)
 ├── src/lskun_kit/             # Python core (stdlib only, 0 외부 의존성)
-│   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, Vault, frontmatter
-│   ├── hooks/                # session_start (P24) + pre_tool_use (P31, chain 차단)
-│   ├── templates/            # CPO / HR persona markdown (ADR-0014 갱신, JD-driven)
+│   ├── adapters/             # StorageAdapter ABC, MarkdownTreeAdapter, Local, frontmatter
+│   │                         # (ADR-0015 — vault.py 폐기, archive_worker 시그니처 확장)
+│   ├── hooks/                # session_start (CLAUDE.md marker 기반) + pre_tool_use (chain 차단)
+│   ├── templates/            # CPO / HR persona markdown (ADR-0014 + ADR-0015 갱신)
 │   ├── models.py             # Worker / Company + REQUIRED_WORKER_FIELDS (6) + MODEL_ALIASES
-│   ├── errors.py             # LSKunKitError 계층
+│   ├── errors.py             # LSKunKitError + ConfirmRequired + WorkerArchivedError (ADR-0015)
+│   ├── paths.py              # ADR-0015 — ~/.lskun-companies/<name>/ 단일 진입점
+│   ├── permissions.py        # ADR-0015 결정 4 — ~/.claude/settings.json 자동 박제
+│   ├── sync.py               # ADR-0015 결정 5 — sync_in / sync_out (shutil.copytree)
 │   ├── session.py            # 활성 워커 1명 프로세스 간 공유
 │   ├── context.py            # build_worker_context (ADR-0014 — JD only)
-│   ├── audit.py              # CPO 결재 audit log — AuditEntry/record/new_request_id (ADR-0006)
+│   ├── audit.py              # CPO 결재 audit log (ADR-0006)
 │   ├── persona_sync.py       # 메타 워커 body sync — plan/execute (cpo, hr-lead)
-│   ├── org.py                # 조직도 read-only view (ADR-0014 — Hired 컬럼)
-│   ├── migration.py          # plan / execute (Local ↔ Vault)
+│   ├── org.py                # 조직도 read-only view
 │   ├── schema_migration.py   # frontmatter 보강 + legacy history rename (ADR-0005 + ADR-0014)
 │   ├── hire_audit.py         # HR Lead 자동 채용 rate-limit + audit log
-│   ├── init.py               # 회사 셋업 + CPO/HR auto-hire + CLAUDE.md 박제 호출 (P13/P23)
-│   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 (P23)
-│   ├── routing.py            # CPO 라우팅 컨텍스트 빌더 (ADR-0014 — keywords/domain/role only)
-│   └── cli_org.py            # /lskun-kit:org canonical entrypoint (P75)
-├── tests/                     # stdlib unittest, 215 tests (ADR-0014 후 -59)
-├── docs/                      # storage-adapter-spec, migration-spec, p78-plan
+│   ├── init.py               # ADR-0015 멱등성 4행 + ConfirmRequired 패턴
+│   ├── persona_injection.py  # CLAUDE.md marker 박제·교체·검출 + extract_company_name
+│   ├── routing.py            # CPO 라우팅 + ADR-0015 결정 7-E archived 가드
+│   └── cli_org.py            # /lskun-kit:org canonical entrypoint
+├── tests/                     # stdlib unittest, 227 tests (ADR-0015 후 +12)
+├── docs/                      # storage-adapter-spec, migration-spec
 ├── CLAUDE.md                 # 본 문서
 ├── LICENSE                   # MIT
-└── README.md                 # P80 — Phase 14 갱신
+└── README.md                 # P92 — Phase 15 갱신
 ```
 
 **hired/ 같은 회사 운영 데이터는 본 repo 에 절대 작성 금지.**
-사용자 SSOT (Vault 또는 `.company/`) 에만 존재해야 함.
+사용자 SSOT (`~/.lskun-companies/<name>/`) 에만 존재해야 함 (ADR-0015 결정 1-A).
 
 ---
 
 ## 8. 로드맵
+
+### Phase 15 (P83~P93 — Local SSOT 단일화 + Sync 분리 + 권한 박제 + 워커 해고 결합 해제, ADR-0015, 0.19.0)
+
+```
+P83 ✅ ADR-0015 박제 (4 전문가 만장일치 + 사용자 confirm)
+P84 ✅ 기존 vault 사용자 마이그레이션 가이드 박제 (README §"사용 흐름 0)")
+P85 ✅ adapters/vault.py + migration.py + tests 폐기 (commit 8b856e8, -938 LoC)
+       — plugin core 의 vault 직접 참조 영구 차단
+P86 ✅ paths.py 신규 + LocalAdapter.from_company_name (commit e143e24, +345 LoC)
+       — ~/.lskun-companies/<name>/ 단일 진입점
+       — 회사명 검증 (영문/숫자/_/-/. + 시작 영문/숫자, .backups 예약어)
+P87+P88 ✅ init.py 멱등성 4행 + hook marker-based 통일 (commit d85a948, +685/-392 LoC)
+       — ConfirmRequired 패턴 (옵션 B — plugin core 가 stdin 안 잡음)
+       — CLAUDE.md marker 가 회사-프로젝트 결합의 단일 진실원
+       — LSKUN_VAULT env / cwd .company/ 탐색 완전 폐기
+P89 ✅ permissions.py 신규 (commit 587c6fa, +412 LoC)
+       — ~/.claude/settings.json 의 permissions.allow 에 5개 패턴 자동 박제
+       — atomic-ish write (.lskun-tmp → rename), 기존 항목 보존
+P90 ✅ sync-in / sync-out 명령 + sync.py 신규 (commit a0a6d7f, +695 LoC)
+       — shutil.copytree 만 사용, 외부 SDK 0
+       — 백업 위치 분리 (sync-in: ~/.lskun-companies/.backups/, sync-out: target sibling)
+P91 ✅ CPO templates 의 Skill 경유 강제 (commit 9537430, +32 LoC)
+       — Task tool 의 oh-my-claudecode:* / general-purpose fallback 영구 금지
+P93 ✅ 워커 해고 결합 해제 (commit e598097, +240 LoC)
+       — WorkerArchivedError + archive_worker(archived_at, archived_reason)
+       — routing.py 의 archived 가드 (결정 7-E)
+       — doctor 진단 신규 2종 (display_name 중복, audit dangling)
+       — display_name 결합 해제 박제 (역사 자산 불변)
+P92 ✅ docs 일괄 갱신 + version 0.19.0 (본 phase)
+```
+
+핵심 결정: Plugin core 가 회사 자원의 물리적 위치를 결정하는 유일한 모듈 = `paths.py`. 1 회사 N 프로젝트 공유 가능. Vault 통합은 사용자 명시 sync 명령으로만. 폐기 9종 (결정 1-A / 1-B / 2-A / 3-A / 5 정책 / 6 / 7-B/7-C/7-D/7-E) 모두 박제됨.
+
+215 → 227 tests (+12), 회귀 0.
 
 ### Phase 14 (P78~P82 — Reflection 메커니즘 폐기, ADR-0014 박제)
 
