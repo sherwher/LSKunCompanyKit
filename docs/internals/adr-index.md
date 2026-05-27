@@ -24,6 +24,7 @@
 | ~~ADR-0016~~ | 메인 세션 측 OMC fallback 차단 (denylist) | **supersede by ADR-0017** (메커니즘 계승, denylist → allowlist) |
 | ADR-0017 | **Dispatch subagent_type Allowlist (`claude` 단일)** | 활성 (v0.21.0+) |
 | ADR-0019 | **Archive 메커니즘 완전 폐기** (`delete_worker`) | 활성 (v0.23.0+, ADR-0015 결정 7-A/7-B/7-C/7-D/7-E supersede) |
+| ADR-0018 | **No external harness, doctor is the harness** | 활성 (v0.25.0+, P106 메타 리뷰 + P109 자기관찰 도구 실증 후 박제 — design doc: `docs/p110-adr-0018.md`) |
 
 ## Supersede Chain (시각화)
 

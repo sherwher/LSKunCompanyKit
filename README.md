@@ -174,6 +174,70 @@ git clone https://github.com/sherwher/LSKunCompanyKit.git
 
 ---
 
+## 5분 첫 사용 (P110-C, ADR-0018)
+
+신규 도입자가 0 에서 첫 dispatch 까지 5분 안에 도달하는 시나리오.
+
+### 1단계 — 회사 셋업
+
+```text
+/lskun-kit:init MyFirstCompany
+```
+
+- 회사명 입력 (영문/숫자/`_`/`-`/`.` + 시작 영문/숫자, `.backups` 예약어)
+- 도메인 1줄 입력 (예: "의료 SaaS", "이커머스 백오피스")
+- `~/.lskun-companies/MyFirstCompany/` 생성
+
+### 2단계 — 권한 박제 confirm (ADR-0015 결정 4)
+
+```
+~/.claude/settings.json 의 permissions.allow 에 5개 패턴 추가합니다:
+  - Read(~/.lskun-companies/**)
+  - Write(~/.lskun-companies/MyFirstCompany/**)
+  - Edit(~/.lskun-companies/MyFirstCompany/**)
+  - Bash(ls ~/.lskun-companies/**)
+  - Bash(cat ~/.lskun-companies/MyFirstCompany/**)
+진행하시겠습니까? [y/N]
+```
+
+→ `y` 입력. 이후 세션부터 권한 prompt 없이 회사 자원 접근.
+
+### 3단계 — CPO / HR Lead 자동 hire 확인
+
+```text
+/lskun-kit:org
+```
+
+조직도 출력에 `[C] cpo` + `[H] hr-lead` 2명이 있으면 정상. 메인 세션이 이미 CPO persona 로 동작 중 (CLAUDE.md inline 박제).
+
+### 4단계 — 첫 dispatch (CPO 라우팅 + 자동 채용)
+
+```text
+/lskun-kit:work "Spring Boot 의 ApplicationContext 가 무엇인지 짧게 설명해줘"
+```
+
+CPO 가 받아서:
+1. 적합 워커 검색 → 부재 → HR Lead 호출 자동 채용 (예: `backend-engineer`)
+2. `[채용 알림]` 1줄 안내
+3. 신규 워커에게 dispatch → 보고 → CPO 결재 → 사용자 응답
+
+### 5단계 — 환경 확인 + 자기관찰
+
+```text
+/lskun-kit:doctor                # 28개 진단 항목 점검
+/lskun-kit:org --usage           # 워커별 dispatch count + last_seen
+```
+
+`--usage` 가 4단계의 첫 dispatch 1건을 표시하면 성공. 다음 작업부터 일상 사용:
+
+- 자주 쓰는 워커 직통: `/lskun-kit:work backend-engineer "..."`
+- CPO 라우팅 (이름 생략): `/lskun-kit:work "..."` — 자동 채용 포함
+- HR Lead 명시 호출: `/lskun-kit:work hr-lead "alice 해고"` (ADR-0019 — 단순 unlink)
+
+> ADR-0018 정신 — 외부 harness (cmux/ralph/ultrawork) 도입 불필요. 본 plugin 자체가 harness. 자기관찰은 `/doctor` + `/org --usage` 명시 호출만.
+
+---
+
 ## 사용 흐름 (Phase 3)
 
 ### 0) 기존 vault 사용자 마이그레이션 (ADR-0015, Phase 15)

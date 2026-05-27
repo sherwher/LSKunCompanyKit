@@ -5,6 +5,38 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.25.0] — 2026-05-27
+
+### Added — ADR-0018 박제 + doctor [27]~[30] + README onboarding (P110)
+
+P106 메타 리뷰의 P2 묶음 (ADR + health check + onboarding) 완성. 3 sub-phase 합본 release.
+
+**Added (P110-A — ADR-0018 박제)**:
+- `docs/p110-adr-0018.md` 신규 design doc — "No external harness, doctor is the harness"
+- `docs/internals/adr-index.md` 표에 ADR-0018 1행 추가
+- 4회 같은 결론 재발견 패턴 차단을 위한 박제 (P106 = 1회, P110-A = 2회. 임계점 5회까지 3회 여유)
+
+**Added (P110-B — doctor 진단 4종)**:
+- `[27]` 30일+ 미 dispatch 워커 검출 — `/org --usage` 데이터 활용, 정보성 ℹ️ (자동 평가·해고 절대 금지)
+- `[28]` 도메인 분포 — 빈 도메인 / 1명만 있는 도메인 (single point) 정보성
+- `[29]` hired/ 의 비-워커 파일 검출 — `.md` 비-md / schema 위반 ⚠️ (자동 삭제 X)
+- `[30]` archived/ dangling 검사 — ADR-0019 후 옛 archived/ 잔존 시 ℹ️ + 처리 옵션 3종 (rm/외부 이동/방치)
+- 진단 24 → 28
+
+**Added (P110-C — README onboarding)**:
+- README 의 `## 5분 첫 사용` 섹션 신규 — 5단계 (init → 권한 confirm → CPO/HR 확인 → 첫 dispatch → doctor + `--usage`)
+- ADR-0018 정신 박제 — "외부 harness 불필요, plugin 자체가 harness"
+
+**원칙 준수 (ADR-0006 + ADR-0018 boundary 유지)**:
+- 모든 신규 진단 = 정보성 ℹ️ — 자동 평가·해고·KPI 0
+- 사용자 명시 호출 `/lskun-kit:doctor` 시점에만 실행, cron 자동 회수 X
+- archived/ 자동 정리 절대 금지 (사용자 명시 rm 만)
+
+**Tests**:
+- 코드 변경 0 (doctor 는 markdown-only LLM 실행)
+- 277 → 277 tests, 회귀 0 (P109 결과 유지)
+- CLAUDE.md 크기 가드 통과 (P109-C 가드 활성, 12.0 KB 수준 유지)
+
 ## [0.24.0] — 2026-05-27
 
 P106 메타 리뷰의 P1 묶음 (자기관찰 도구) 완성. 3 sub-phase 합본 release.
