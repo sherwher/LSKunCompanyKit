@@ -5,7 +5,28 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
-## [0.24.0-dev] — 2026-05-27 (in progress)
+## [0.24.0] — 2026-05-27
+
+P106 메타 리뷰의 P1 묶음 (자기관찰 도구) 완성. 3 sub-phase 합본 release.
+
+### Changed — CLAUDE.md slim (P109-C) — 47 KB → 11.8 KB (75% 절감)
+
+매 세션 컨텍스트 주입되는 토큰 비용 절감 + 신규 도입자 진입장벽 완화.
+
+**Changed**:
+- CLAUDE.md 의 ADR 인덱스 22줄 → 1줄 참조 + `docs/internals/adr-index.md` (전체 표)
+- CLAUDE.md 의 §6 (절대 만들지 말 것 누적, 85 lines) → 핵심 8개 요약 + `docs/internals/forbidden-history.md` (전체 65+ 항목)
+- CLAUDE.md 의 §7 (디렉토리 구조 상세, 52 lines) → 핵심 5개 + `docs/internals/directory-structure.md` (전체 구조)
+- CLAUDE.md 의 §8 (로드맵 Phase 1~18, 323 lines) → 1줄 참조 + `docs/internals/phase-roadmap.md` (전체 기록)
+- 정보 손실 0 — 단순 위치 이동, ADR 참조 unchanged
+- CPO marker 박제 영역 (사용자 프로젝트 측 CLAUDE.md) 무관 — plugin 본 repo CLAUDE.md 만 압축
+
+**Tests**:
+- `test_claude_md_size.py` 신규 3 케이스
+  - hard cap 15 KB 위반 시 fail (회귀 가드)
+  - soft target 8 KB 위반 시 stderr 경고 (정보성)
+  - 분리된 internal docs 4종 참조 + 존재 검증
+- 274 → 277 tests, 회귀 0
 
 ### Added — `/lskun-kit:audit-rotate` + doctor [26] (P109-B)
 
