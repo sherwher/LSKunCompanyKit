@@ -1,6 +1,6 @@
 {
   "name": "LSKunCompanyKit",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "Domain-expert AI workers, hired complete — main session = CPO (Leader-Worker) with JD-driven domain-aware workers, multi-project company sharing via ~/.lskun-companies/, and explicit sync to external mirrors for Claude Code.",
   "author": {
     "name": "이성근",

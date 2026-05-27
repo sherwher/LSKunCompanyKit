@@ -185,12 +185,19 @@ class OrgBuildTests(unittest.TestCase):
         self.assertEqual(alice_line_1, alice_line_2)
 
 
-class OrgArchivedTests(unittest.TestCase):
-    def test_include_archived_renders_separately(self) -> None:
+class OrgArchivedRemovedTests(unittest.TestCase):
+    """ADR-0019 (2026-05-27) — Archive 메커니즘 완전 폐기.
+
+    옛 OrgArchivedTests (include_archived 인자) 폐기. plugin core 는 archived/
+    디렉토리를 더 이상 참조하지 않음. 본 케이스는 회귀 가드: archived/ 파일이
+    존재해도 org.build 가 무시하는지 검증.
+    """
+
+    def test_archived_directory_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / ".company"
             (root / "hired").mkdir(parents=True)
-            (root / "archived").mkdir()
+            (root / "archived").mkdir()  # 옛 사용자 자산 시뮬레이션
             (root / "company.md").write_text(
                 "---\nname: Acme\ndomain: web\n---\n# Acme\n", encoding="utf-8"
             )
@@ -203,12 +210,12 @@ class OrgArchivedTests(unittest.TestCase):
                 encoding="utf-8",
             )
             adapter = LocalAdapter(root)
-            r = org.build(adapter, include_archived=True)
+            r = org.build(adapter)
             self.assertEqual(len(r.entries), 1)
-            self.assertEqual(len(r.archived_entries), 1)
-            text = r.render(include_archived=True)
-            self.assertIn("--- archived ---", text)
-            self.assertIn("bob", text)
+            self.assertFalse(hasattr(r, "archived_entries") and r.__dict__.get("archived_entries"))
+            text = r.render()
+            self.assertNotIn("--- archived ---", text)
+            self.assertNotIn("bob", text)
 
 
 if __name__ == "__main__":  # pragma: no cover

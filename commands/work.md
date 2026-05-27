@@ -31,10 +31,10 @@ arguments:
 ### 직통 (워커 이름 명시)
 
 1. 활성 backend 결정 (`/hire` 와 동일 규칙)
-2. **dispatch 가드 (ADR-0015 결정 7-E)** — worker 가 archived/ 에만 있고 hired/ 에 없으면 `WorkerArchivedError` raise. caller (LLM) 가 사용자에게 다음 메시지 출력 후 중단:
+2. **dispatch 가드 (ADR-0019)** — 옛 ADR-0015 결정 7-E (archived 가드) 폐기. `build_worker_context` 가 hired 부재 시 `WorkerNotFoundError` 만 raise. caller (LLM) 가 사용자에게 다음 메시지 출력 후 중단:
    ```
-   [Skill 실패] worker '<name>' is archived (<archived_at> 해고됨).
-   재채용은 /lskun-kit:work hr-lead "<name> 재채용" 으로 진행하세요.
+   [Skill 실패] worker '<name>' not found in hired/.
+   재채용은 /lskun-kit:work hr-lead "<role> 신규 채용" 으로 진행하세요.
    ```
    **Task tool 우회 / fallback 금지** (ADR-0015 결정 3-A 정합).
 3. `lskun_kit.context.build_worker_context(adapter, <worker>)` 호출 → JD 컨텍스트 주입 (ADR-0014 — history 섹션 주입 폐기)
@@ -87,16 +87,13 @@ arguments:
 from lskun_kit.routing import decide_target, build_cpo_routing_context
 from lskun_kit.context import build_worker_context
 from lskun_kit import session, LocalAdapter
-from lskun_kit.errors import WorkerArchivedError
+from lskun_kit.errors import WorkerNotFoundError
 
 # ADR-0015 — 회사 이름으로 adapter 생성 (~/.lskun-companies/<name>/)
 adapter = LocalAdapter.from_company_name("LSKun")
-try:
-    decision = decide_target(adapter, requested_worker=None)
-except WorkerArchivedError as e:
-    # ADR-0015 결정 7-E — archived 가드. fallback 금지.
-    print(e.hint)
-    raise SystemExit(1)
+decision = decide_target(adapter, requested_worker=None)
+# ADR-0019 — archived 가드 폐기. hired 부재 시 후속 build_worker_context 가
+# WorkerNotFoundError raise. fallback 금지 (ADR-0015 결정 3-A 유지).
 
 if decision.mode == "direct":
     ctx = build_worker_context(adapter, decision.target_worker)

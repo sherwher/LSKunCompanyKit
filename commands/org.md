@@ -29,8 +29,9 @@ python3 "$LSKUN_CLI" --domain tech           # tech-* 도메인만 필터 (출�
 python3 "$LSKUN_CLI" --domain meta           # meta 도메인만 (CPO/HR/CFO/COO 등)
 python3 "$LSKUN_CLI" --export /tmp/org.md    # stdout 대신 파일로 dump (Obsidian/GitHub 렌더링용)
 python3 "$LSKUN_CLI" --full                  # 옛 markdown table (ADR-0013 stable format)
-python3 "$LSKUN_CLI" --include-archived      # archived/ 도 표시
 ```
+
+> ADR-0019 (2026-05-27) — `--include-archived` 옵션 폐기. plugin core 는 archived/ 디렉토리를 더 이상 참조하지 않음.
 
 ## 출력 처리 — 그대로 (paste 변형 금지)
 
@@ -94,4 +95,4 @@ backend: local → <your-project>/.company
 
 ## 구현 노트
 
-`lskun_kit.cli_org.main()` 이 entrypoint. 내부적으로 `lskun_kit.org.build(adapter)` 로 `OrgReport` 를 만들고 `report.render(include_archived, compact)` 호출.
+`lskun_kit.cli_org.main()` 이 entrypoint. 내부적으로 `lskun_kit.org.build(adapter)` 로 `OrgReport` 를 만들고 `report.render(compact)` 호출. ADR-0019 — archived 인자 폐기.

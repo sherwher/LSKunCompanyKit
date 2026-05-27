@@ -62,32 +62,24 @@ class StorageAdapter(ABC):
             f"{type(self).__name__} does not implement create_worker"
         )
 
-    def archive_worker(
-        self,
-        name: str,
-        archived_at: str | None = None,
-        archived_reason: str | None = None,
-    ) -> None:
-        """워커를 ``hired/`` 에서 ``archived/`` 로 이동 (해고).
+    def delete_worker(self, name: str) -> None:
+        """워커를 ``hired/`` 에서 단순 삭제 (해고).
 
-        파일 삭제 금지 — JD 자산 보존 (ADR-0004 §3 + HR Lead persona).
-
-        ADR-0015 결정 7-B — archive 시점에 frontmatter 에 ``archived_at`` +
-        ``archived_reason`` 박제. 기존 ``display_name`` 은 그대로 보존 (역사 자산
-        불변, 7-B 의 "자동 익명화 / rewrite 금지"). archived 워커는 routing /
-        SessionStart hook 의 후보에서 제외됨 (결정 7-B/7-E).
+        ADR-0019 (2026-05-27) — Archive 메커니즘 완전 폐기. ADR-0015 결정 7
+        전체 supersede (역사 자산 보존 / 휴지통 / 포렌식 가치 미실현 입증).
+        해고 = 파일 unlink. archived/ 디렉토리 사용하지 않음.
 
         Args:
             name: 해고할 워커 이름.
-            archived_at: 해고일 (ISO 문자열, 예: "2026-05-22"). ``None`` 이면
-                ``date.today()`` 자동 사용. HR Lead 가 사용자 confirm 후 박제.
-            archived_reason: 해고 사유 1~2 문장. ``None`` 이면 ``""``.
+
+        Raises:
+            WorkerNotFoundError: ``hired/<name>.md`` 가 없을 때.
 
         하위 구현이 override 한다.
         """
 
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement archive_worker"
+            f"{type(self).__name__} does not implement delete_worker"
         )
 
     # --- ADR-0006: audit log (default NotImplementedError, override 권장) ---

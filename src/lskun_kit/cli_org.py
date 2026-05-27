@@ -10,8 +10,10 @@ P75 — 4 에이전트 (critic / architect / analyst / planner) 합의로 다음
 
 사용::
 
-    python3 /path/to/cli_org.py [--full] [--include-archived]
-                                [--domain DOM] [--export PATH]
+    python3 /path/to/cli_org.py [--full] [--domain DOM] [--export PATH]
+
+ADR-0019 (2026-05-27) — Archive 메커니즘 완전 폐기. ``--include-archived``
+옵션 제거. archived/ 디렉토리는 plugin core 가 더 이상 참조하지 않음.
 """
 
 from __future__ import annotations
@@ -100,11 +102,6 @@ def main(argv: list[str] | None = None) -> int:
         help="옛 markdown table 포맷 (ADR-0013 stable). 기본은 compact 1줄.",
     )
     parser.add_argument(
-        "--include-archived",
-        action="store_true",
-        help="archived/ 워커도 별도 섹션으로 표시",
-    )
-    parser.add_argument(
         "--domain",
         default=None,
         help="도메인 필터 (prefix 매칭). 예: --domain tech 는 tech-* 모두 매치",
@@ -127,14 +124,11 @@ def main(argv: list[str] | None = None) -> int:
     from lskun_kit import org
 
     adapter = _build_adapter(root)
-    report = org.build(adapter, include_archived=args.include_archived)
+    report = org.build(adapter)
     if args.domain:
         report = _filter_by_domain(report, args.domain)
 
-    output = report.render(
-        include_archived=args.include_archived,
-        compact=not args.full,
-    )
+    output = report.render(compact=not args.full)
 
     if args.export:
         export_path = Path(args.export).expanduser()

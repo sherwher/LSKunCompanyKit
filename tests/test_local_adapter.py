@@ -302,8 +302,12 @@ class CreateWorkerTests(unittest.TestCase):
             )
 
 
-class ArchiveWorkerTests(unittest.TestCase):
-    """P45 — StorageAdapter.archive_worker 동작 (해고)."""
+class DeleteWorkerTests(unittest.TestCase):
+    """ADR-0019 (2026-05-27) — Archive 메커니즘 완전 폐기. delete_worker = 단순 unlink.
+
+    옛 ArchiveWorkerTests (5 케이스) 를 2 케이스로 환원. 파일 이동·frontmatter
+    박제·중복 가드 모두 무의미 (archived/ 디렉토리 자체가 폐기).
+    """
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -315,53 +319,15 @@ class ArchiveWorkerTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def test_moves_to_archived_directory(self) -> None:
-        self.adapter.archive_worker("alice")
+    def test_delete_unlinks_hired_file(self) -> None:
+        self.adapter.delete_worker("alice")
         self.assertFalse((self.root / "hired" / "alice.md").exists())
-        archived = self.root / "archived" / "alice.md"
-        self.assertTrue(archived.exists())
-        # history 보존 — 파일 내용 살아있음
-        self.assertIn("stripe-key-as-idem", archived.read_text(encoding="utf-8"))
+        # archived/ 디렉토리 생성 절대 금지 (ADR-0019)
+        self.assertFalse((self.root / "archived").exists())
 
-    def test_archive_stamps_archived_at_and_reason(self) -> None:
-        """ADR-0015 결정 7-B — archive 시점에 frontmatter 박제 + display_name 보존."""
-        from lskun_kit.adapters import frontmatter as fm
-        self.adapter.archive_worker(
-            "alice",
-            archived_at="2026-05-22",
-            archived_reason="role 중복 해소",
-        )
-        archived = self.root / "archived" / "alice.md"
-        parsed = fm.parse(archived.read_text(encoding="utf-8"))
-        self.assertEqual(parsed.frontmatter.get("archived_at"), "2026-05-22")
-        self.assertEqual(parsed.frontmatter.get("archived_reason"), "role 중복 해소")
-        # display_name 자동 익명화 금지 — 원본 보존
-        self.assertEqual(parsed.frontmatter.get("display_name"), "Alice Park")
-
-    def test_archive_default_archived_at_is_today(self) -> None:
-        """archived_at 생략 시 오늘 ISO 날짜 자동 사용."""
-        from datetime import date as _date
-        from lskun_kit.adapters import frontmatter as fm
-        self.adapter.archive_worker("alice")
-        archived = self.root / "archived" / "alice.md"
-        parsed = fm.parse(archived.read_text(encoding="utf-8"))
-        self.assertEqual(
-            parsed.frontmatter.get("archived_at"), _date.today().isoformat()
-        )
-        self.assertEqual(parsed.frontmatter.get("archived_reason"), "")
-
-    def test_archive_missing_raises(self) -> None:
+    def test_delete_missing_raises(self) -> None:
         with self.assertRaises(WorkerNotFoundError):
-            self.adapter.archive_worker("ghost")
-
-    def test_archive_does_not_delete_existing_archived_duplicate(self) -> None:
-        archived_dir = self.root / "archived"
-        archived_dir.mkdir()
-        (archived_dir / "alice.md").write_text("기존 archive", encoding="utf-8")
-        with self.assertRaises(FileExistsError):
-            self.adapter.archive_worker("alice")
-        # hired/ 원본은 보존 — 안전 가드
-        self.assertTrue((self.root / "hired" / "alice.md").exists())
+            self.adapter.delete_worker("ghost")
 
 
 # AppendHistoryHelperTests — ADR-0014 (2026-05-22) reflection 폐기로 삭제

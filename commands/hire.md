@@ -81,9 +81,8 @@ adapter.create_worker(
     },
     body="# alice\n\n<JD 본문 ADR-0011>\n",
 )
-# 해고 (ADR-0015 결정 7-B): adapter.archive_worker("alice",
-#   archived_at="2026-05-22", archived_reason="role 중복 해소")
-# hired/ → archived/ 이동 + frontmatter 박제. display_name 보존, 삭제 X.
+# 해고 (ADR-0019): adapter.delete_worker("alice")
+# hired/<name>.md 단순 unlink. archived/ 디렉토리 사용 안 함. 복구는 git history.
 ```
 
 ``frontmatter.dump`` + ``path.write_text`` 직접 호출은 외부 add-on

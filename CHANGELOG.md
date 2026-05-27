@@ -5,6 +5,47 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.23.0] — 2026-05-27
+
+### **BREAKING — Archive 메커니즘 완전 폐기 (ADR-0019)**
+
+P106 메타 리뷰의 연장선에서 사용자 결재로 archive 메커니즘 완전 폐기. 4 페르소나 재토론 (실사용자 / 아키텍트 / 도입자·보안 / Critic) 끝에 archive 의 잠재가치 3종 (휴지통 / 에러 메시지 / 포렌식) 모두 LSKun 1인 운영 환경에서 미실현 — 사용자가 archived/ 4명을 자료로 조회한 적 없음 — 입증. ADR-0015 결정 7-A/7-B/7-C/7-D/7-E 5개 모두 supersede.
+
+**Changed (BREAKING)**:
+- **`StorageAdapter.archive_worker(name, archived_at, archived_reason)` → `delete_worker(name)`** — frontmatter 박제·archived/ 이동·중복 가드 모두 제거. 단순 `hired/<name>.md` unlink.
+- **`WorkerArchivedError` 클래스 완전 삭제** — `errors.py` 에서 제거. caller 는 `WorkerNotFoundError` 하나만 처리.
+- **`routing._check_archived` + archived 가드 폐기** — `decide_target` 의 archived 분기 제거. hired 부재 = direct mode 통과 + 후속 dispatch 가 NotFound 처리.
+- **`OrgReport.archived_entries` 필드 제거** + `org.build` 의 `include_archived` 인자 제거 + `report.render` 의 archived 섹션 제거.
+- **`cli_org.py --include-archived` 옵션 제거**.
+- **doctor [18] (archived ↔ hired display_name 중복) + [19] (audit log dangling cross-check) 제거** — 진단 25 → 23.
+- **`templates/hr-lead.md` 의 해고 절차 단순화** — confirm 메시지 / `adapter.delete_worker(name)` 호출. archived/ 경로·display_name 결합 해제 안내 제거.
+
+**Removed**:
+- `archived/` 디렉토리 자동 생성 (`archive_worker` 의 부산물). plugin core 가 절대 생성하지 않음.
+- `frontmatter.archived_at` / `frontmatter.archived_reason` 박제 메커니즘.
+- ADR-0015 결정 7-A/7-B/7-C/7-D/7-E 5개 모두 supersede 표시.
+
+**Tests**:
+- `ArchiveWorkerTests` 5 케이스 → `DeleteWorkerTests` 2 케이스 (단순 unlink + missing raises)
+- `OrgArchivedTests` 1 → `OrgArchivedRemovedTests` 1 (archived/ 무시 회귀 가드)
+- `test_routing.py` 의 archived 케이스 2 → `test_deleted_worker_is_simply_missing` 1
+- 264 → 260 tests (-4 net, -7 archived 제거 + 3 회귀 가드 추가), 회귀 0
+
+**기존 사용자 자산 처리 가이드 (LSKun ~/.lskun-companies/<name>/archived/)**:
+- 0.23.0 plugin 은 archived/ 디렉토리를 더 이상 참조하지 않음 (조회·라우팅·doctor 모두 무시)
+- 사용자가 직접 선택:
+  1. **삭제** — `rm -rf ~/.lskun-companies/<name>/archived/` (복구 불가)
+  2. **보관** — 디렉토리 그대로 둠. plugin 동작에 영향 0 (단순 잔재)
+  3. **외부 이동** — 다른 위치로 mv 후 사용자 별도 백업
+- 자동 청소 제공하지 않음 (ADR-0019 — plugin core 가 archived/ 를 알지도 못함)
+
+**ADR 정합**:
+- ADR-0001 §3 (Stateful Workers) — JD = time-invariant state 유지. 워커 = 채용 시 완성형 정체성 유지
+- ADR-0006 (audit log 불변) — audit log rewrite 금지 유지. archive 폐기와 무관
+- ADR-0009 (self-contained) — plugin core 가 외부 SDK 0 유지
+- ADR-0014 (reflection 폐기) — "역사 자산" 논리 약화의 일관된 연장
+- ADR-0015 결정 7 5개 supersede, 단 결정 1~6 (Local SSOT 단일화 / 멱등성 init / Skill 우회 금지 / 권한 박제 / Sync 분리 / vault → sync 분리) 모두 유지
+
 ## [0.22.0] — 2026-05-27
 
 ### Added — Persona sync 백업 청소 + hired/ 스캔 백업 부산물 방어 가드 (P106 / P107)

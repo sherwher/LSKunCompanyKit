@@ -35,6 +35,8 @@ class OrgEntry:
     hired_at: str
     persona_synced_from: str | None
     persona_synced_at: str | None
+    # ADR-0019 — archived 필드는 하위호환 위해 유지하되 항상 False.
+    # 외부 호출자가 e.archived 접근 시 AttributeError 안 나도록.
     archived: bool = False
 
     @property
@@ -48,19 +50,20 @@ class OrgEntry:
 
 @dataclass
 class OrgReport:
+    """ADR-0019 (2026-05-27) — archived_entries 필드 제거. archive 메커니즘 폐기."""
+
     backend: str
     company_root: Path
     company_name: str
     company_domain: str
     entries: list[OrgEntry] = field(default_factory=list)
-    archived_entries: list[OrgEntry] = field(default_factory=list)
 
     #: ADR-0013 — 조직도 stable format. 동적 padding 폐지, markdown table 단일 SSOT.
     #: ADR-0014 — History 컬럼 제거 → Hired (채용 시점) 로 교체.
     _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | Hired |"
     _TABLE_SEP = "|--------|------|---------|------|--------|-------|-------|"
 
-    def render(self, include_archived: bool = False, compact: bool = False) -> str:
+    def render(self, compact: bool = False) -> str:
         lines = [
             "LSKunCompanyKit org",
             "================================================",
@@ -121,17 +124,6 @@ class OrgReport:
                 sync_bits.append(f"{e.name}={src} ({at})")
         if sync_bits:
             lines.append(f"Persona sync: {', '.join(sync_bits)}")
-        if include_archived and self.archived_entries:
-            lines.append("")
-            lines.append("--- archived ---")
-            lines.append(self._TABLE_HEADER)
-            lines.append(self._TABLE_SEP)
-            for e in sorted(self.archived_entries, key=lambda e: e.name):
-                model = e.model or "default"
-                lines.append(
-                    f"| arch   | {e.name} | {e.display_name} | "
-                    f"{e.role} | {e.domain} | {model} | {e.hired_at} |"
-                )
         return "\n".join(lines) + "\n"
 
 
@@ -146,9 +138,15 @@ def _read_company_meta(company_md_path: Path) -> tuple[str, str]:
     )
 
 
-def _read_entry(path: Path, archived: bool = False) -> OrgEntry | None:
-    """단일 워커 파일을 OrgEntry 로. schema 위반 시 None (호출자가 warn 처리)."""
+def _read_entry(path: Path) -> OrgEntry | None:
+    """단일 워커 파일을 OrgEntry 로. schema 위반 시 None (호출자가 warn 처리).
+
+    ADR-0019 — archived 파라미터 제거 (archive 메커니즘 폐기).
+    """
     if not path.is_file() or path.name.startswith("."):
+        return None
+    # ADR-0019 — sync 백업 부산물 자연 배제 (.lskun-pre-sync.bak)
+    if ".lskun-pre-sync.bak" in path.name:
         return None
     try:
         parsed = fm.parse(path.read_text(encoding="utf-8"))
@@ -166,12 +164,16 @@ def _read_entry(path: Path, archived: bool = False) -> OrgEntry | None:
         hired_at=str(f.get("hired_at", "?")),
         persona_synced_from=f.get(PROV_FROM),
         persona_synced_at=f.get(PROV_AT),
-        archived=archived,
+        archived=False,
     )
 
 
-def build(adapter: StorageAdapter, include_archived: bool = False) -> OrgReport:
-    """조직도 데이터 빌드. **read-only**."""
+def build(adapter: StorageAdapter) -> OrgReport:
+    """조직도 데이터 빌드. **read-only**.
+
+    ADR-0019 (2026-05-27) — Archive 메커니즘 폐기. ``include_archived`` 인자
+    제거. hired/ 만 스캔, archived/ 디렉토리는 plugin core 가 참조하지 않음.
+    """
     if not hasattr(adapter, "root"):
         raise OrgError(
             f"adapter {type(adapter).__name__} 는 root 경로를 노출하지 않아 "
@@ -189,20 +191,9 @@ def build(adapter: StorageAdapter, include_archived: bool = False) -> OrgReport:
     hired_dir = company_root / "hired"
     if hired_dir.exists():
         for p in sorted(hired_dir.glob("*.md")):
-            if p.suffix != ".md" or p.name.endswith(".bak"):
-                continue
             entry = _read_entry(p)
             if entry is not None:
                 report.entries.append(entry)
-    if include_archived:
-        archived_dir = company_root / "archived"
-        if archived_dir.exists():
-            for p in sorted(archived_dir.glob("*.md")):
-                if p.suffix != ".md" or p.name.endswith(".bak"):
-                    continue
-                entry = _read_entry(p, archived=True)
-                if entry is not None:
-                    report.archived_entries.append(entry)
     return report
 
 

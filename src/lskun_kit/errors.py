@@ -20,33 +20,10 @@ class InvalidWorkerSchemaError(LSKunKitError):
     """워커 frontmatter 가 필수 필드 (name/role/hired_at/storage_backend) 를 빠뜨릴 때 발생."""
 
 
-class WorkerArchivedError(LSKunKitError):
-    """워커가 ``archived/`` 에만 존재하고 ``hired/`` 에는 없을 때 발생.
-
-    ADR-0015 결정 7-E — dispatch 가드. archived 워커는 라우팅 후보에서 제외되고
-    dispatch 시도도 거부. 재채용은 ``/lskun-kit:work hr-lead "<role> 재채용"`` 으로.
-
-    속성:
-        - worker_name: 시도된 워커 이름
-        - archived_at: archived 파일의 frontmatter 에서 추출한 해고일 (ISO 문자열)
-                       또는 ``None`` (frontmatter 부재 시)
-        - hint: 사용자에게 보여줄 1줄 안내
-    """
-
-    def __init__(
-        self, worker_name: str, archived_at: str | None = None,
-    ) -> None:
-        date_part = (
-            f" ({archived_at} 해고됨)" if archived_at else " (해고됨)"
-        )
-        msg = (
-            f"worker '{worker_name}' is archived{date_part}. "
-            f"재채용은 `/lskun-kit:work hr-lead \"{worker_name} 재채용\"` 으로 진행하세요."
-        )
-        super().__init__(msg)
-        self.worker_name = worker_name
-        self.archived_at = archived_at
-        self.hint = msg
+# ADR-0019 (2026-05-27) — Archive 메커니즘 완전 폐기. WorkerArchivedError 삭제.
+# 해고 = hired/<name>.md 단순 unlink. hired 부재 시 WorkerNotFoundError 만.
+# 옛 사용자 자산 (~/.lskun-companies/<name>/archived/) 은 plugin core 가 더 이상
+# 참조하지 않음. 사용자가 직접 rm 또는 보관 선택.
 
 
 class ConfirmRequired(LSKunKitError):

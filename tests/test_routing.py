@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import LocalAdapter, WorkerNotFoundError  # noqa: E402
-from lskun_kit.errors import WorkerArchivedError  # noqa: E402
+# ADR-0019 — WorkerArchivedError 제거 (archive 메커니즘 완전 폐기)
 from lskun_kit.routing import (  # noqa: E402
     CPO_WORKER_NAME,
     HR_LEAD_WORKER_NAME,
@@ -104,30 +104,16 @@ class DecideTargetTests(unittest.TestCase):
             d = decide_target(adapter, requested_worker="   ")
             self.assertEqual(d.mode, "cpo")
 
-    def test_archived_worker_raises_worker_archived_error(self) -> None:
-        """ADR-0015 결정 7-E — archived 만 존재 + hired 부재 시 dispatch 가드."""
+    def test_deleted_worker_is_simply_missing(self) -> None:
+        """ADR-0019 — Archive 메커니즘 폐기. delete 후 같은 이름 호출은 direct mode
+        로 통과하고 (caller 측에서 dispatch 시 WorkerNotFoundError), routing 레벨에서
+        별도 가드 없음. 옛 ADR-0015 결정 7-E 폐기.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             adapter = _init_local(Path(tmp))
             _hire_extra(adapter, "alice", "backend-engineer")
-            adapter.archive_worker(
-                "alice",
-                archived_at="2026-05-22",
-                archived_reason="test",
-            )
-            with self.assertRaises(WorkerArchivedError) as ctx:
-                decide_target(adapter, requested_worker="alice")
-            err = ctx.exception
-            self.assertEqual(err.worker_name, "alice")
-            self.assertEqual(err.archived_at, "2026-05-22")
-            self.assertIn("재채용", err.hint)
-
-    def test_hired_worker_with_same_name_in_archived_takes_priority(self) -> None:
-        """hired/ 에 있으면 archived/ 의 동명은 무시 (재채용 시나리오)."""
-        with tempfile.TemporaryDirectory() as tmp:
-            adapter = _init_local(Path(tmp))
-            _hire_extra(adapter, "alice", "backend-engineer")
-            adapter.archive_worker("alice", archived_at="2026-05-01")
-            _hire_extra(adapter, "alice", "backend-engineer")  # 재채용
+            adapter.delete_worker("alice")
+            # routing 은 direct mode 로 통과. 후속 dispatch 가 NotFound 처리.
             d = decide_target(adapter, requested_worker="alice")
             self.assertEqual(d.mode, "direct")
             self.assertEqual(d.target_worker, "alice")

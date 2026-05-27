@@ -28,7 +28,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 18 (0.22.0) — 자기관찰 도구 첫 단계 (P106 / P107). 4 페르소나 brainstorming (실사용자 / 아키텍트 / 도입자·보안 / Critic) 결론을 박제 — 외부 harness (cmux/ralph/ultrawork) 도입 불필요, 부족한 것 = 자기관찰 도구. Persona sync 백업 청소 (`/sync-persona --cleanup-backups [--keep N] [--execute]`) + `MarkdownTreeAdapter.list_workers` 백업 부산물 방어 가드 + doctor [24][25] 신규 (진단 23 → 25). ADR-0018 ("No external harness, doctor is the harness") 박제는 P109 (audit rotate + `/org --usage` + CLAUDE.md slim 완료 후) 예정. **이전 patch (0.21.1)** = `persona_sync._split_body_history` substring 오탐 시정 (hr-lead.md inline backtick 인용을 history heading 으로 오탐 → body 손상 사건 fix).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 18 (0.23.0) — **Archive 메커니즘 완전 폐기 (ADR-0019)**. P106 메타 리뷰 연장선에서 사용자 결재로 archive 의 3종 잠재가치 (휴지통 / 에러 메시지 / 포렌식) 모두 1인 운영 환경에서 미실현 확인. ADR-0015 결정 7-A/7-B/7-C/7-D/7-E 5개 모두 supersede. `archive_worker(...)` → `delete_worker(name)` 환원, `WorkerArchivedError` 삭제, routing archived 가드 제거, `OrgReport.archived_entries` 제거, doctor [18][19] 제거 (진단 25 → 23). 기존 사용자 자산 (`~/.lskun-companies/<name>/archived/`) 은 plugin core 가 더 이상 참조하지 않음 — 사용자가 직접 rm/보관/이동 선택. **이전 (0.22.0)** = 자기관찰 도구 첫 단계 (P107 persona sync 백업 청소 + 백업 부산물 방어 가드 + doctor [24][25]). **이전 patch (0.21.1)** = persona_sync substring 오탐 시정.
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
