@@ -24,16 +24,24 @@ REQUIRED_WORKER_FIELDS = (
     "display_name",
 )
 
-#: ADR-0004 §6 + ADR-0010 + P69 — optional frontmatter 필드.
+#: ADR-0004 §6 + ADR-0010 + P69 + P111 — optional frontmatter 필드.
 #: ``keywords`` 는 콤마 구분 문자열 (예: ``"API, DB 마이그레이션, 결제 webhook"``).
 #: ``frontmatter.py`` 가 list 를 지원하지 않으므로 의도적으로 단일 string.
 #: plugin core 는 keywords 를 매칭/정렬에 사용하지 않는다 (raw display 만).
 #: CPO LLM 이 routing context 에 노출된 keywords 를 보고 자유 해석한다.
+#:
+#: ADR-0020 (P111) — ``skills`` 는 콤마 구분 문자열 (예: ``"hipaa-phi-masking, hl7-fhir-validator"``).
+#: 채용 시 박제된 전문 도구 (``<root>/skills/<name>.md``) 이름 목록.
+#: keywords 와 의미 구분: keywords = 라우팅용 자기신고 텍스트 (CPO 가 읽고 매칭),
+#: skills = 실행 시 워커가 Read 할 전문 도구 파일 경로. core 는 skills 를
+#: 해석/매칭/평가하지 않는다 — split + 이름 검증 + 경로 조합 + 존재 확인만.
+#: 메타 워커 (CPO/HR Lead) 는 비워둔다.
 OPTIONAL_WORKER_FIELDS = (
     "model",
     "persona_synced_from",
     "persona_synced_at",
     "keywords",
+    "skills",
 )
 
 #: ADR-0003 §1 — CPO / HR Lead 등 도메인 무관 워커의 ``domain`` 예약값.
@@ -94,6 +102,10 @@ class Worker:
     #: P69 — 워커 자기 책임/도메인 키워드 (콤마 구분). CPO 라우팅 정확도 보강용.
     #: 메타 워커 (CPO/HR Lead) 는 비워둔다 — 라우팅 후보가 아니라서 무의미.
     keywords: str | None = None
+    #: ADR-0020 (P111) — 채용 시 박제된 전문 도구 이름 (콤마 구분).
+    #: ``<root>/skills/<name>.md`` 로 경로 조합되어 dispatch 시 워커에게 주입.
+    #: 메타 워커는 비워둔다.
+    skills: str | None = None
     body: str = ""  # frontmatter 이후 markdown 본문 전체
     extra: dict = field(default_factory=dict)
 

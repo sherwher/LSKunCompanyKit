@@ -38,6 +38,10 @@ DEVELOPER_SSOT_MARKERS = ("02_Projects/LSKunCompanyKit",)
 # null byte, backslash, dotted 경로, 유니코드 변종 등 path traversal 표면 차단.
 _WORKER_NAME_PAT = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
+# ADR-0020 (P111, M1) — skill 이름 allowlist. 워커 이름과 동일 패턴.
+# skills frontmatter 값을 콤마 split 한 각 토큰에 적용 → path traversal 차단.
+_SKILL_NAME_PAT = _WORKER_NAME_PAT
+
 
 class MarkdownTreeAdapter(StorageAdapter):
     """공통 동작을 담은 기반 클래스. 직접 인스턴스화하지 말 것."""
@@ -48,6 +52,8 @@ class MarkdownTreeAdapter(StorageAdapter):
         self._root = root_path
         self._hired_dir = self._root / "hired"
         self._company_file = self._root / "company.md"
+        # ADR-0020 (P111) — 전문 도구 (skill) 디렉토리. hired_dir 과 동일 패턴.
+        self._skills_dir = self._root / "skills"
 
     @property
     def root(self) -> Path:
@@ -101,6 +107,7 @@ class MarkdownTreeAdapter(StorageAdapter):
             persona_synced_from=parsed.frontmatter.get("persona_synced_from"),
             persona_synced_at=parsed.frontmatter.get("persona_synced_at"),
             keywords=parsed.frontmatter.get("keywords"),
+            skills=parsed.frontmatter.get("skills"),
             body=parsed.body,
             extra={
                 k: v
@@ -192,6 +199,49 @@ class MarkdownTreeAdapter(StorageAdapter):
         except (OSError, RuntimeError) as e:
             raise ValueError(f"failed to resolve worker path: {name!r} ({e})")
         return candidate
+
+    @property
+    def skills_dir(self) -> Path:
+        """``<root>/skills/`` 절대 경로 (ADR-0020). 디렉토리 자동 생성 X."""
+        return self._skills_dir
+
+    def skill_path(self, name: str) -> Path:
+        """``skills/<name>.md`` 경로. 이름 검증 + traversal 가드 (ADR-0020 M1).
+
+        ``_worker_path`` 와 동일한 allowlist + resolve-escape 가드를 적용한다.
+        skills frontmatter 의 콤마 split 토큰 / HR Lead 의 skill Write 양쪽이
+        본 메서드로 경로를 얻어 traversal 표면을 차단한다.
+
+        Raises:
+            ValueError: 이름이 ``_SKILL_NAME_PAT`` 위반 또는 skills/ 밖으로 escape.
+        """
+
+        if not isinstance(name, str) or not _SKILL_NAME_PAT.match(name):
+            raise ValueError(
+                f"invalid skill name: {name!r} "
+                f"(허용: ^[a-z0-9][a-z0-9_-]{{0,63}}$)"
+            )
+        candidate = self._skills_dir / f"{name}.md"
+        try:
+            resolved = candidate.resolve(strict=False)
+            skills_resolved = self._skills_dir.resolve(strict=False)
+            if not str(resolved).startswith(str(skills_resolved)):
+                raise ValueError(f"skill path escapes skills/: {resolved}")
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"failed to resolve skill path: {name!r} ({e})")
+        return candidate
+
+    def list_skills(self) -> list[str]:
+        """``skills/`` 의 ``*.md`` 파일 이름 (확장자 제외, 정렬). 부재 시 빈 리스트.
+
+        ADR-0020 — doctor orphan 검출 (파일↔선언없음) 에 사용.
+        """
+
+        if not self._skills_dir.exists():
+            return []
+        return sorted(
+            p.stem for p in self._skills_dir.glob("*.md") if p.is_file()
+        )
 
     @staticmethod
     def _guard_against_developer_ssot(root: Path) -> None:

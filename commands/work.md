@@ -88,7 +88,7 @@ arguments:
 
 ```python
 from lskun_kit.routing import decide_target, build_cpo_routing_context
-from lskun_kit.context import build_worker_context
+from lskun_kit.context import build_worker_context  # 직통 경로 — 내부에서 build_skills_block append (ADR-0020)
 from lskun_kit import session, LocalAdapter
 from lskun_kit.errors import WorkerNotFoundError
 

@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 18 (0.23.0) — **Archive 메커니즘 완전 폐기 (ADR-0019)**. P106 메타 리뷰 연장선에서 사용자 결재로 archive 의 3종 잠재가치 (휴지통 / 에러 메시지 / 포렌식) 모두 1인 운영 환경에서 미실현 확인. ADR-0015 결정 7-A/7-B/7-C/7-D/7-E 5개 모두 supersede. `archive_worker(...)` → `delete_worker(name)` 환원, `WorkerArchivedError` 삭제, routing archived 가드 제거, `OrgReport.archived_entries` 제거, doctor [18][19] 제거 (진단 25 → 23). 기존 사용자 자산 (`~/.lskun-companies/<name>/archived/`) 은 plugin core 가 더 이상 참조하지 않음 — 사용자가 직접 rm/보관/이동 선택. **이전 (0.22.0)** = 자기관찰 도구 첫 단계 (P107 persona sync 백업 청소 + 백업 부산물 방어 가드 + doctor [24][25]). **이전 patch (0.21.1)** = persona_sync substring 오탐 시정.
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 19 (0.26.0) — **워커 전문 도구 (`skills`) 박제 (ADR-0020)**. JD 산문 전문성에 더해, 채용 시점에 전문 도구 (`<root>/skills/<name>.md`) 를 frontmatter `skills` (콤마 구분 string) 로 박제. dispatch 시 `build_skills_block` 이 양 경로 (직통 + CPO 라우팅) 에 경로 주입 → 워커 Read. 없는 스킬은 HR Lead 가 로컬 생성 (외부 호출 0, marketplace 미채택). doctor [31] skills/ 정합성 (dangling/orphan/invalid/meta). critic+architect 검증으로 blocker C1 (두 경로 조립 불일치) 시정 후 박제 — spec `docs/p111-worker-skills.md`. **직전 (0.25.x)** = dispatch description 포맷 + ADR-0018 (No external harness). **이전 (0.23.0)** = Archive 메커니즘 완전 폐기 (ADR-0019). 옛 버전 상세는 CHANGELOG 참조.
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (23개 항목, ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23]) |
+| `/lskun-kit:doctor` | 환경 진단 (29개 항목, ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31]) |
 
 ---
 
@@ -151,6 +151,7 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 - 외부 harness (cmux/ralph/ultrawork) plugin core 도입 — ADR-0009 self-contained
 - subagent_type="claude" 외 dispatch — ADR-0017 Allowlist
 - plugin core 안에서 외부 시스템 SDK / API 호출 — ADR-0009
+- skill marketplace/원격 다운로드 (네트워크 접촉) — ADR-0020 미채택 (생성만, 로컬 파일 Write)
 
 > 새 금지 항목 추가 시 [`docs/internals/forbidden-history.md`](docs/internals/forbidden-history.md) 갱신 필수.
 
@@ -168,7 +169,7 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 
 ## 8. 로드맵
 
-Phase 1~18 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 18 (0.24.0) — 자기관찰 도구 (P107 + P109).
+Phase 1~19 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 19 (0.26.0) — 워커 전문 도구 skills 박제 (P111, ADR-0020).
 
 ## 9. CPO / 인사팀장 동작 사양 (ADR-0002 + ADR-0004)
 

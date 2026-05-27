@@ -5,6 +5,20 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.26.0] — 2026-05-27
+
+### Added — 워커 전문 도구 (`skills`) 박제 (ADR-0020, P111)
+
+JD 의 산문 전문성만으로는 워커가 "이 도구가 내 전문 도구"임을 인지하지 못하던 문제. 워커 frontmatter 에 optional `skills` 필드 (콤마 구분 string) 를 추가해 채용 시점에 전문 도구 (`~/.lskun-companies/<name>/skills/<name>.md`) 를 박제한다.
+
+- **dispatch 주입**: `build_skills_block` 헬퍼가 두 dispatch 경로 (직통 `/work <name>` + CPO 라우팅) 에 skill 경로를 주입하고, 워커가 작업 전 Read 한다. 누락 스킬은 `⚠️ 파일 없음` 표시.
+- **스킬 생성**: 채용 시 (HR Lead 자율) + 필요 시 (CPO 판단 → HR Lead 위임, 사용자 알림 1줄). 로컬 파일 Write 만 — 외부 호출 0 (ADR-0009 범위 내). marketplace 다운로드 미채택.
+- **보안**: skill 이름 allowlist (`^[a-z0-9][a-z0-9_-]{0,63}$`) + path traversal 가드.
+- **doctor [31]**: skills/ 정합성 (dangling / orphan / invalid / meta 양방향, read-only).
+- **마이그레이션**: optional 이라 기존 워커 0 변경 (P69 keywords 선례).
+
+> critic + architect 검증 워커가 blocker C1 (두 dispatch 경로 prompt 조립 불일치 → 단일 주입점) 을 발견해 시정 후 박제. 검증 spec: `docs/p111-worker-skills.md`.
+
 ## [0.25.1] — 2026-05-27
 
 ### Changed — 워커 dispatch description 포맷 공식화

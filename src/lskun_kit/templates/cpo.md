@@ -78,7 +78,8 @@ routing context 의 `## Hired Workers (라우팅 후보)` 목록을 읽고, 각 
 워커 = adapter.read_worker(<name>)
 context = (
   worker.body  # frontmatter 제외 본문 (JD persona, ADR-0011 inline 박제)
-  + user_request  # 사용자 요청 원문
+  + build_skills_block(adapter, <name>)  # ADR-0020 — 전문 도구 블록 (선행 "\n\n" 포함, skills 비면 "")
+  + "\n\n" + user_request  # 사용자 요청 원문
 )
 model = (
   worker.model  # frontmatter 우선

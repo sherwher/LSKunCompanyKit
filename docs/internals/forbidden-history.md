@@ -86,5 +86,12 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - ~~"frontmatter 5→6 자동 마이그레이션 X / 사용자가 display_name 1줄 수동 추가"~~ → `/lskun-kit:migrate-schema` 로 사용자 confirm 기반 plugin 책임 마이그레이션 (ADR-0005)
 - 단, **history entry 보존 / frontmatter 덮어쓰기 금지 / 백업 강제** 가드는 불변 (ADR-0014 — heading 만 archived 로 rename 가능, entry 불변)
 
+### ADR-0020 신규 금지 (워커 skills 박제, P111)
+
+- **skill marketplace / 원격 다운로드** — 네트워크 접촉은 ADR-0009 self-contained 정체성 붕괴. skills 는 **로컬 생성 (파일 Write) 만**. 미채택 (사용자 결재 2026-05-27).
+- **plugin core 가 skill 내용을 해석 / 매칭 / 실행 / 평가** — core 는 split + 이름 검증 + 경로 조합 + 존재 확인만. 스킬 내용은 워커 (LLM) 가 Read. (keywords "core 매칭 안 씀" 과 동급)
+- **공유 skill 본문의 CPO 자율 변경** — 신규 생성만 자율 (사용자 알림 1줄). 기존 공유 skill 본문 변경은 사용자 명시 요청만 (여러 워커 영향 + ADR-0014 "워커 진화 금지" 정신).
+- **skill Read 강제를 결정론으로 착각** — "경로 주입 + Read 지시" 는 LLM 자율 준수 의존. 100% 보장 불가가 정상 (ADR-0009 아키텍처 귀결). 목표는 인지 유도 + 누락 가시성.
+
 ---
 
