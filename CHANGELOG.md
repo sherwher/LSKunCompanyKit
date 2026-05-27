@@ -5,6 +5,17 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.25.1] — 2026-05-27
+
+### Changed — 워커 dispatch description 포맷 공식화
+
+`subagent_type` 이 ADR-0017 로 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보이던 문제. `Task` tool 의 `description` 을 `<워커명·role · 작업요약>` 포맷으로 강제해 status line 만으로 "지금 누가 도는지" 확인 가능.
+
+- `commands/work.md` — 라우팅 절차 + dispatch 강제 노트 + 사양 + Python 진입점 주석에 포맷 명시
+- `src/lskun_kit/templates/cpo.md` — CPO persona dispatch 템플릿 + 필수 포맷 노트
+
+ADR-0017 미변경 (그 위의 운영 디테일 추가) — 신규 ADR 불필요.
+
 ## [0.25.0] — 2026-05-27
 
 ### Added — ADR-0018 박제 + doctor [27]~[30] + README onboarding (P110)
