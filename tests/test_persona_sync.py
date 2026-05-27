@@ -21,7 +21,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from lskun_kit import LocalAdapter  # noqa: E402
 from lskun_kit import persona_sync as ps  # noqa: E402
-from lskun_kit.persona_sync import PROV_FROM, PROV_AT  # noqa: E402
+from lskun_kit.persona_sync import (  # noqa: E402
+    PROV_FROM,
+    PROV_AT,
+    BACKUP_SUFFIX,
+)
 from lskun_kit.templates import _read_template  # type: ignore  # noqa: E402
 
 
@@ -374,6 +378,74 @@ class TemplateBodyTests(unittest.TestCase):
     def test_hr_lead_template_exists(self) -> None:
         body = _read_template("hr-lead.md")
         self.assertIn("HR Lead", body)
+
+
+class BackupCleanupTests(unittest.TestCase):
+    """P107 — 누적 백업 파일 청소 (사용자 명시 옵션)."""
+
+    def setUp(self) -> None:
+        self._td = tempfile.TemporaryDirectory()
+        self.adapter = _company_skeleton(Path(self._td.name))
+        self.hired = Path(self.adapter.root) / "hired"
+
+    def tearDown(self) -> None:
+        self._td.cleanup()
+
+    def _make_backups(self, name: str, timestamps: list[int]) -> list[Path]:
+        """가짜 백업 파일 생성. timestamp 순서대로 mtime 박제."""
+        paths: list[Path] = []
+        for i, ts in enumerate(timestamps):
+            if i == 0:
+                p = self.hired / f"{name}.md{BACKUP_SUFFIX}"
+            else:
+                p = self.hired / f"{name}.md{BACKUP_SUFFIX}.{ts}"
+            p.write_text(f"backup {ts}", encoding="utf-8")
+            import os
+            os.utime(p, (ts, ts))
+            paths.append(p)
+        return paths
+
+    def test_plan_keeps_latest_n_by_mtime(self) -> None:
+        """keep=3 일 때 최신 mtime 3개 보존, 나머지 deleted."""
+        self._make_backups("cpo", [1000, 2000, 3000, 4000, 5000])
+        plans = ps.plan_cleanup_backups(self.adapter, keep=3)
+        cpo_plan = next(p for p in plans if p.name == "cpo")
+        self.assertEqual(len(cpo_plan.kept), 3)
+        self.assertEqual(len(cpo_plan.deleted), 2)
+        # 최신 (5000, 4000, 3000) 보존, 옛 (2000, 1000) 삭제 예정.
+        # 픽스처: i=0 → ".bak" (suffix 없음, mtime=1000), 나머지 → ".bak.<ts>".
+        deleted_names = {p.name for p in cpo_plan.deleted}
+        self.assertIn(f"cpo.md{BACKUP_SUFFIX}", deleted_names)  # mtime 1000 짜리
+        self.assertIn(f"cpo.md{BACKUP_SUFFIX}.2000", deleted_names)
+
+    def test_execute_actually_removes_files(self) -> None:
+        """plan → execute 가 실제로 파일을 unlink."""
+        self._make_backups("cpo", [1000, 2000, 3000, 4000])
+        plans = ps.plan_cleanup_backups(self.adapter, keep=2)
+        ps.execute_cleanup_backups(plans)
+        remaining = [p for p in self.hired.iterdir() if BACKUP_SUFFIX in p.name and p.name.startswith("cpo.md")]
+        self.assertEqual(len(remaining), 2)
+
+    def test_keep_zero_deletes_all(self) -> None:
+        """keep=0 — 모든 백업 삭제 (cleanup 후 0개)."""
+        self._make_backups("cpo", [1000, 2000, 3000])
+        plans = ps.plan_cleanup_backups(self.adapter, keep=0)
+        ps.execute_cleanup_backups(plans)
+        remaining = [p for p in self.hired.iterdir() if BACKUP_SUFFIX in p.name and p.name.startswith("cpo.md")]
+        self.assertEqual(len(remaining), 0)
+
+    def test_idempotent_replay(self) -> None:
+        """이미 청소된 상태에서 재실행 — deleted 0건."""
+        self._make_backups("cpo", [1000, 2000])
+        ps.execute_cleanup_backups(ps.plan_cleanup_backups(self.adapter, keep=5))
+        plans2 = ps.plan_cleanup_backups(self.adapter, keep=5)
+        cpo_plan = next(p for p in plans2 if p.name == "cpo")
+        self.assertEqual(len(cpo_plan.deleted), 0)
+
+    def test_negative_keep_raises(self) -> None:
+        """keep=-1 은 PersonaSyncError. 안전 가드."""
+        with self.assertRaises(ps.PersonaSyncError):
+            ps.plan_cleanup_backups(self.adapter, keep=-1)
 
 
 if __name__ == "__main__":  # pragma: no cover

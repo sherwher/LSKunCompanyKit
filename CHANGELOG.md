@@ -5,6 +5,34 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.22.0] — 2026-05-27
+
+### Added — Persona sync 백업 청소 + hired/ 스캔 백업 부산물 방어 가드 (P106 / P107)
+
+4 페르소나 다자 토론 (실사용자 / 아키텍트 / 도입자·보안 / Critic) 의 brainstorming 결론을 박제. 진단 결과 본 plugin 은 목표에 부합하며 외부 harness (cmux/ralph/ultrawork) 도입은 불필요. 부족한 것 = **자기관찰 도구**. 본 릴리스는 그 첫 단계 (P107) — sync 백업 누적 청소 + 백업 부산물 누설 방어.
+
+**문제 발견 (실측)**:
+- LSKun 사용자 환경의 `hired/` 에 `*.lskun-pre-sync.bak[.timestamp]` 6개 누적 (cpo 3개 + hr-lead 3개)
+- `/sync-persona --execute` 가 변경 발생마다 timestamp 백업을 만드는데 청소 메커니즘 부재
+- 현재 `*.md` glob 은 백업 파일을 자연 배제하지만 미래 회귀 가능성 (glob 패턴 변경 / 사용자 수동 정리 사고)
+
+**Added**:
+- **`persona_sync.plan_cleanup_backups(adapter, keep=3)` + `execute_cleanup_backups(plans)`** — 메타 워커별 sync 백업 청소. 최신 mtime 순 keep 개수만 남기고 unlink. 사용자 명시 옵션만 (자동 청소 X, ADR-0015 정신).
+- **`render_cleanup_report(plans, dry_run)`** — plan/result 가독 출력.
+- **`commands/sync-persona.md` 갱신** — `--cleanup-backups [--keep N] [--execute]` 옵션 박제.
+- **`MarkdownTreeAdapter.list_workers()` 명시적 방어 필터** — `_is_backup_artifact(filename)` 헬퍼로 `.lskun-pre-sync.bak` substring 검사. 현재 안전하나 회귀 가드.
+- **doctor [24] [25] 신규** — 백업 누적 검사 + hired/ 백업 부산물 누설 시뮬레이션. 진단 항목 23 → 25.
+- **`docs/p106-meta-review-and-roadmap.md`** — 4 페르소나 브레인스토밍 + P0~P3 로드맵 박제.
+
+**Tests**:
+- `BackupCleanupTests` 5 케이스 (mtime keep N / execute unlink / keep=0 / idempotent replay / negative keep raises)
+- `BackupArtifactGuardTests` 3 케이스 (`.bak` suffix / timestamp suffix / `.md` 로 끝나는 백업 substring 가드)
+- 256 → 264 tests (+8 신규), 회귀 0
+
+**비고**:
+- ADR-0018 ("No external harness, doctor is the harness") 박제는 P1 (audit rotate + `/org --usage` + CLAUDE.md slim) 완료 후 P109 에서 진행 예정.
+- 자동 청소 / 자동 진단 회수 = 영구 금지. 사용자 명시 명령만.
+
 ## [0.21.1] — 2026-05-26
 
 ### Fixed — `persona_sync._split_body_history` substring 오탐 시정

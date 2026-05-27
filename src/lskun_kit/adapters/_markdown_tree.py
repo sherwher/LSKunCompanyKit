@@ -112,7 +112,15 @@ class MarkdownTreeAdapter(StorageAdapter):
     def list_workers(self) -> list[str]:
         if not self._hired_dir.exists():
             return []
-        return sorted(p.stem for p in self._hired_dir.glob("*.md") if p.is_file())
+        # P107 — 명시적 방어 필터. 현재 ``*.md`` glob 은
+        # ``<name>.md.lskun-pre-sync.bak[.timestamp]`` 를 자연 배제하지만
+        # 미래에 glob 패턴이 ``*.md*`` 등으로 변경되어도 회귀가 없도록
+        # 백업/임시 파일 패턴을 명시 차단한다. 단일 진실원 = ``persona_sync.BACKUP_SUFFIX``.
+        return sorted(
+            p.stem
+            for p in self._hired_dir.glob("*.md")
+            if p.is_file() and not _is_backup_artifact(p.name)
+        )
 
     def read_company(self) -> Company:
         if not self._company_file.exists():
@@ -219,5 +227,17 @@ class MarkdownTreeAdapter(StorageAdapter):
 
 def _parse_date(value: str) -> date:
     return date.fromisoformat(value)
+
+
+# P107 — hired/ 스캔 시 워커가 아닌 부산물 (sync 백업 등) 검출.
+# persona_sync.BACKUP_SUFFIX 의 substring 매칭. 본 모듈은 persona_sync 에
+# 의존하지 않기 위해 리터럴을 inline. 두 위치가 어긋나지 않도록
+# tests/test_local_adapter.py 의 BackupArtifactGuard 케이스에서 cross-check.
+_BACKUP_ARTIFACT_MARKER = ".lskun-pre-sync.bak"
+
+
+def _is_backup_artifact(filename: str) -> bool:
+    """``filename`` 이 sync 백업 부산물인지 판별. 단순 substring 매칭."""
+    return _BACKUP_ARTIFACT_MARKER in filename
 
 

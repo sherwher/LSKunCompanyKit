@@ -28,7 +28,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 17 (0.21.1) — Dispatch subagent_type Allowlist 정책 전환 (ADR-0017, ADR-0016 supersede). PreToolUse:Task hook 의 denylist → allowlist 반전 (`claude` 단일 허용), Skill 문서·persona template 에 `subagent_type="claude"` 강제 박제, escape hatch 2개 (`LSKUN_ALLOW_NON_CLAUDE_DISPATCH` 신규 + `LSKUN_ALLOW_OMC_FALLBACK` 별칭), doctor [22][23] 신규. **0.21.1 patch** = `persona_sync._split_body_history` substring 오탐 시정 (hr-lead.md inline backtick 인용을 history heading 으로 오탐 → body 손상 사건 fix).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 18 (0.22.0) — 자기관찰 도구 첫 단계 (P106 / P107). 4 페르소나 brainstorming (실사용자 / 아키텍트 / 도입자·보안 / Critic) 결론을 박제 — 외부 harness (cmux/ralph/ultrawork) 도입 불필요, 부족한 것 = 자기관찰 도구. Persona sync 백업 청소 (`/sync-persona --cleanup-backups [--keep N] [--execute]`) + `MarkdownTreeAdapter.list_workers` 백업 부산물 방어 가드 + doctor [24][25] 신규 (진단 23 → 25). ADR-0018 ("No external harness, doctor is the harness") 박제는 P109 (audit rotate + `/org --usage` + CLAUDE.md slim 완료 후) 예정. **이전 patch (0.21.1)** = `persona_sync._split_body_history` substring 오탐 시정 (hr-lead.md inline backtick 인용을 history heading 으로 오탐 → body 손상 사건 fix).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)

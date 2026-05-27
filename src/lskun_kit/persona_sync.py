@@ -356,16 +356,142 @@ def execute(
     return result
 
 
+# --- P107 (ADR-0018 후보): 백업 청소 (사용자 명시 옵션) ---
+
+
+@dataclass(frozen=True)
+class BackupCleanupPlan:
+    """단일 메타 워커의 백업 청소 계획 (dry-run + execute 공통).
+
+    P107 — 누적 백업 파일 (``<name>.md.lskun-pre-sync.bak[.timestamp]``) 을
+    keep 개수만큼 최신순으로 남기고 나머지 삭제. 사용자 명시 옵션이며 자동
+    청소 X (역사 자산 불변 원칙, ADR-0015 정신).
+    """
+
+    name: str
+    kept: list[Path]
+    deleted: list[Path]
+
+    @property
+    def has_action(self) -> bool:
+        return bool(self.deleted)
+
+
+def _list_backup_files(hired_dir: Path, name: str) -> list[Path]:
+    """``hired/<name>.md.lskun-pre-sync.bak*`` 목록을 최신순 (mtime desc) 반환.
+
+    suffix 없는 ``.bak`` 도 timestamp 무한대 (== 가장 최근) 로 간주하지 않고
+    파일시스템 mtime 으로 정렬. atomic 순서가 깨지더라도 사용자가 만든 마지막
+    수동 백업이 의도치 않게 삭제되는 사고 방지.
+    """
+
+    pattern = f"{name}.md{BACKUP_SUFFIX}"
+    candidates: list[Path] = []
+    if not hired_dir.exists():
+        return candidates
+    for p in hired_dir.iterdir():
+        if not p.is_file():
+            continue
+        if p.name == pattern or p.name.startswith(pattern + "."):
+            candidates.append(p)
+    # 최신순 (mtime desc)
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates
+
+
+def plan_cleanup_backups(
+    adapter: StorageAdapter,
+    keep: int = 3,
+    worker_names: Iterable[str] | None = None,
+) -> list[BackupCleanupPlan]:
+    """백업 파일 청소 계획 작성. 어떤 파일도 변경하지 않는다.
+
+    Args:
+        adapter: 활성 backend adapter (root 노출 필수)
+        keep: 메타 워커별 보존 개수 (기본 3, 최소 0)
+        worker_names: 대상 워커 (default = META_WORKER_NAMES)
+
+    Returns:
+        메타 워커별 청소 계획 리스트.
+    """
+
+    if keep < 0:
+        raise PersonaSyncError(f"keep must be >= 0, got {keep}")
+    if not hasattr(adapter, "root"):
+        raise PersonaSyncError(
+            f"adapter {type(adapter).__name__} 는 root 경로를 노출하지 않아 "
+            f"백업 청소가 불가능하다."
+        )
+    company_root = Path(getattr(adapter, "root"))
+    hired_dir = company_root / "hired"
+    names = tuple(worker_names) if worker_names else META_WORKER_NAMES
+
+    plans: list[BackupCleanupPlan] = []
+    for name in names:
+        if name not in META_WORKER_NAMES:
+            continue
+        backups = _list_backup_files(hired_dir, name)
+        kept = backups[:keep]
+        deleted = backups[keep:]
+        plans.append(BackupCleanupPlan(name=name, kept=kept, deleted=deleted))
+    return plans
+
+
+def execute_cleanup_backups(plans: list[BackupCleanupPlan]) -> list[BackupCleanupPlan]:
+    """plan 의 ``deleted`` 항목을 실제 unlink.
+
+    원자성 보장 X — 중간 실패 시 일부 삭제된 상태로 남음. 사용자 명시 명령이며
+    재실행 가능 (idempotent: 두 번째 실행 시 이미 사라진 파일은 plan 에 안 들어옴).
+    """
+
+    for p in plans:
+        for path in p.deleted:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                # 동시성으로 이미 사라진 경우 — 무시 (idempotent)
+                pass
+    return plans
+
+
+def render_cleanup_report(plans: list[BackupCleanupPlan], dry_run: bool) -> str:
+    lines = [
+        "Persona Backup Cleanup " + ("Plan" if dry_run else "Result"),
+        "================================================",
+    ]
+    total_deleted = 0
+    for p in plans:
+        lines.append(f"[{p.name}]")
+        lines.append(f"  kept    : {len(p.kept)}")
+        for k in p.kept:
+            lines.append(f"    - {k.name}")
+        lines.append(f"  deleted : {len(p.deleted)}")
+        for d in p.deleted:
+            lines.append(f"    - {d.name}")
+        total_deleted += len(p.deleted)
+    lines.append("")
+    if dry_run:
+        lines.append(f"총 삭제 예정: {total_deleted}개. --execute 로 실제 삭제.")
+    else:
+        lines.append(f"총 삭제 완료: {total_deleted}개.")
+    return "\n".join(lines) + "\n"
+
+
 __all__ = [
     "META_WORKER_NAMES",
     "PROV_FROM",
     "PROV_AT",
+    "BACKUP_SUFFIX",
     "PersonaSyncError",
     "WorkerSyncDelta",
     "SyncPlan",
     "SyncResult",
     "WorkerSyncResult",
+    "BackupCleanupPlan",
     "plan",
     "execute",
     "diff_text_for",
+    "plan_cleanup_backups",
+    "execute_cleanup_backups",
+    "render_cleanup_report",
 ]

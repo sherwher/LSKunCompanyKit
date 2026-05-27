@@ -367,5 +367,57 @@ class ArchiveWorkerTests(unittest.TestCase):
 # AppendHistoryHelperTests — ADR-0014 (2026-05-22) reflection 폐기로 삭제
 
 
+class BackupArtifactGuardTests(unittest.TestCase):
+    """P107 — hired/ 의 sync 백업 부산물이 워커로 카운트되지 않아야 함.
+
+    회귀 가드 — 현재 ``*.md`` glob 은 ``.bak``/``.<timestamp>`` 확장자를 자연
+    배제하지만, 미래에 glob 패턴이 ``*.md*`` 등으로 변경되어도 list_workers 가
+    안전해야 한다. 명시적 substring 필터 (``.lskun-pre-sync.bak``) 보장.
+    """
+
+    def setUp(self) -> None:
+        self._td = tempfile.TemporaryDirectory()
+        self.root = Path(self._td.name)
+        (self.root / "hired").mkdir(parents=True)
+        # 정상 워커 1명
+        (self.root / "hired" / "alice.md").write_text(WORKER_MD, encoding="utf-8")
+        self.adapter = LocalAdapter(self.root)
+
+    def tearDown(self) -> None:
+        self._td.cleanup()
+
+    def test_list_workers_ignores_bak_suffix(self) -> None:
+        """alice.md.lskun-pre-sync.bak 가 워커로 카운트되지 않음."""
+        (self.root / "hired" / "alice.md.lskun-pre-sync.bak").write_text(
+            "old", encoding="utf-8"
+        )
+        names = self.adapter.list_workers()
+        self.assertEqual(names, ["alice"])
+
+    def test_list_workers_ignores_timestamped_backups(self) -> None:
+        """alice.md.lskun-pre-sync.bak.1779780562 같은 timestamp 백업도 무시."""
+        (self.root / "hired" / "alice.md.lskun-pre-sync.bak.1779780562").write_text(
+            "old", encoding="utf-8"
+        )
+        (self.root / "hired" / "alice.md.lskun-pre-sync.bak.1779786151").write_text(
+            "old", encoding="utf-8"
+        )
+        names = self.adapter.list_workers()
+        self.assertEqual(names, ["alice"])
+
+    def test_list_workers_ignores_md_named_backup(self) -> None:
+        """미래에 glob 이 더 느슨해져도 ``.lskun-pre-sync.bak`` substring 가드.
+
+        가설: 누군가 ``cpo.md.lskun-pre-sync.bak.md`` 같이 ``.md`` 로 끝나는
+        백업 파일을 만들었다고 치자 (예: 사용자 수동 정리 중 사고). 본 가드가
+        없으면 워커로 카운트되어 라우팅 후보로 새어나간다.
+        """
+        (self.root / "hired" / "cpo.md.lskun-pre-sync.bak.md").write_text(
+            "old", encoding="utf-8"
+        )
+        names = self.adapter.list_workers()
+        self.assertEqual(names, ["alice"])  # cpo 절대 안 들어옴
+
+
 if __name__ == "__main__":
     unittest.main()
