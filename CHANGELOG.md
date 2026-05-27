@@ -7,6 +7,27 @@
 
 ## [0.24.0-dev] — 2026-05-27 (in progress)
 
+### Added — `/lskun-kit:audit-rotate` + doctor [26] (P109-B)
+
+P106 메타 리뷰의 P1 두 번째 항목. `.audit/decisions.jsonl` 의 무한 누적 차단. **사용자 명시 명령만** (자동 회전 X — ADR-0006 정신).
+
+**Added**:
+- `src/lskun_kit/audit_rotate.py` 신규 — `RotationPlan` / `MonthBucket` dataclass + `plan_rotation(audit_dir, now_month)` + `execute_rotation(plan)` + `render_result(plan)`. 월별 분리 (`YYYY-MM`), 옛 월 → `decisions.<month>.jsonl.gz` (gzip), 현재 월만 평문 `decisions.jsonl` 잔존.
+- `commands/audit-rotate.md` 신규 slash command (plan / `--execute`).
+- doctor [26] 신규 — `decisions.jsonl` 크기 ≥ 10 MB 시 ℹ️ 회전 안내. 자동 실행 X. 진단 23 → 24.
+
+**Tests**:
+- `test_audit_rotate.py` 신규 6 케이스 (단일 월 no-op / 다월 gz 분리 / 현재 월 보존 / idempotent replay / 파일 부재 / malformed 잔존)
+- 268 → 274 tests, 회귀 0
+
+**원칙 준수**:
+- 사용자 명시 명령만, 자동 회전 X — ADR-0006 §6 정합
+- append-only 유지 — 옛 entry 내용 rewrite 절대 금지. 월별 묶기만
+- idempotent — 재실행 시 기존 .gz 에 append (옛 데이터 손실 0)
+- atomic-ish — gzip write 모두 성공 후 원본 truncate
+- malformed 보존 — JSON parse 실패 라인은 회전하지 않고 현재 월에 잔존 (사용자 수동 정리)
+- `/org --usage` (P109-A) 와 연동 — 회전된 파일도 read-only 집계
+
 ### Added — `/org --usage` (P109-A)
 
 P106 메타 리뷰의 P1 첫 항목. 4 페르소나 brainstorming 결론 (외부 harness 불필요, 부족한 것 = 자기관찰 도구) 의 자연스러운 연장.
