@@ -93,9 +93,12 @@ result = invoke_skill("LSKunCompanyKit:work", worker=<name>,
 #   Task(
 #       subagent_type="claude",     # 정식 dispatch 단일 허용
 #       prompt=f"{context}",
-#       description="<short>",
+#       description="<워커명·role · 작업요약>",  # 필수 포맷 — status line 가독성
+#                                                # 예: "하린·seo-growth-strategist · 검색 자산화 위임"
 #   )
 ```
+
+> **description 포맷 (필수)**: `subagent_type` 이 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. `description` 을 `<워커명·role · 작업요약>` 으로 박아 "지금 누가 도는지" 를 status line 만으로 확인한다. 직통·라우팅·자동 채용 후 dispatch 모두 일괄 적용.
 
 > 작업 복잡도 → 모델 동적 override 기준 (CPO 가 판단):
 > - **opus** 권장: 보안 리뷰 / 아키텍처 결정 / 다단계 추론 / 신규 도메인 onboarding

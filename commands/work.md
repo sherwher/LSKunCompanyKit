@@ -47,7 +47,7 @@ arguments:
 1. 메인 세션은 **이미 CPO persona** 로 동작 중 (CLAUDE.md 박제 + SessionStart hook 으로 활성 회사 컨텍스트 주입)
 2. CPO 가 요청을 받아:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
-   - 적합 워커 있음 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = frontmatter / CPO 판단 / default.
+   - 적합 워커 있음 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = frontmatter / CPO 판단 / default. **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조).
    - 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
 3. CPO 가 워커 보고를 받아 **결재** (자가 평가 통과 → 승인 / 재작업 최대 2회)
 4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
@@ -56,6 +56,8 @@ arguments:
 > 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.
 
 > **dispatch 강제 (ADR-0017)**: Task tool 호출 시 반드시 `subagent_type="claude"`. OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업으로 다른 plugin subagent 가 정당 필요하면 세션 단위로 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 후 사용 (`.zshrc`/`.bashrc` 영구 export 금지, doctor [23] 가 검출).
+
+> **description 포맷 (필수)**: `subagent_type` 은 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. 따라서 `Task` tool 의 `description` 은 **`<워커명·role · 작업요약>`** 포맷으로 작성한다 (예: `하린·seo-growth-strategist · 검색 자산화 위임`). 직통 호출·CPO 라우팅·자동 채용 후 dispatch 모두 일괄 적용. 이렇게 해야 status line 만으로 "지금 누가 도는지" 가 보인다.
 
 ## 사용 예
 
@@ -80,6 +82,7 @@ arguments:
 - 자동 채용 — 사용자 알림만, 차단 X
 - 모델 라우팅 — 워커 default=sonnet, override=opus
 - Dispatch allowlist — `claude` 외 subagent 는 PreToolUse hook 이 deny (ADR-0017). escape hatch=`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` (별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`).
+- Description 포맷 — `Task` tool `description` 은 `<워커명·role · 작업요약>` (subagent_type 이 늘 `claude` 라 status line 가독성 확보). 모든 dispatch 경로 일괄 적용.
 
 ## Python 진입점
 
@@ -110,7 +113,8 @@ else:  # missing-cpo
 #   Task(
 #       subagent_type="claude",   # Allowlist 단일 허용 — claude 외는 PreToolUse hook 이 deny
 #       prompt=f"{ctx}\n\n{user_request}",
-#       description="<short>",
+#       description="<워커명·role · 작업요약>",  # 필수 포맷 — status line 가독성
+#                                                # 예: "하린·seo-growth-strategist · 검색 자산화 위임"
 #   )
 #
 # `subagent_type` 을 OMC executor / general-purpose / vercel:* / codex:* / Explore / Plan
