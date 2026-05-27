@@ -5,6 +5,31 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.24.0-dev] — 2026-05-27 (in progress)
+
+### Added — `/org --usage` (P109-A)
+
+P106 메타 리뷰의 P1 첫 항목. 4 페르소나 brainstorming 결론 (외부 harness 불필요, 부족한 것 = 자기관찰 도구) 의 자연스러운 연장.
+
+**Added**:
+- `src/lskun_kit/audit_view.py` 신규 — `WorkerUsage(name, dispatches, last_seen)` dataclass + `read_usage(audit_dir)` 함수. `.audit/decisions.jsonl` (현재 월) + `decisions.<YYYY-MM>.jsonl.gz` (회전된, P109-B 와 연동) 동시 read-only 집계. best-effort (불량 JSON 라인 skip).
+- `OrgReport.usage_by_worker: dict[str, WorkerUsage] | None` 필드.
+- `org.build(adapter, with_usage=False)` 인자 — `with_usage=True` 시 audit_view 호출.
+- `OrgReport.render(compact, show_usage=False)` 분기 — True 시 markdown table 에 컬럼 2개 (`Dispatches` / `Last seen`) 추가, compact 시 1줄 끝에 ` · N dispatches · last=<date>` append.
+- `cli_org.py --usage` 옵션 신규.
+- `commands/org.md` — `--usage` / `--full --usage` 사용 예 + 원칙 박제.
+
+**Tests**:
+- `test_audit_view.py` 신규 8 케이스 (단일 entry / 집계 / best-effort skip / 부재 dir / gz 회전 파일 동시 / worker 누락 / ts 누락 / non-dict JSON)
+- 260 → 268 tests, 회귀 0
+
+**원칙 준수**:
+- 사용자 명시 옵션 (자동 산출 X) — ADR-0002 §5 + ADR-0006
+- 평가·점수·랭킹 X — 단순 count + ISO timestamp
+- audit log read-only — rewrite 절대 없음 (ADR-0006 §6 정합)
+
+P109-B (audit log 회전) + P109-C (CLAUDE.md slim) 진행 후 0.24.0 release 예정.
+
 ## [0.23.0] — 2026-05-27
 
 ### **BREAKING — Archive 메커니즘 완전 폐기 (ADR-0019)**

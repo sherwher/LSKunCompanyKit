@@ -107,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
         help="도메인 필터 (prefix 매칭). 예: --domain tech 는 tech-* 모두 매치",
     )
     parser.add_argument(
+        "--usage",
+        action="store_true",
+        help="audit log 기반 워커별 dispatch count + last_seen 컬럼 추가 (P109-A)",
+    )
+    parser.add_argument(
         "--export",
         default=None,
         help="stdout 대신 지정 경로의 파일에 쓰기 (Obsidian/GitHub 렌더링용)",
@@ -124,11 +129,11 @@ def main(argv: list[str] | None = None) -> int:
     from lskun_kit import org
 
     adapter = _build_adapter(root)
-    report = org.build(adapter)
+    report = org.build(adapter, with_usage=args.usage)
     if args.domain:
         report = _filter_by_domain(report, args.domain)
 
-    output = report.render(compact=not args.full)
+    output = report.render(compact=not args.full, show_usage=args.usage)
 
     if args.export:
         export_path = Path(args.export).expanduser()

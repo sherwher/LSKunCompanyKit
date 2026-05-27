@@ -50,20 +50,33 @@ class OrgEntry:
 
 @dataclass
 class OrgReport:
-    """ADR-0019 (2026-05-27) — archived_entries 필드 제거. archive 메커니즘 폐기."""
+    """ADR-0019 (2026-05-27) — archived_entries 필드 제거. archive 메커니즘 폐기.
+
+    P109-A (2026-05-27) — ``usage_by_worker`` 필드 추가. ``--usage`` flag 일 때만
+    audit_view 로 집계, 평소엔 ``None``. 평가 X / 점수 X / 단순 view (ADR-0006 정신).
+    """
 
     backend: str
     company_root: Path
     company_name: str
     company_domain: str
     entries: list[OrgEntry] = field(default_factory=list)
+    usage_by_worker: dict[str, "WorkerUsage"] | None = None  # type: ignore[name-defined]
 
     #: ADR-0013 — 조직도 stable format. 동적 padding 폐지, markdown table 단일 SSOT.
     #: ADR-0014 — History 컬럼 제거 → Hired (채용 시점) 로 교체.
     _TABLE_HEADER = "| Cat    | Name | Display | Role | Domain | Model | Hired |"
     _TABLE_SEP = "|--------|------|---------|------|--------|-------|-------|"
 
-    def render(self, compact: bool = False) -> str:
+    def render(self, compact: bool = False, show_usage: bool = False) -> str:
+        """조직도 출력. ``show_usage=True`` 시 audit 집계 컬럼 추가 (P109-A).
+
+        - ``show_usage`` 가 True 인데 ``usage_by_worker`` 가 None 이면 ⚠️ note 1줄
+        - compact format 은 1줄 끝에 ``· <N> dispatches · last=<YYYY-MM-DD>`` append
+        - table format 은 컬럼 2개 (``Dispatches`` / ``Last seen``) 추가
+        """
+
+        usage_active = bool(show_usage and self.usage_by_worker is not None)
         lines = [
             "LSKunCompanyKit org",
             "================================================",
@@ -71,6 +84,11 @@ class OrgReport:
             f"backend: {self.backend} → {self.company_root}",
             "",
         ]
+        if show_usage and self.usage_by_worker is None:
+            lines.append(
+                "(--usage 요청됐으나 audit_view 집계가 없음. org.build(with_usage=True) 로 빌드 필요)"
+            )
+            lines.append("")
         if not self.entries:
             lines.append("(hired 워커 0명)")
             return "\n".join(lines) + "\n"
@@ -85,20 +103,40 @@ class OrgReport:
             for e in sorted_entries:
                 model = e.model or "default"
                 role_part = "" if e.role == e.name else f" · {e.role}"
-                lines.append(
+                line = (
                     f"[{e.category[0]}] {e.name} ({e.display_name})"
                     f"{role_part} · {e.domain} · {model} · hired={e.hired_at}"
                 )
+                if usage_active:
+                    u = (self.usage_by_worker or {}).get(e.name)
+                    if u is not None:
+                        last = (u.last_seen or "?").split("T")[0]
+                        line += f" · {u.dispatches} dispatches · last={last}"
+                    else:
+                        line += " · 0 dispatches · last=-"
+                lines.append(line)
         else:
             # ADR-0013 — markdown table. 컬럼 폭 동적 계산 금지.
-            lines.append(self._TABLE_HEADER)
-            lines.append(self._TABLE_SEP)
+            if usage_active:
+                lines.append(self._TABLE_HEADER.rstrip("|") + " Dispatches | Last seen |")
+                lines.append(self._TABLE_SEP.rstrip("|") + "------------:|-----------|")
+            else:
+                lines.append(self._TABLE_HEADER)
+                lines.append(self._TABLE_SEP)
             for e in sorted_entries:
                 model = e.model or "default"
-                lines.append(
+                row = (
                     f"| {e.category:<6} | {e.name} | {e.display_name} | "
                     f"{e.role} | {e.domain} | {model} | {e.hired_at} |"
                 )
+                if usage_active:
+                    u = (self.usage_by_worker or {}).get(e.name)
+                    if u is not None:
+                        last = (u.last_seen or "?").split("T")[0]
+                        row += f" {u.dispatches} | {last} |"
+                    else:
+                        row += " 0 | - |"
+                lines.append(row)
         # 요약
         cpo_n = sum(1 for e in sorted_entries if e.category == "CPO")
         hr_n = sum(1 for e in sorted_entries if e.category == "HR")
@@ -168,11 +206,14 @@ def _read_entry(path: Path) -> OrgEntry | None:
     )
 
 
-def build(adapter: StorageAdapter) -> OrgReport:
+def build(adapter: StorageAdapter, with_usage: bool = False) -> OrgReport:
     """조직도 데이터 빌드. **read-only**.
 
     ADR-0019 (2026-05-27) — Archive 메커니즘 폐기. ``include_archived`` 인자
     제거. hired/ 만 스캔, archived/ 디렉토리는 plugin core 가 참조하지 않음.
+
+    P109-A (2026-05-27) — ``with_usage=True`` 일 때 audit_view 로 워커별
+    dispatch count + last_seen 집계. 사용자 명시 옵션 (자동 호출 X).
     """
     if not hasattr(adapter, "root"):
         raise OrgError(
@@ -194,6 +235,9 @@ def build(adapter: StorageAdapter) -> OrgReport:
             entry = _read_entry(p)
             if entry is not None:
                 report.entries.append(entry)
+    if with_usage:
+        from lskun_kit.audit_view import read_usage
+        report.usage_by_worker = read_usage(company_root / ".audit")
     return report
 
 
