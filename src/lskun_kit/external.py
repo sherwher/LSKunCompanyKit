@@ -113,9 +113,20 @@ def external_templates_dir() -> Path:
     메타 워커 template (``src/lskun_kit/templates/``) 과 분리된 위치 — 저장소
     root 의 ``templates/``. SSOT 분리 (plugin 자산 vs 외주 페르소나) 의도
     (ADR-0021, Task 7).
+
+    Raises:
+        RuntimeError: external.py 가 이동되어 ``parents[2]`` 가 plugin repo
+            root 가 아닌 곳을 가리키게 된 경우 (silent breakage 방지).
     """
     # external.py 는 src/lskun_kit/external.py 이므로 parents[2] = 저장소 root.
-    return Path(__file__).resolve().parents[2] / "templates"
+    d = Path(__file__).resolve().parents[2] / "templates"
+    # Sanity: plugin repo root 에는 반드시 src/ 가 형제로 존재.
+    if not (d.parent / "src").is_dir():
+        raise RuntimeError(
+            f"external_templates_dir miscalculated: {d} "
+            "(external.py 가 이동되었을 수 있음 — parents[2] 가정 위반)"
+        )
+    return d
 
 
 def external_template_path(kind: str) -> Path:

@@ -121,6 +121,22 @@ class ExternalTemplatePathTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             external.external_template_path("bogus")
 
+    def test_templates_dir_sibling_to_src(self):
+        """repo root 가 정말 src/ 형제 디렉토리를 갖는지 sanity 검증."""
+        d = external.external_templates_dir()
+        # repo root 에는 반드시 src/ 가 형제로 존재해야 함.
+        self.assertTrue((d.parent / "src").is_dir(),
+                        f"external_templates_dir miscalculated: {d}")
+
+    def test_templates_dir_raises_if_relocated(self):
+        """external.py 가 이동되어 parents[2] 가 잘못된 곳을 가리키면 명시 raise."""
+        # __file__ 을 src/ 가 없는 임시 경로로 가장해 parents[2] miscalculation 시뮬레이션
+        with mock.patch.object(external, "__file__",
+                                "/tmp/nonexistent/foo/bar/external.py"):
+            with self.assertRaises(RuntimeError) as ctx:
+                external.external_templates_dir()
+            self.assertIn("miscalculated", str(ctx.exception).lower())
+
 
 if __name__ == "__main__":
     unittest.main()
