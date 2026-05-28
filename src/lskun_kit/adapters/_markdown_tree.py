@@ -108,6 +108,7 @@ class MarkdownTreeAdapter(StorageAdapter):
             persona_synced_at=parsed.frontmatter.get("persona_synced_at"),
             keywords=parsed.frontmatter.get("keywords"),
             skills=parsed.frontmatter.get("skills"),
+            kind=parsed.frontmatter.get("kind"),
             body=parsed.body,
             extra={
                 k: v

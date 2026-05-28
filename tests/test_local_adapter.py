@@ -117,6 +117,40 @@ class LocalAdapterTests(unittest.TestCase):
         # known field 이므로 extra 로는 새지 않음
         self.assertNotIn("keywords", worker.extra)
 
+    def test_read_worker_parses_kind_when_present(self) -> None:
+        """P120 — kind frontmatter (외주 식별) 가 있을 때 worker.kind 에 매핑.
+
+        skills 와 동일하게 read_worker 가 명시 전달해야 한다 (Task 3 리뷰 HIGH).
+        """
+        ext_md = dedent(
+            """\
+            ---
+            name: dave
+            role: redteam-operator
+            domain: security
+            hired_at: 2026-05-28
+            storage_backend: local
+            display_name: Dave External
+            kind: redteam
+            ---
+
+            # dave
+            ## Project History
+
+            _(empty)_
+            """
+        )
+        (self.root / "hired" / "dave.md").write_text(ext_md, encoding="utf-8")
+        worker = self.adapter.read_worker("dave")
+        self.assertEqual(worker.kind, "redteam")
+        # known field 이므로 extra 로는 새지 않음
+        self.assertNotIn("kind", worker.extra)
+
+    def test_read_worker_kind_none_when_absent(self) -> None:
+        """P120 — kind 키 없는 기존 워커는 worker.kind is None (호환 보존)."""
+        worker = self.adapter.read_worker("alice")
+        self.assertIsNone(worker.kind)
+
     def test_read_worker_missing_raises(self) -> None:
         with self.assertRaises(WorkerNotFoundError):
             self.adapter.read_worker("ghost")
