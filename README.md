@@ -102,6 +102,62 @@ model: opus               # optional (default: sonnet)
 
 ---
 
+## 외주 (레드팀·고객) — 프로젝트별 외부 관점 (ADR-0021)
+
+**정체성:** 외주 = 회사 비종속 평가 자원. **의견만 제출하며, 결정은 CPO 단독.** 임직원 (hired/) 이 아니다.
+
+**저장:** 회사 SSOT 하위에 프로젝트 격리.
+
+```
+~/.lskun-companies/<company>/external/<project>/
+   ├── brief.md                 # CPO 합성 — 프로젝트 배경 / 도메인 / 평가 축
+   ├── redteam/<name>.md        # 레드팀 페르소나 (경쟁사·보안비평·규제)
+   └── customers/<name>.md      # 고객 페르소나 (정성 렌즈)
+```
+
+3번째 SSOT 가 아니라 회사 SSOT 의 하위 디렉토리 (ADR-0008 2축 — 개발자 / 사용자 SSOT 유지).
+
+### 명령
+
+| 명령 | 역할 |
+|---|---|
+| `/lskun-kit:external setup <project>` | CPO 가 도메인 워커 자문 → `brief.md` 합성 → HR Lead 가 페르소나 박제 |
+| `/lskun-kit:external list <project>` | 구성 확인 (read-only) |
+| `/lskun-kit:external consult <project> --kind redteam\|customer` | 워커 세션 종료 후 CPO 단독으로 외주 의견 청취 |
+
+존재 자체가 **opt-in** — 구성된 프로젝트만 CPO 가 청취한다.
+
+### 페르소나 frontmatter 예시 (레드팀)
+
+```yaml
+---
+name: security-redteam
+kind: redteam              # redteam | customer
+project: payment-gateway   # external/<project>/ 격리
+hired_at: 2026-05-28
+storage_backend: local
+display_name: Mallory (가상)
+---
+```
+
+### 보안 헌법
+
+- 외주 body·의견 untrusted → `build_external_context` 가 backtick + tilde fence 양쪽 중화, HTML 주석 제거, 8000자 절단
+- **레드팀:** 텍스트 비평만 (파일 삭제, exploit 실행, 파괴 행위 금지 — JD 본문에 헌법 박제)
+- **고객:** 정성 렌즈만 (다수결 / % / "대부분의 고객은" 금지 — 환각 방어)
+- 외주 dispatch 는 **워커 세션 종료 후** CPO 단독 (PreToolUse:Task hook 의 워커→워커 차단을 회피하지 않음)
+
+### 구성 시퀀스 (setup)
+
+1. CPO 가 프로젝트 도메인 판단 → 도메인 워커 자문 (부재 시 ADR-0004 §3 자동 채용 재사용)
+2. CPO 가 도메인 워커 보고 + 사용자 의도 합성 → `brief.md` Write
+3. HR Lead 가 `brief.md` 기반으로 redteam / customers 페르소나 박제
+4. `record_external_onboard` audit (event_type=onboard_external, hire rate-limit 우회 — 고객 N명 동시 박제 정상)
+
+`/lskun-kit:doctor [32]` 가 외주 정합성 (brief.md 존재 + cross-project leak) 을 read-only 검증한다.
+
+---
+
 ## Storage Backend (ADR-0015 — Local 단일 SSOT)
 
 ```
@@ -235,6 +291,24 @@ CPO 가 받아서:
 - HR Lead 명시 호출: `/lskun-kit:work hr-lead "alice 해고"` (ADR-0019 — 단순 unlink)
 
 > ADR-0018 정신 — 외부 harness (cmux/ralph/ultrawork) 도입 불필요. 본 plugin 자체가 harness. 자기관찰은 `/doctor` + `/org --usage` 명시 호출만.
+
+### (선택) 6단계 — 프로젝트별 외주 구성 (ADR-0021)
+
+특정 프로젝트의 외부 관점 (레드팀 = 비평가, 고객 = 페르소나) 을 빌리고 싶으면:
+
+```text
+/lskun-kit:external setup my-project --redteam --customers
+```
+
+CPO 가 프로젝트 도메인을 판단해 (필요 시 도메인 워커 자동 채용), `brief.md` 를 합성하고 HR Lead 가 외주 페르소나를 박제합니다. 이후:
+
+```text
+/lskun-kit:work backend-engineer "결제 검증 모듈 구현"
+# 작업 완료 후 (워커 세션 clear 됨)
+/lskun-kit:external consult my-project --kind redteam
+```
+
+CPO 가 레드팀의 비평을 종합 판단해 보고합니다. 외주는 의견만, 결정은 CPO 단독.
 
 ---
 

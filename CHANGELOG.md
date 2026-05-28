@@ -5,6 +5,30 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.27.0] — 2026-05-28
+
+### Added — 프로젝트별 외주 (레드팀 + 고객) 도입 (ADR-0021, P120)
+
+CPO 가 프로젝트별로 외주 (레드팀·고객) 를 빌려 워커 결과물을 비평·청취하되, 결정은 CPO 단독으로 내리는 메커니즘 박제. 외주는 회사 임직원이 아닌 "회사 비종속 평가 자원". 회사 SSOT 하위 `external/<project>/` 에 거주 (3번째 SSOT 금지, ADR-0008 2축 유지).
+
+- **명령**: `/lskun-kit:external setup|list|consult <project>` (옵셔널 — 존재 자체가 opt-in)
+- **레드팀**: 경쟁사/보안비평/규제 관점에서 텍스트 비평만 (파괴 행위 금지 헌법 박제)
+- **고객단**: 정성 페르소나 렌즈 (다수결/%/대부분 금지 — 환각 방어)
+- **구성 시퀀스**: CPO 주도 — 도메인 워커 자문 → brief.md 합성 → HR Lead 가 페르소나 박제. 도메인 워커 부재 시 자동 채용 (ADR-0004 §3 재사용)
+- **보안**: 외주 body·의견 untrusted → `build_external_context` 가 backtick + tilde fence 양쪽 중화, HTML 주석 제거, 8000자 절단. 모든 외주 경로 `is_relative_to` traversal 격리 + project 세그먼트 dot 전면 금지
+- **세션 clear 후 dispatch**: 외주 dispatch 는 워커 세션 종료 후 CPO 단독 (PreToolUse hook deny 회피, command 본문 명시)
+- **audit 통합**: `record_external_onboard` (event_type=onboard_external, hire rate-limit 우회 — 고객 N명 동시 박제 정상)
+- **doctor [32]**: external 정합성 — brief.md 존재 + cross-project leak 검증 (read-only)
+- **마이그레이션**: `Worker.kind` OPTIONAL (REQUIRED 미포함 → 기존 워커 호환 보존)
+
+**검증 (3 전문가 점검 — architect/critic/security)**:
+- BLOCKER 2건 + MAJOR 5건 발견 → 설계 반영 후 10 task TDD 분해
+- 363 tests PASS, 외부 SDK 0 (ADR-0009 정합)
+- 사용자 의도 손실 0 — "프로젝트 전문가 주도 셋팅" 을 도메인 워커 자문 시퀀스로 복원
+
+> spec: `docs/superpowers/specs/2026-05-28-external-redteam-customers-design.md`
+> plan: `docs/superpowers/plans/2026-05-28-external-redteam-customers.md`
+
 ## [0.26.0] — 2026-05-27
 
 ### Added — 워커 전문 도구 (`skills`) 박제 (ADR-0020, P111)
