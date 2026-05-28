@@ -94,5 +94,33 @@ class ListPersonasTest(unittest.TestCase):
                 )
 
 
+class ExternalTemplatePathTest(unittest.TestCase):
+    """Task 8 — 외주 template path resolver (ADR-0021)."""
+
+    def test_external_templates_dir_points_to_repo_root(self):
+        d = external.external_templates_dir()
+        repo_root = Path(__file__).resolve().parents[1]
+        self.assertEqual(d, repo_root / "templates")
+
+    def test_external_template_path_redteam(self):
+        p = external.external_template_path("redteam")
+        self.assertEqual(p.name, "redteam.md")
+        self.assertTrue(p.exists(), f"{p} not found (Task 7 에서 생성됨)")
+
+    def test_external_template_path_customer(self):
+        p = external.external_template_path("customer")
+        self.assertEqual(p.name, "customer.md")
+        self.assertTrue(p.exists())
+
+    def test_external_template_path_customers_alias(self):
+        # "customers" alias 도 customer.md 로 매핑.
+        p = external.external_template_path("customers")
+        self.assertEqual(p.name, "customer.md")
+
+    def test_external_template_path_invalid_kind(self):
+        with self.assertRaises(ValueError):
+            external.external_template_path("bogus")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -107,6 +107,29 @@ def list_external_personas(company: str, project: str, kind: str) -> list[str]:
     return sorted(p.stem for p in d.glob("*.md") if p.is_file())
 
 
+def external_templates_dir() -> Path:
+    """외주 template (redteam.md, customer.md) 의 plugin repo root 위치.
+
+    메타 워커 template (``src/lskun_kit/templates/``) 과 분리된 위치 — 저장소
+    root 의 ``templates/``. SSOT 분리 (plugin 자산 vs 외주 페르소나) 의도
+    (ADR-0021, Task 7).
+    """
+    # external.py 는 src/lskun_kit/external.py 이므로 parents[2] = 저장소 root.
+    return Path(__file__).resolve().parents[2] / "templates"
+
+
+def external_template_path(kind: str) -> Path:
+    """``redteam`` 또는 ``customer`` 의 template 파일 경로.
+
+    Raises:
+        ValueError: kind 가 redteam / customer[s] 외인 경우.
+    """
+    kind_dir = _resolve_kind_dir(kind)
+    # kind_dir 은 "redteam" / "customers" (복수). template 파일명은 단수형.
+    fname = "redteam.md" if kind_dir == REDTEAM_DIRNAME else "customer.md"
+    return external_templates_dir() / fname
+
+
 __all__ = [
     "EXTERNAL_DIRNAME",
     "REDTEAM_DIRNAME",
@@ -116,4 +139,6 @@ __all__ = [
     "persona_path",
     "brief_path",
     "list_external_personas",
+    "external_templates_dir",
+    "external_template_path",
 ]
