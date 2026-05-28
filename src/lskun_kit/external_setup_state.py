@@ -41,7 +41,6 @@ STEP_ENUM = frozenset({
     "dispatch_hr_lead",
     "finalize",
 })
-_STEP_SET = STEP_ENUM
 
 
 @dataclass(frozen=True)
@@ -77,7 +76,7 @@ class ExternalSetupState:
         external.validate_project_name(data["project"])
 
         # step enum 검증
-        if data["current_step"] not in _STEP_SET:
+        if data["current_step"] not in STEP_ENUM:
             raise ValueError(
                 f"external-setup marker: invalid current_step {data['current_step']!r} "
                 f"(allowed: {STEP_ENUM})"
@@ -128,11 +127,9 @@ class ExternalSetupState:
         }
 
     def is_stale(self, now: datetime | None = None) -> bool:
+        # from_dict 가 naive datetime 을 차단하므로 started_at 은 항상 tz-aware.
         now = now or datetime.now(timezone.utc)
-        started = self.started_at
-        if started.tzinfo is None:
-            started = started.replace(tzinfo=timezone.utc)
-        return (now - started) > timedelta(seconds=STALE_SECONDS)
+        return (now - self.started_at) > timedelta(seconds=STALE_SECONDS)
 
     def is_exhausted(self) -> bool:
         return self.step_count_so_far > self.max_step_count
@@ -216,7 +213,7 @@ def advance(company: str, current_step: str, next_action: str) -> ExternalSetupS
     Raises:
         ValueError: marker 부재, current_step 이 enum 위반, next_action 이 str 아님.
     """
-    if current_step not in _STEP_SET:
+    if current_step not in STEP_ENUM:
         raise ValueError(
             f"invalid current_step: {current_step!r} (allowed: {STEP_ENUM})"
         )
