@@ -26,6 +26,7 @@
 | ADR-0019 | **Archive 메커니즘 완전 폐기** (`delete_worker`) | 활성 (v0.23.0+, ADR-0015 결정 7-A/7-B/7-C/7-D/7-E supersede) |
 | ADR-0018 | **No external harness, doctor is the harness** | 활성 (v0.25.0+, P106 메타 리뷰 + P109 자기관찰 도구 실증 후 박제 — design doc: `docs/p110-adr-0018.md`) |
 | ADR-0020 | **워커 전문 도구 (`skills`) 박제 — JD 의 도구 차원 확장** | 활성 (v0.26.0+, ADR-0014 확장 / ADR-0009 범위 내 — spec: `docs/p111-worker-skills.md`) |
+| ADR-0021 | **외주 (레드팀 + 고객) — 회사 비종속 평가 자원** | 활성 (v0.27.0+, ADR-0014 확장 / ADR-0008 2축 유지 — spec: `docs/superpowers/specs/2026-05-28-external-redteam-customers-design.md`) |
 
 ## Supersede Chain (시각화)
 

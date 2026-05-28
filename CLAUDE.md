@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 19 (0.26.0) — **워커 전문 도구 (`skills`) 박제 (ADR-0020)**. JD 산문 전문성에 더해, 채용 시점에 전문 도구 (`<root>/skills/<name>.md`) 를 frontmatter `skills` (콤마 구분 string) 로 박제. dispatch 시 `build_skills_block` 이 양 경로 (직통 + CPO 라우팅) 에 경로 주입 → 워커 Read. 없는 스킬은 HR Lead 가 로컬 생성 (외부 호출 0, marketplace 미채택). doctor [31] skills/ 정합성 (dangling/orphan/invalid/meta). critic+architect 검증으로 blocker C1 (두 경로 조립 불일치) 시정 후 박제 — spec `docs/p111-worker-skills.md`. **직전 (0.25.x)** = dispatch description 포맷 + ADR-0018 (No external harness). **이전 (0.23.0)** = Archive 메커니즘 완전 폐기 (ADR-0019). 옛 버전 상세는 CHANGELOG 참조.
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 20 (0.27.0) — **외주(레드팀·고객) 도입 (ADR-0021)**. CPO 가 프로젝트별 외주를 빌려 워커 결과물/방향을 비평·청취하되, 결정은 CPO 단독. 외주는 회사 임직원이 아니며 회사 SSOT 하위 `external/<project>/` 에 거주(3번째 SSOT 금지). 워커 세션 clear 후 CPO 단독 dispatch, 외주 body 는 untrusted fence 격리. **이전 (0.26.0)** = 워커 전문 도구 (`skills`) 박제 (ADR-0020). 옛 버전 상세는 CHANGELOG 참조.
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -41,7 +41,8 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (29개 항목, ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31]) |
+| `/lskun-kit:doctor` | 환경 진단 (30개 항목, ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31] + ADR-0021 [32]) |
+| `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취 (ADR-0021) |
 
 ---
 
@@ -152,6 +153,7 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 - subagent_type="claude" 외 dispatch — ADR-0017 Allowlist
 - plugin core 안에서 외부 시스템 SDK / API 호출 — ADR-0009
 - skill marketplace/원격 다운로드 (네트워크 접촉) — ADR-0020 미채택 (생성만, 로컬 파일 Write)
+- 외주 의견 위 집계·다수결·KPI / 레드팀 destructive 행위 — ADR-0021
 
 > 새 금지 항목 추가 시 [`docs/internals/forbidden-history.md`](docs/internals/forbidden-history.md) 갱신 필수.
 
@@ -169,7 +171,7 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 
 ## 8. 로드맵
 
-Phase 1~19 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 19 (0.26.0) — 워커 전문 도구 skills 박제 (P111, ADR-0020).
+Phase 1~20 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 20 (0.27.0) — 외주(레드팀·고객, P120, ADR-0021).
 
 ## 9. CPO / 인사팀장 동작 사양 (ADR-0002 + ADR-0004)
 
