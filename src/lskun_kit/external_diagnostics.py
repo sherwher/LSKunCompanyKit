@@ -53,7 +53,10 @@ def diagnose_external(company: str) -> ExternalFindings:
             if not kd.exists():
                 continue
             for md in sorted(kd.glob("*.md")):
-                text = md.read_text(encoding="utf-8", errors="replace")
+                try:
+                    text = md.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue  # 읽기 실패 — graceful skip (진단은 절대 크래시하지 않는다)
                 m = _PROJECT_LINE.search(text)
                 declared = m.group(1) if m else None
                 if declared is not None and declared != project:
