@@ -21,13 +21,13 @@ class StepEnumTest(unittest.TestCase):
 
     def test_step_enum_contents(self):
         expected = {
-            "started",
-            "brief_drafted",
-            "brief_finalized",
-            "personas_proposed",
-            "personas_hired",
-            "kickoff_ready",
-            "done",
+            "init",
+            "domain_assessment",
+            "hire_domain_worker",
+            "fetch_advice",
+            "synthesize_brief",
+            "dispatch_hr_lead",
+            "finalize",
         }
         self.assertEqual(set(ess.STEP_ENUM), expected)
 
@@ -40,8 +40,8 @@ class FromDictValidationTest(unittest.TestCase):
             "started_at": datetime.now(timezone.utc).isoformat(),
             "company": "acme",
             "project": "redteam-q2",
-            "current_step": "started",
-            "next_action": "brief 초안 작성",
+            "current_step": "init",
+            "next_action": "domain_assessment",
             "step_count_so_far": 1,
             "max_step_count": 10,
         }
@@ -52,7 +52,7 @@ class FromDictValidationTest(unittest.TestCase):
         state = ess.ExternalSetupState.from_dict(self._base())
         self.assertEqual(state.company, "acme")
         self.assertEqual(state.project, "redteam-q2")
-        self.assertEqual(state.current_step, "started")
+        self.assertEqual(state.current_step, "init")
 
     def test_invalid_step_rejected(self):
         with self.assertRaises(ValueError):
@@ -100,7 +100,7 @@ class StartFinalizeTest(unittest.TestCase):
         state = ess.start("acme", "redteam-q2")
         path = ess.marker_path("acme")
         self.assertTrue(path.exists())
-        self.assertEqual(state.current_step, "started")
+        self.assertEqual(state.current_step, "init")
         self.assertEqual(state.step_count_so_far, 1)
         self.assertEqual(state.company, "acme")
         self.assertEqual(state.project, "redteam-q2")
@@ -119,7 +119,7 @@ class StartFinalizeTest(unittest.TestCase):
         path.write_text(json.dumps(data), encoding="utf-8")
         # stale 은 자동 정리 후 새로 start 가능
         state = ess.start("acme", "redteam-q2")
-        self.assertEqual(state.current_step, "started")
+        self.assertEqual(state.current_step, "init")
 
     def test_finalize_removes_marker(self):
         ess.start("acme", "redteam-q2")
@@ -145,10 +145,10 @@ class AdvanceTest(unittest.TestCase):
 
     def test_advance_increments_step(self):
         ess.start("acme", "redteam-q2")
-        state = ess.advance("acme", "brief_drafted", "brief 검토 요청")
-        self.assertEqual(state.current_step, "brief_drafted")
+        state = ess.advance("acme", "domain_assessment", "hire_domain_worker")
+        self.assertEqual(state.current_step, "domain_assessment")
         self.assertEqual(state.step_count_so_far, 2)
-        self.assertEqual(state.next_action, "brief 검토 요청")
+        self.assertEqual(state.next_action, "hire_domain_worker")
 
     def test_advance_invalid_step_rejected(self):
         ess.start("acme", "redteam-q2")
@@ -157,7 +157,7 @@ class AdvanceTest(unittest.TestCase):
 
     def test_advance_without_marker_raises(self):
         with self.assertRaises(ValueError):
-            ess.advance("acme", "brief_drafted", "x")
+            ess.advance("acme", "domain_assessment", "x")
 
 
 class ReadStaleTest(unittest.TestCase):

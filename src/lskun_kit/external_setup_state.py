@@ -32,16 +32,16 @@ STALE_SECONDS = 24 * 60 * 60
 MAX_STEP_COUNT_DEFAULT = 10
 
 #: 허용 step allowlist (security C1 — enum 위반 차단).
-STEP_ENUM = (
-    "started",
-    "brief_drafted",
-    "brief_finalized",
-    "personas_proposed",
-    "personas_hired",
-    "kickoff_ready",
-    "done",
-)
-_STEP_SET = frozenset(STEP_ENUM)
+STEP_ENUM = frozenset({
+    "init",
+    "domain_assessment",
+    "hire_domain_worker",
+    "fetch_advice",
+    "synthesize_brief",
+    "dispatch_hr_lead",
+    "finalize",
+})
+_STEP_SET = STEP_ENUM
 
 
 @dataclass(frozen=True)
@@ -201,8 +201,8 @@ def start(company: str, project: str) -> ExternalSetupState:
         started_at=datetime.now(timezone.utc),
         company=company,
         project=project,
-        current_step="started",
-        next_action="brief 초안 작성",
+        current_step="init",
+        next_action="domain_assessment",
         step_count_so_far=1,
         max_step_count=MAX_STEP_COUNT_DEFAULT,
     )
