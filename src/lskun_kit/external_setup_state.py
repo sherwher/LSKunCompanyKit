@@ -82,9 +82,12 @@ class ExternalSetupState:
                 f"(allowed: {STEP_ENUM})"
             )
 
-        # next_action 타입
-        if not isinstance(data["next_action"], str):
-            raise ValueError("external-setup marker: next_action must be str")
+        # next_action enum 검증 (security C1 후속 — current_step 과 동일 allowlist)
+        if data["next_action"] not in STEP_ENUM:
+            raise ValueError(
+                f"external-setup marker: invalid next_action {data['next_action']!r} "
+                f"(allowed: {STEP_ENUM})"
+            )
 
         # step_count 타입 — bool 도 int 의 subclass 라 명시 차단
         sc = data["step_count_so_far"]
@@ -217,8 +220,10 @@ def advance(company: str, current_step: str, next_action: str) -> ExternalSetupS
         raise ValueError(
             f"invalid current_step: {current_step!r} (allowed: {STEP_ENUM})"
         )
-    if not isinstance(next_action, str):
-        raise ValueError("next_action must be str")
+    if next_action not in STEP_ENUM:
+        raise ValueError(
+            f"invalid next_action: {next_action!r} (allowed: {STEP_ENUM})"
+        )
 
     state = read(company)
     if state is None:

@@ -81,6 +81,13 @@ class FromDictValidationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ess.ExternalSetupState.from_dict(data)
 
+    def test_invalid_next_action_rejected(self):
+        # next_action 도 STEP_ENUM allowlist 강제 (security C1 후속).
+        with self.assertRaises(ValueError):
+            ess.ExternalSetupState.from_dict(self._base(next_action="rm -rf /"))
+        with self.assertRaises(ValueError):
+            ess.ExternalSetupState.from_dict(self._base(next_action="evil_action"))
+
 
 class StartFinalizeTest(unittest.TestCase):
     """start → marker 생성, finalize → marker 삭제 (idempotent)."""
@@ -158,6 +165,14 @@ class AdvanceTest(unittest.TestCase):
     def test_advance_without_marker_raises(self):
         with self.assertRaises(ValueError):
             ess.advance("acme", "domain_assessment", "x")
+
+    def test_advance_rejects_invalid_next_action(self):
+        # advance() 도 next_action enum 강제 (security C1 후속).
+        ess.start("acme", "redteam-q2")
+        with self.assertRaises(ValueError):
+            ess.advance("acme", "domain_assessment", "rm -rf /")
+        with self.assertRaises(ValueError):
+            ess.advance("acme", "domain_assessment", "evil_action")
 
 
 class ReadStaleTest(unittest.TestCase):

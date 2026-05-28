@@ -38,6 +38,10 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from lskun_kit.external_setup_state import ExternalSetupState
 
 # 직접 경로 호출 시 self-bootstrap (P48 hook command 형태 대응).
 _SRC_DIR = str(Path(__file__).resolve().parents[2])
@@ -111,7 +115,7 @@ def _run(stdin_text: str) -> None:
     sys.stdout.write("\n")
 
 
-def _format_reminder(state: object) -> str:
+def _format_reminder(state: "ExternalSetupState") -> str:
     """``<system-reminder>`` 본문. enum 라벨 (current_step / next_action) 만 노출."""
 
     return (

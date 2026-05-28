@@ -190,6 +190,30 @@ class MalformedMarkerTest(unittest.TestCase):
         self.assertNotIn("<system-reminder>", out)
         self.assertFalse(path.exists())
 
+    def test_invalid_next_action_unlinked(self) -> None:
+        """enum 위반 next_action 박힌 marker → read() 차단 + unlink, raw 미노출."""
+        path = ess.marker_path("acme")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        bad = {
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "company": "acme",
+            "project": "redteam-q2",
+            "current_step": "init",
+            "next_action": "rm -rf /",  # raw 인젝션 시도
+            "step_count_so_far": 1,
+            "max_step_count": 10,
+        }
+        path.write_text(json.dumps(bad), encoding="utf-8")
+
+        rc, out, _ = _run(
+            _task_payload(),
+            {"LSKUN_SSOT_ROOT": str(self.company_root)},
+        )
+        self.assertEqual(rc, 0)
+        self.assertNotIn("<system-reminder>", out)
+        self.assertNotIn("rm -rf", out)  # 절대 LLM context 노출 금지
+        self.assertFalse(path.exists())  # read() 가 unlink
+
     def test_invalid_step_unlinked(self) -> None:
         """enum 위반 step 박힌 marker → read() 차단 + unlink."""
         path = ess.marker_path("acme")
