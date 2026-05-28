@@ -27,6 +27,12 @@ class SanitizeExternalBodyTest(unittest.TestCase):
         out = external_context.sanitize_external_body("줄1\n줄2\n줄3")
         self.assertEqual(out.count("\n"), 2)
 
+    def test_truncates_long_body(self):
+        long_body = "A" * 9000
+        out = external_context.sanitize_external_body(long_body)
+        self.assertEqual(len(out), 8000)
+        self.assertTrue(out.endswith("..."))
+
 
 class BuildExternalContextTest(unittest.TestCase):
     def test_wraps_in_untrusted_label(self):
@@ -50,6 +56,12 @@ class BuildExternalContextTest(unittest.TestCase):
         )
         self.assertIn("UNTRUSTED", out)
         self.assertIn("가격이 비쌉니다", out)
+
+    def test_customers_alias_label(self):
+        # external._KIND_DIR_ALIASES 와 정합 (customers 복수도 수용)
+        out = external_context.build_external_context(kind="customers", body="x")
+        self.assertIn("UNTRUSTED", out)
+        self.assertIn("고객", out)
 
 
 class SanitizeTildeAndInputTest(unittest.TestCase):

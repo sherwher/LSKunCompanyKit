@@ -23,7 +23,11 @@ _HTML_COMMENT_PAT = re.compile(r"<!--.*?-->", re.DOTALL)
 MAX_BODY_LENGTH = 8000
 
 #: kind → 라벨. 미존재 kind 는 ValueError 로 거부 (silent fallback 금지).
-_KIND_LABELS = {"redteam": "레드팀", "customer": "고객"}
+_KIND_LABELS = {
+    "redteam": "레드팀",
+    "customer": "고객",
+    "customers": "고객",  # alias — external._KIND_DIR_ALIASES 와 정합
+}
 
 
 def sanitize_external_body(body: str) -> str:
