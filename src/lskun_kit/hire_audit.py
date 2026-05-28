@@ -266,7 +266,7 @@ def record_hire(
 
 
 def record_external_onboard(
-    audit_path: Path | str,
+    target_path: Path | str,
     *,
     actor: str,
     name: str,
@@ -281,12 +281,12 @@ def record_external_onboard(
 
     ADR-0006 정신: 단발 기록만. 집계/KPI/대시보드 금지.
 
-    ``audit_path`` 는 (company_root 가 아닌) 기록할 JSONL 파일 경로 자체다.
+    ``target_path`` 는 (company_root 가 아닌) 기록할 JSONL 파일 경로 자체다.
     부모 디렉토리가 없으면 생성한다. JSONL 직렬화는 :meth:`AuditEvent.to_dict`
     + :func:`append_event` 와 동일한 ``ensure_ascii=False`` 한 줄 append.
     """
 
-    path = Path(audit_path)
+    path = Path(target_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     event = AuditEvent(
         at=at or datetime.now(timezone.utc),
