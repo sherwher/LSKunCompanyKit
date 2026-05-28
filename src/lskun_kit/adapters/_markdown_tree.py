@@ -193,7 +193,7 @@ class MarkdownTreeAdapter(StorageAdapter):
         try:
             resolved = candidate.resolve(strict=False)
             hired_resolved = self._hired_dir.resolve(strict=False)
-            if not str(resolved).startswith(str(hired_resolved)):
+            if not resolved.is_relative_to(hired_resolved):
                 raise ValueError(
                     f"worker path escapes hired/: {resolved}"
                 )
@@ -226,7 +226,7 @@ class MarkdownTreeAdapter(StorageAdapter):
         try:
             resolved = candidate.resolve(strict=False)
             skills_resolved = self._skills_dir.resolve(strict=False)
-            if not str(resolved).startswith(str(skills_resolved)):
+            if not resolved.is_relative_to(skills_resolved):
                 raise ValueError(f"skill path escapes skills/: {resolved}")
         except (OSError, RuntimeError) as e:
             raise ValueError(f"failed to resolve skill path: {name!r} ({e})")
