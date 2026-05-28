@@ -265,6 +265,40 @@ def record_hire(
     return event
 
 
+def record_external_onboard(
+    audit_path: Path | str,
+    *,
+    actor: str,
+    name: str,
+    kind: str,
+    project: str,
+    at: datetime | None = None,
+) -> None:
+    """외주 (레드팀/고객) 박제를 audit 에 기록 — ADR-0021.
+
+    hire rate-limit (같은 role+domain 30분) 을 타지 않는다. 고객 N명은 같은
+    role(customer) 로 동시 다수 박제가 정상이기 때문 (``event_type`` 분리).
+
+    ADR-0006 정신: 단발 기록만. 집계/KPI/대시보드 금지.
+
+    ``audit_path`` 는 (company_root 가 아닌) 기록할 JSONL 파일 경로 자체다.
+    부모 디렉토리가 없으면 생성한다. JSONL 직렬화는 :meth:`AuditEvent.to_dict`
+    + :func:`append_event` 와 동일한 ``ensure_ascii=False`` 한 줄 append.
+    """
+
+    path = Path(audit_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    event = AuditEvent(
+        at=at or datetime.now(timezone.utc),
+        actor=actor,
+        event_type="onboard_external",
+        payload={"name": name, "kind": kind, "project": project},
+    )
+    line = json.dumps(event.to_dict(), ensure_ascii=False)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+
+
 __all__ = [
     "AUDIT_FILENAME",
     "DEFAULT_COOLDOWN_SECONDS",
@@ -277,4 +311,5 @@ __all__ = [
     "read_audit_events",
     "check_rate_limit",
     "record_hire",
+    "record_external_onboard",
 ]
