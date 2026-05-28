@@ -42,6 +42,7 @@ OPTIONAL_WORKER_FIELDS = (
     "persona_synced_at",
     "keywords",
     "skills",
+    "kind",
 )
 
 #: ADR-0003 §1 — CPO / HR Lead 등 도메인 무관 워커의 ``domain`` 예약값.
@@ -106,6 +107,9 @@ class Worker:
     #: ``<root>/skills/<name>.md`` 로 경로 조합되어 dispatch 시 워커에게 주입.
     #: 메타 워커는 비워둔다.
     skills: str | None = None
+    #: ADR-0021 — 외주 식별. None = 일반 워커 (hired/). "redteam" | "customer" = 외주.
+    #: REQUIRED 에 넣지 않는다 — 기존 워커 호환 보존. external/ 거주 자산에만 박힌다.
+    kind: str | None = None
     body: str = ""  # frontmatter 이후 markdown 본문 전체
     extra: dict = field(default_factory=dict)
 

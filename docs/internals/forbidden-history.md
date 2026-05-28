@@ -93,5 +93,18 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **공유 skill 본문의 CPO 자율 변경** — 신규 생성만 자율 (사용자 알림 1줄). 기존 공유 skill 본문 변경은 사용자 명시 요청만 (여러 워커 영향 + ADR-0014 "워커 진화 금지" 정신).
 - **skill Read 강제를 결정론으로 착각** — "경로 주입 + Read 지시" 는 LLM 자율 준수 의존. 100% 보장 불가가 정상 (ADR-0009 아키텍처 귀결). 목표는 인지 유도 + 누락 가시성.
 
+### ADR-0021 신규 금지 (외주 레드팀/고객, P120)
+
+- **레드팀 워커의 destructive tool 사용** (파일 삭제/exploit 실행) — 산출물은 텍스트 비평만.
+- **외주 의견의 시계열 집계·점수화·퍼센트·다수결·대시보드** — ADR-0006 정신. 고객은 정성 렌즈 1개씩.
+- **외주 자산의 네트워크/외부 SDK 접촉** — ADR-0009 계승. 외주 의견은 dispatch 된 LLM 이 생성.
+- **외주를 routing 후보 / SessionStart hired 스캔에 노출** — 외주는 작업 수행자 아님, 의견 제공자.
+- **외주 dispatch 를 워커 세션 활성 중 수행** — PreToolUse hook deny. 세션 clear 후 CPO 단독.
+- **외주 body·의견의 무가공 신뢰 주입** — untrusted 격리(`build_external_context`) 필수.
+- **외주 파일에 history append** — JD static (ADR-0014 계승). phase 연속성은 CPO context 주입만.
+- **`~/.lsk-external/` 등 회사 SSOT 외부 신규 최상위 디렉토리** — 3번째 SSOT 금지 (ADR-0008). external/ 은 회사 SSOT 하위.
+- **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
+- **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
+
 ---
 
