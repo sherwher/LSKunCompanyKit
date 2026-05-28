@@ -1,7 +1,9 @@
 """ADR-0021 — 외주 경로 코어 테스트."""
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -38,6 +40,58 @@ class ExternalRootTest(unittest.TestCase):
     def test_external_root_rejects_bad_company(self):
         with self.assertRaises(ValueError):
             external.external_root("..", "lskun-kit")
+
+
+class PersonaPathTest(unittest.TestCase):
+    def test_redteam_persona_path(self):
+        p = external.persona_path("Acme", "proj", "redteam", "competitor-analyst")
+        root = external.external_root("Acme", "proj")
+        self.assertEqual(p, root / "redteam" / "competitor-analyst.md")
+
+    def test_customer_persona_path(self):
+        p = external.persona_path("Acme", "proj", "customers", "power-user")
+        root = external.external_root("Acme", "proj")
+        self.assertEqual(p, root / "customers" / "power-user.md")
+
+    def test_invalid_kind_rejected(self):
+        with self.assertRaises(ValueError):
+            external.persona_path("Acme", "proj", "redteam-evil", "x")
+
+    def test_invalid_persona_name_rejected(self):
+        for bad in ("..", "a/b", ".hidden", ""):
+            with self.assertRaises(ValueError):
+                external.persona_path("Acme", "proj", "redteam", bad)
+
+    def test_persona_path_is_relative_to_root(self):
+        root = external.external_root("Acme", "proj").resolve()
+        p = external.persona_path("Acme", "proj", "redteam", "x").resolve()
+        self.assertTrue(p.is_relative_to(root))
+
+    def test_brief_path(self):
+        p = external.brief_path("Acme", "proj")
+        self.assertEqual(p, external.external_root("Acme", "proj") / "brief.md")
+
+
+class ListPersonasTest(unittest.TestCase):
+    def test_list_empty_when_absent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(paths.Path, "home", return_value=Path(tmp)):
+                self.assertEqual(
+                    external.list_external_personas("Acme", "proj", "redteam"), []
+                )
+
+    def test_list_returns_sorted_stems(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(paths.Path, "home", return_value=Path(tmp)):
+                d = external.external_root("Acme", "proj") / "redteam"
+                d.mkdir(parents=True)
+                (d / "b-critic.md").write_text("x")
+                (d / "a-critic.md").write_text("x")
+                (d / "note.txt").write_text("x")  # 비-md 무시
+                self.assertEqual(
+                    external.list_external_personas("Acme", "proj", "redteam"),
+                    ["a-critic", "b-critic"],
+                )
 
 
 if __name__ == "__main__":
