@@ -91,6 +91,33 @@ def _walk_size(root: Path) -> tuple[int, int]:
     return files, total
 
 
+#: ADR-0022 — 외주 setup 진행 상태 marker 파일 이름. sync 시 인지 경고 대상.
+EXTERNAL_MARKER_NAME = ".external-setup.json"
+
+
+def _scan_external_markers(root: Path) -> list[str]:
+    """``root`` 하위의 ``.external-setup.json`` 발견 시 인지 경고 노트 반환 (security C1).
+
+    sync-in 은 외부 mirror 의 marker 를 회사 SSOT 로 옮기는 인젝션 경로이고,
+    sync-out 은 로컬 marker 를 외부로 내보낸다. 어느 쪽이든 marker 가 자동
+    취급되지 않도록 사용자에게 존재를 알린다. marker schema 의 enum allowlist
+    (``external_setup_state.read``) 가 raw 인젝션을 1차 차단하지만, 인지 경고는
+    그 마지막 방어선이다.
+    """
+
+    if not root.exists():
+        return []
+    notes: list[str] = []
+    for p in sorted(root.rglob(EXTERNAL_MARKER_NAME)):
+        if p.is_file():
+            notes.append(
+                f"⚠️ {p.relative_to(root)} — 외주 setup 진행 상태 파일 (ADR-0022). "
+                "외부 mirror 의 marker 는 prompt 인젝션 표면이 될 수 있음. "
+                "불필요하면 /lskun-kit:external cancel 또는 직접 정리 권장."
+            )
+    return notes
+
+
 def _render_confirm_prompt(
     direction: str, company_name: str, source: Path, target: Path,
     backup_path: Path, target_exists: bool,
@@ -197,6 +224,13 @@ def sync_in(
 
     files, total = _copy_tree(src, co_root)
 
+    notes = (
+        [f"기존 local 백업: {backup_path}"] if backup_path else
+        ["target 신규 생성 (이전 local 없음)"]
+    )
+    # security C1 — 외부 mirror 의 외주 setup marker 인지 경고.
+    notes.extend(_scan_external_markers(src))
+
     return SyncResult(
         direction="in",
         company_name=company_name,
@@ -205,10 +239,7 @@ def sync_in(
         backup_path=backup_path,
         files_copied=files,
         bytes_copied=total,
-        notes=(
-            [f"기존 local 백업: {backup_path}"] if backup_path else
-            ["target 신규 생성 (이전 local 없음)"]
-        ),
+        notes=notes,
     )
 
 
@@ -277,6 +308,13 @@ def sync_out(
 
     files, total = _copy_tree(co_root, tgt)
 
+    notes = (
+        [f"기존 target 백업: {backup_path}"] if backup_path else
+        ["target 신규 생성 (이전 target 없음)"]
+    )
+    # security C1 — 로컬 SSOT 의 외주 setup marker 를 외부로 내보낼 때 인지 경고.
+    notes.extend(_scan_external_markers(co_root))
+
     return SyncResult(
         direction="out",
         company_name=company_name,
@@ -285,10 +323,7 @@ def sync_out(
         backup_path=backup_path,
         files_copied=files,
         bytes_copied=total,
-        notes=(
-            [f"기존 target 백업: {backup_path}"] if backup_path else
-            ["target 신규 생성 (이전 target 없음)"]
-        ),
+        notes=notes,
     )
 
 
@@ -296,4 +331,5 @@ __all__ = [
     "SyncResult",
     "sync_in",
     "sync_out",
+    "EXTERNAL_MARKER_NAME",
 ]

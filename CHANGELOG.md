@@ -5,6 +5,22 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.28.0] — 2026-05-29
+
+### Added — 외주 setup 자동 시퀀스 결정론 강제 (ADR-0022, P121)
+
+멀티-step CPO 시퀀스(외주 setup)가 도중에 멈춰 사용자가 "끊긴 것 아니냐"고 깨워야 진행되던 UX 결함을 plugin 차원에서 차단. 두 프로젝트에서 재현된 구조적 결함(Claude Code 의 turn-based 특성 + LLM 자율 종료)이라 hook 으로 결정론적 강제.
+
+- **PostToolUse:Task hook** (`post_tool_use_external.py`): marker 살아있으면 Task 종료 직후 "다음 판단 step" 을 `<system-reminder>` 로 push (같은 turn 연속 유도, soft hint).
+- **Stop hook** (`stop_external.py`): marker 살아있으면 turn 종료를 `decision="block"` 으로 차단 (hard guard). reason 은 "강제" 가 아니라 "다음 판단 step 을 이어서 수행" — CPO 결재권 보존 (ADR-0004 §8).
+- **marker 파일** (`~/.lskun-companies/<company>/.external-setup.json`): `external_setup_state` 모듈이 start/advance/finalize/cancel + atomic write + 24h TTL + step 폭주 가드 관리. `current_step`/`next_action` 은 STEP_ENUM allowlist 강제 (sync-in 경유 prompt 인젝션 차단 — security C1).
+- **안전장치**: `stop_hook_active=true` → 무조건 allow + marker auto-unlink (무한 lockup 방지 단일 invariant). `LSKUN_ALLOW_EXTERNAL_HALT=1` escape hatch. `/lskun-kit:external cancel <project>` 명시 중단.
+- **`/clear` 강제 break**: hook 으로 못 푸는 워커 세션 정리 break 는 `commands/external.md` 본문 안내(pull)로 보완 — "한 turn 완수 + 사용자 응답 대기 금지" 명시.
+- **doctor [33][34]**: stale/손상 marker 검출 + `.zshrc` 등의 `LSKUN_ALLOW_EXTERNAL_HALT` 영구 export 검출 (read-only).
+- **sync 가드**: sync-in/out 시 `.external-setup.json` 발견하면 인지 경고 note (security C1 마지막 갈래).
+
+> 3 전문가 점검(architect/critic/security) 의 BLOCKER 3건 + MAJOR 3건 전부 반영. reflection 폐기(ADR-0014)는 유지 — 본 hook 은 외주 setup 한정, marker 존재 시에만 동작, 자동 평가·history 박제 0 (forbidden-history.md:45 부분 supersede).
+
 ## [0.27.0] — 2026-05-28
 
 ### Added — 프로젝트별 외주 (레드팀 + 고객) 도입 (ADR-0021, P120)

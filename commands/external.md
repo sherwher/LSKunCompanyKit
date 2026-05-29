@@ -3,7 +3,7 @@ name: lskun-kit:external
 description: 프로젝트별 외주(레드팀·고객) 구성/청취 — CPO 단독 dispatch (ADR-0021)
 arguments:
   - name: subcommand
-    description: setup | list | consult
+    description: setup | list | consult | cancel
     required: true
   - name: project
     description: 외주를 묶을 프로젝트 이름 (영문/숫자/`-`/`_`, 최대 64자)
@@ -22,13 +22,29 @@ arguments:
 
 ### setup <project> [--redteam] [--customers]
 
+**⚠️ 첫 행동 (다른 어떤 출력보다 먼저): 반드시
+`lskun_kit.external_setup_state.start(company, project)` 를 호출해 marker 를 박제하라.**
+marker 가 없으면 PostToolUse/Stop hook 이 동작하지 않아 시퀀스 중간 멈춤 보호가 0 이 된다
+(ADR-0022 — 보호는 marker 박제 후에만 결정론적). start() 를 빠뜨린 채 자문 dispatch 로
+넘어가지 말 것.
+
+**시퀀스는 한 turn 안에 완수한다. 중간에 사용자 응답을 기다려 turn 을 종료하지 말 것.**
+(ADR-0022 — PostToolUse + Stop hook 이 turn 연속성을 강제한다. marker:
+`~/.lskun-companies/<company>/.external-setup.json`.)
+
 HR Lead 를 통해 외주를 박제한다. 구성 시퀀스 (CPO 주도):
 
 1. 프로젝트 도메인 판단 → 도메인 워커가 `hired/` 에 있는지 확인.
 2. 없으면 기존 자동 채용 (HR Lead dispatch) 으로 도메인 워커 먼저 채용.
 3. 도메인 워커를 1회 dispatch → 프로젝트 위험·경쟁구도·급소·타깃 고객 자문 수집.
-   **이 워커 세션이 종료(clear)된 뒤** 다음 단계로 진행. PreToolUse hook 이
-   활성 워커 세션 중 Task 호출을 deny 하므로 반드시 세션 clear 후 CPO 단독 dispatch.
+   **이 step 끝나면 워커 세션 marker (`.lskun-session.json`) 가 살아있다.** 다음
+   dispatch 전에 세션 정리가 필요하다 — PreToolUse hook 의 chain 차단 (ADR-0004 §8)
+   이 활성 워커 세션 중 Task dispatch 를 deny 하므로. 정리 방법:
+   - (a) `lskun_kit.session.clear()` 자동 호출 (지원되는 경우).
+   - (b) 사용자에게 "**워커 세션 정리를 위해 `/clear` 를 입력하면 자동 재개됩니다**"
+     1줄 안내 후, **사용자 응답을 기다려 turn 종료하지 말고** 다음 step 으로.
+   어느 쪽이든 **Stop hook 이 turn 종료를 차단하므로** CPO 는 이 안내만 출력하고
+   같은 turn 안에서 가능한 다음 step 을 이어간다.
 4. 자문을 brief.md (`external/<project>/brief.md`) 에 합성 (`brief_path`).
 5. HR Lead 를 `Task(subagent_type="claude", ...)` 로 dispatch — `templates/redteam.md`,
    `templates/customer.md` (외주 template, `lskun_kit.external.external_template_path`
@@ -36,6 +52,21 @@ HR Lead 를 통해 외주를 박제한다. 구성 시퀀스 (CPO 주도):
    - 고객 인원수: brief 기반 CPO 판단, **최대 7명**. 서로 다른 정성 렌즈 1개씩 (페르소나 다양성).
    - 박제는 `lskun_kit.audit_external.record_external_onboard` 로 audit 기록
      (event_type=`onboard_external`).
+6. 완료 시 `lskun_kit.external_setup_state.finalize(company)` 호출 → marker 자동 삭제.
+
+시작 시 CPO 는 사용자에게 다음 1줄 안내한다:
+> "외주 setup 자동 시퀀스 시작 (project=<project>). 도중에 `/clear` 안내가 나오면
+> 입력해주세요. 그 외엔 자동 진행됩니다 (보통 30~60초). 중단하려면
+> `/lskun-kit:external cancel <project>` 또는 `LSKUN_ALLOW_EXTERNAL_HALT=1`."
+
+### cancel <project>
+
+진행 중인 외주 setup 을 중단한다. `lskun_kit.external_setup_state.cancel(company)`
+로 marker 파일을 atomic unlink + audit entry 박제
+(`event_type="external_setup_cancelled"`). 새 setup 즉시 가능.
+
+긴급 중단이 필요하면 env var: `export LSKUN_ALLOW_EXTERNAL_HALT=1` (세션 단위만,
+`.zshrc` 영구 export 는 doctor [34] 가 검출).
 
 ### list <project>
 
