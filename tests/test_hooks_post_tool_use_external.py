@@ -161,6 +161,27 @@ class MarkerPresentTest(unittest.TestCase):
         self.assertNotIn("<system-reminder>", out)
         self.assertFalse(path.exists())  # auto-unlinked
 
+    def test_at_max_no_off_by_one_push(self) -> None:
+        """step_count == max 인 marker 는 advance→max+1(exhausted) 이라 push 없이 정리.
+
+        read() 는 통과(max > max == False)하지만 advance 후 new_state 가
+        exhausted 이므로 reminder 를 주입하지 않고 marker 를 정리한다 (spec §3.3
+        "max 에서 멈춤" invariant — off-by-one push 누수 차단, architect MAJOR).
+        """
+        ess.start("acme", "redteam-q2")
+        path = ess.marker_path("acme")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["step_count_so_far"] = data["max_step_count"]  # 정확히 max
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+        rc, out, _ = _run(
+            _task_payload(),
+            {"LSKUN_SSOT_ROOT": str(self.company_root)},
+        )
+        self.assertEqual(rc, 0)
+        self.assertNotIn("<system-reminder>", out)  # push 누수 없음
+        self.assertFalse(path.exists())  # exhausted 로 정리됨
+
 
 class MalformedMarkerTest(unittest.TestCase):
     """malformed marker → read() 가 auto-unlink + None → reminder 없음."""

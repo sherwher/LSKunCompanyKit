@@ -110,6 +110,14 @@ def _run(stdin_text: str) -> None:
         state.next_action,
     )
 
+    # 6-b. advance 결과가 exhausted (step_count > max) 면 push 하지 않고 정리.
+    #    advance 는 read→+1→write 라 max 도달 marker 가 1회 더 전진하므로, 그
+    #    전진분이 exhausted 면 reminder 주입을 생략하고 read() 로 auto-unlink
+    #    트리거 (spec §3.3 "max 에서 멈춤" invariant — off-by-one push 누수 차단).
+    if new_state.is_exhausted():
+        external_setup_state.read(company_name)  # exhausted → auto-unlink
+        return
+
     # 7. system-reminder 주입 (enum 라벨만 노출 — security C1).
     sys.stdout.write(_format_reminder(new_state))
     sys.stdout.write("\n")
