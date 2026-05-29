@@ -245,7 +245,23 @@ def advance(company: str, current_step: str, next_action: str) -> ExternalSetupS
 
 
 def finalize(company: str) -> None:
-    """setup 시퀀스 종료 — marker 삭제. 부재해도 raise 안 함 (idempotent)."""
+    """setup 시퀀스 정상 완료 — marker 삭제. 부재해도 raise 안 함 (idempotent)."""
+    paths.validate_company_name(company)
+    path = marker_path(company)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def cancel(company: str) -> None:
+    """진행 중인 외주 setup 사용자 명시 중단 — marker unlink. 부재 시 no-op.
+
+    ``finalize`` 와 marker 정리 동작은 같으나 의미가 다르다 (finalize = 정상
+    완료, cancel = 사용자 중단). audit entry 박제 (event_type=
+    ``external_setup_cancelled``) 는 ``commands/external.md`` 가 호출하며, 본
+    함수는 marker 정리만 담당 (SRP).
+    """
     paths.validate_company_name(company)
     path = marker_path(company)
     try:
@@ -265,4 +281,5 @@ __all__ = [
     "start",
     "advance",
     "finalize",
+    "cancel",
 ]
