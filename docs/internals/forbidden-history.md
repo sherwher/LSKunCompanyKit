@@ -42,7 +42,7 @@
 - **조직도 출력에 한글 폭 보정 (`east_asian_width`) 도입** — markdown table 로 회피한 의도 위반. 다른 format 필요 시 별도 ADR (ADR-0013)
 - ~~CPO 결재 절차의 reflection 박제 단계 생략~~ — **ADR-0014 로 폐기** (reflection 메커니즘 자체 폐기)
 - ~~워커가 자기 reflection 을 직접 박제하는 경로~~ — **ADR-0014 로 자연 폐기** (reflection 대상 자체 소멸). 워커 → 워커 chain 금지는 유지 (ADR-0004 §8)
-- ~~새 hook 으로 자동 reflection 박제 시도~~ — **ADR-0014 로 자연 폐기**. Stop / PostToolUse hook 도 제거됨 (P79-1).
+- ~~새 hook 으로 자동 reflection 박제 시도~~ — **ADR-0014 로 자연 폐기**. reflection 용 Stop / PostToolUse hook 은 제거됨 (P79-1). **단 ADR-0022 (2026-05-28) 가 부분 supersede** — 외주 setup 한정 Stop / PostToolUse:Task hook 재도입 (reflection 과 무관, marker 파일 존재 시에만 동작, 자동 평가·history 박제 0). reflection 메커니즘 재도입 금지는 유지.
 - **reflection / history 메커니즘 재도입** — ADR-0014 로 폐기. 재도입 시 새 ADR + 정체성 재정의 선행 필수
 - **워커 진화 narrative** (ADR-0014) — "워커가 시간으로 성장한다" 류 슬로건 박제 금지. ADR-0011 의 "AI 직원 진화" 슬로건 금지와 일관
 - **JD 자동 갱신** (ADR-0014) — JD 는 채용 시 1회 박제. 사용자 명시 갱신 (`/lskun-kit:work hr-lead "..."`) 외 자동 진화 금지
@@ -105,6 +105,15 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`~/.lsk-external/` 등 회사 SSOT 외부 신규 최상위 디렉토리** — 3번째 SSOT 금지 (ADR-0008). external/ 은 회사 SSOT 하위.
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
+
+### ADR-0022 신규 금지 (외주 setup hook, P121)
+
+- **Stop hook 의 `stop_hook_active=true` payload 무시** — 무한 lockup. 무조건 allow + marker auto-unlink 단일 invariant.
+- **PostToolUse/Stop hook 에서 `.external-setup.json` 외 입력 (Task description/prompt 내용 파싱) 으로 시퀀스 의도 추론** — forbidden-history.md (PreToolUse prompt 파싱 금지) 계승.
+- **marker 파일 schema 의 enum 미강제** — 자유 string 박제는 sync-in 경유 prompt 인젝션 표면 (security C1). `current_step`/`next_action` 둘 다 STEP_ENUM allowlist 강제.
+- **marker wall-clock TTL 부재** — 영구 stuck. 24h 초과 시 `read()` 가 자동 unlink.
+- **`LSKUN_ALLOW_EXTERNAL_HALT` 의 `.zshrc`/`.bashrc` 영구 export** — 가드 무력화. doctor [34] 검출. 세션 단위 export 권장.
+- **hook 의 trigger 범위 확장 (외주 setup 외 일반 dispatch 로 침투)** — marker 파일 존재 시에만 동작. 일반화 프레임워크는 실증 후 별도 ADR (ADR-0018 정신).
 
 ---
 
