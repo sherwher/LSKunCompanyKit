@@ -27,9 +27,8 @@ Security (spec C1):
     의 ``STEP_ENUM`` allowlist 를 통과한 값만 LLM context 에 노출된다. raw
     문자열 박제 시도는 ``read()`` 단계에서 차단되어 ``None`` 반환.
 
-NOTE: ``_detect_company_root`` 는 ``pre_tool_use.py`` 와 동일 로직 복제.
-P121 Task 3 (Stop hook) 도 같은 함수를 쓰므로 본 task 에서는 복제하고
-Task 3 에서 ``hooks/_common.py`` 로 추출 결정.
+NOTE: 활성 회사 root 검출은 ``hooks/_common.detect_company_root`` 로 추출
+(P121 Task 3) — ``stop_external`` 과 공유.
 """
 
 from __future__ import annotations
@@ -49,7 +48,6 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 TOOL_TASK = "Task"
-ENV_SSOT_ROOT = "LSKUN_SSOT_ROOT"
 ENV_ALLOW_HALT = "LSKUN_ALLOW_EXTERNAL_HALT"
 
 
@@ -87,8 +85,10 @@ def _run(stdin_text: str) -> None:
         )
         return
 
-    # 3. 활성 회사 root 검출.
-    company_root = _detect_company_root()
+    # 3. 활성 회사 root 검출 (hooks/_common 공유 헬퍼).
+    from lskun_kit.hooks._common import detect_company_root
+
+    company_root = detect_company_root()
     if company_root is None:
         return
 
@@ -128,25 +128,6 @@ def _format_reminder(state: "ExternalSetupState") -> str:
         "완료 시 external_setup_state.finalize() 로 marker 정리. ADR-0022.\n"
         "</system-reminder>"
     )
-
-
-def _detect_company_root() -> Path | None:
-    """활성 회사 root 검출 (pre_tool_use.py 와 동일 로직, P121 Task 3 에서 _common 추출).
-
-    1순위: ``LSKUN_SSOT_ROOT`` env var (O(1)).
-    2순위: cwd 상위 CLAUDE.md marker 직접 검출 (session_start 재사용).
-    """
-
-    env_root = os.environ.get(ENV_SSOT_ROOT, "").strip()
-    if env_root:
-        path = Path(env_root)
-        return path if path.exists() else None
-
-    try:
-        from lskun_kit.hooks.session_start import _find_active_company_root  # type: ignore[attr-defined]
-    except ImportError:
-        return None
-    return _find_active_company_root()
 
 
 def _parse_payload(stdin_text: str) -> dict:
