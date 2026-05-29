@@ -114,11 +114,28 @@ ADR-0015 (2026-05-22) — Vault backend 폐기. plugin core 는 `~/.lskun-compan
 | **사용자 SSOT** (단일) | `~/.lskun-companies/<name>/` | hired/ / archived/ / company.md / .audit/ |
 | 외부 mirror (선택) | 사용자 임의 경로 | sync 명령으로만 동기화. plugin core 는 path 만 알고 SDK 0 |
 
+### 개발자 SSOT 위치 (본 저장소 저자 로컬 — 운영 메모)
+
+> 본 절은 **이 저장소를 작업하는 저자(sherwher)의 로컬 환경 메모**다. plugin 배포물·코드는 본 경로를 박제하지 않는다 (ADR-0009 §5 — "저자 SSOT 물리적 위치 비박제" 불변). 다른 LSKun 프로젝트(ilsaek/ImageChecker/DcodeJob 등)의 vault 연동 규약과 동일 패턴.
+
+- **vault 루트:** `/Users/sk.lee/Documents/private-workspaces/obsidian-vault/`
+- **프로젝트 허브:** `02_Projects/LSKunCompanyKit/LSKunCompanyKit-hub.md` (개발자 SSOT 인덱스, `ssot_role: developer`)
+- **ADR 본문 SSOT:** `02_Projects/LSKunCompanyKit/decisions/ADR-NNNN-<date>-<title>.md` (repo 는 ADR 번호 인용만, 본문은 vault)
+- **링크 방향 단일:** vault → repo 경로 참조 OK. repo 는 vault 를 빌드/런타임 의존하지 않음. 본문 복사 금지(이중 SSOT 금지).
+
+### 동기화 관행 (변경·결정 시)
+
+repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 — repo 는 코드·spec·plan, vault 는 ADR 본문 SSOT + hub:
+1. ADR 본문을 vault `decisions/ADR-NNNN-<date>-<title>.md` 에 박제 (repo 의 spec/CHANGELOG/forbidden 을 근거로 기존 ADR 형식 따름).
+2. `LSKunCompanyKit-hub.md` 의 `related_adr` frontmatter + `## 현재 상태` 갱신.
+3. repo 의 `docs/internals/adr-index.md` 는 ADR 번호·상태만 (본문 비박제, ADR-0009 §5).
+
 ### 강제 규칙
 
 - 두 SSOT 위치를 plugin 본체가 명시적으로 다른 path 로 처리한다.
 - 개발자 SSOT 에 회사 운영 데이터 (hired/ 등) 쓰지 말 것.
 - 사용자 SSOT 에 plugin 알고리즘 ADR 쓰지 말 것.
+- 위 "개발자 SSOT 위치" 경로는 **운영 메모일 뿐 plugin core/배포물 코드에 hardcode 금지** (ADR-0009 §5).
 - `/lskun-kit:doctor` 가 cross-contamination 을 검증한다.
 
 ---
