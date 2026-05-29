@@ -1,7 +1,10 @@
 """Plugin manifest (hooks/hooks.json) 의 hook 등록 검증.
 
-ADR-0014 (2026-05-22) 로 Reflection 메커니즘 폐기. Stop/PostToolUse hook
-은 더 이상 박제되지 않는다. SessionStart + PreToolUse(Task) 만 유지.
+ADR-0014 (2026-05-22) 로 Reflection 메커니즘 폐기 — reflection 용 Stop/PostToolUse
+hook 은 제거됐다. ADR-0022 (2026-05-28) 로 **외주 setup 한정** Stop /
+PostToolUse:Task hook 이 재도입됐다 (reflection 과 무관, marker 파일 존재 시에만
+동작). 따라서 허용 hook event 는 SessionStart / PreToolUse / PostToolUse / Stop
+이며, PostToolUse/Stop 의 command 경로는 외주 setup 모듈만 가리켜야 한다.
 """
 
 from __future__ import annotations
@@ -29,16 +32,44 @@ class HooksManifestTests(unittest.TestCase):
             any("$CLAUDE_PLUGIN_ROOT" in c or "${CLAUDE_PLUGIN_ROOT}" in c for c in commands)
         )
 
-    def test_reflection_hooks_removed(self) -> None:
-        """ADR-0014 — Stop / PostToolUse hook 은 reflection 메커니즘 폐기로 제거됨."""
-        self.assertNotIn("Stop", self.manifest["hooks"])
-        self.assertNotIn("PostToolUse", self.manifest["hooks"])
+    def test_only_external_setup_hooks_allowed_beyond_pre_tool_use(self) -> None:
+        """ADR-0022: reflection 메커니즘 폐기는 유지, 외주 setup 한정 hook 만 허용.
+
+        허용 event 는 SessionStart / PreToolUse / PostToolUse / Stop 뿐이고,
+        PostToolUse / Stop 의 command 경로는 외주 setup 모듈만 가리켜야 한다
+        (reflection hook 재도입 방지 — forbidden-history.md:45 부분 supersede).
+        """
+        hooks = self.manifest["hooks"]
+        allowed_events = {"SessionStart", "PreToolUse", "PostToolUse", "Stop"}
+        self.assertTrue(
+            set(hooks.keys()) <= allowed_events,
+            f"unexpected hook events: {set(hooks.keys()) - allowed_events}",
+        )
+
+        # PostToolUse 는 Task matcher + external 모듈 경로 강제.
+        for e in hooks.get("PostToolUse", []):
+            self.assertEqual(e["matcher"], "Task")
+            for cmd in e["hooks"]:
+                self.assertIn("post_tool_use_external", cmd["command"])
+
+        # Stop 도 external 모듈만 허용.
+        for e in hooks.get("Stop", []):
+            for cmd in e["hooks"]:
+                self.assertIn("stop_external", cmd["command"])
+
+    def test_external_setup_hooks_registered(self) -> None:
+        """ADR-0022: PostToolUse:Task + Stop 등록 검증."""
+        hooks = self.manifest["hooks"]
+        self.assertIn("PostToolUse", hooks)
+        self.assertIn("Stop", hooks)
 
     def test_hook_matchers_are_expected(self) -> None:
-        """SessionStart 는 '*'. PreToolUse 는 'Task' 로 좁힘."""
+        """SessionStart/Stop 은 '*'. PreToolUse/PostToolUse 는 'Task' 로 좁힘."""
         expected = {
             "SessionStart": "*",
             "PreToolUse": "Task",
+            "PostToolUse": "Task",  # ADR-0022 외주 setup push
+            "Stop": "*",            # ADR-0022 외주 setup turn 차단
         }
         for event, entries in self.manifest["hooks"].items():
             for e in entries:
