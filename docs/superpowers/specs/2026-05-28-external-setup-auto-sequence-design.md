@@ -12,8 +12,17 @@
 `/lskun-kit:external setup` 의 multi-step 시퀀스에서 LLM 이 중간에 turn 을 종료해
 사용자가 매번 "계속" 입력으로 재가동해야 했던 두 프로젝트 재현 문제를, **PostToolUse +
 Stop hook 이중 강제** (push) + **commands/external.md 본문 강화** (pull) 양 갈래로
-결정론 보장. 단, hook 으로 못 푸는 `/clear` 강제 break 구간은 문서 명시 안내로
-보완 (B1 해소).
+완화한다.
+
+> **정직성 단서 (critic M1/M2 반영):** 본 강제는 **조건부**다 — marker
+> (`.external-setup.json`) 가 박제된 뒤에만 두 hook 이 동작한다. marker 생성
+> (`external_setup_state.start()`) 자체는 CPO(LLM) 의 자율 첫 행동에 의존하므로,
+> CPO 가 start() 를 빠뜨리면 보호가 0 이고 원래 멈춤이 재발할 수 있다 (ADR-0020 의
+> "Read 강제를 결정론으로 착각" 함정과 동형). 즉 "100% 결정론" 이 아니라 "marker 박제
+> 후 결정론" 이다. 또한 hook 으로 못 푸는 `/clear` 강제 break 구간 (B1) 은 **사용자
+> 1회 `/clear` 입력이 불가피**하며 (워커 세션 자동 clear 는 미구현 — 본 phase 범위
+> 밖), 이는 사용자가 호소한 "임의 멈춤" 과 달리 **명시적·예측가능한 1회 액션**으로
+> 격하될 뿐 완전 제거는 아니다. command 본문 안내가 이 break 를 보완한다.
 
 ---
 
@@ -95,8 +104,9 @@ turn 종료 차단.
 사용자 응답 대기 금지", (b) "step 3 의 워커 세션 clear 가 필요한 시점은 사용자에게
 명시 안내 (`/clear` 입력 요청) 후 자동 재개" 박제.
 
-이 두 갈래로 사용자가 호소한 stuck 의 두 원인 (LLM 자율 종료 + `/clear` 강제 break)
-을 양쪽 다 해소한다.
+이 두 갈래로 사용자가 호소한 stuck 의 두 원인을 다룬다 — **단, 비대칭적이다**:
+- **LLM 자율 종료** (1원인): marker 박제 후엔 Stop hook 이 결정론적으로 차단. (단 marker 생성 자체는 LLM 자율 — §0 정직성 단서.)
+- **`/clear` 강제 break** (2원인): hook 으로 못 푼다. 사용자 1회 `/clear` 입력이 불가피하며, pull 안내는 이 break 를 "명시적·예측가능한 1회 액션" 으로 격하할 뿐 제거하지 못한다. 워커 세션 자동 clear (`session.clear()` 자동 호출) 가 구현되면 근본 해소되나 본 phase 범위 밖 (미구현).
 
 ### 3.2 컴포넌트
 
@@ -277,9 +287,12 @@ CPO 는 같은 turn 안에 이 step 을 이어서 수행하라. 사용자 응답
 3. CPO 가 도메인 워커를 1회 dispatch → 자문 수집.
    **이 step 끝나면 워커 세션 marker 가 살아있다. 다음 dispatch 전에 세션을 정리해야
    PreToolUse hook 의 chain 차단 (ADR-0004 §8) 을 통과한다.**
-   - 정리는 (a) `session.clear(company_root)` 자동 호출 (구현 예정) 또는 (b) 사용자에게
-     "`/clear` 입력 후 자동 재개됩니다" 1줄 안내. 어느 쪽이든 **CPO 가 turn 을 종료하지
-     않는다 — Stop hook 이 block 한다.**
+   - **본 phase 의 실제 경로는 (b)**: 사용자에게 "`/clear` 입력 후 자동 재개됩니다" 1줄
+     안내. `/clear` 는 본질적으로 사용자 액션이라 CPO 가 같은 turn 에 대체할 수 없다 —
+     이 1회 break 는 불가피하다 (B1, §0/§3.1 정직성 단서). Stop hook 이 그 외 구간의
+     자율 종료는 막지만, `/clear` 대기 자체는 막지 못한다.
+   - (a) `session.clear(company_root)` 자동 호출은 **미구현 (본 phase 범위 밖)**. 구현되면
+     `/clear` 사용자 액션 없이 근본 해소되나, 그 전까지는 (b) 가 유일 경로.
 4. 자문을 brief.md 합성.
 5. HR Lead dispatch → external/<project>/{redteam,customers}/ 페르소나 박제.
 6. `external_setup_state.finalize()` 호출 → marker 자동 삭제.

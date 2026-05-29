@@ -56,6 +56,11 @@ class ExternalCommandTest(unittest.TestCase):
     def test_adr_0022_referenced(self):
         self.assertIn("ADR-0022", self.text)
 
+    def test_start_is_mandatory_first_action(self):
+        # critic M1 — marker start() 가 첫 행동으로 강하게 박제 (누락 시 보호 0).
+        self.assertIn("external_setup_state.start", self.text)
+        self.assertIn("첫 행동", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()

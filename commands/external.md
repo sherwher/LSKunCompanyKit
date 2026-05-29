@@ -22,10 +22,15 @@ arguments:
 
 ### setup <project> [--redteam] [--customers]
 
+**⚠️ 첫 행동 (다른 어떤 출력보다 먼저): 반드시
+`lskun_kit.external_setup_state.start(company, project)` 를 호출해 marker 를 박제하라.**
+marker 가 없으면 PostToolUse/Stop hook 이 동작하지 않아 시퀀스 중간 멈춤 보호가 0 이 된다
+(ADR-0022 — 보호는 marker 박제 후에만 결정론적). start() 를 빠뜨린 채 자문 dispatch 로
+넘어가지 말 것.
+
 **시퀀스는 한 turn 안에 완수한다. 중간에 사용자 응답을 기다려 turn 을 종료하지 말 것.**
 (ADR-0022 — PostToolUse + Stop hook 이 turn 연속성을 강제한다. marker:
-`~/.lskun-companies/<company>/.external-setup.json`. 시작 시
-`lskun_kit.external_setup_state.start(company, project)` 로 marker 박제.)
+`~/.lskun-companies/<company>/.external-setup.json`.)
 
 HR Lead 를 통해 외주를 박제한다. 구성 시퀀스 (CPO 주도):
 
