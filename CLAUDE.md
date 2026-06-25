@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (32개 항목, 라벨 [1]~[34] 중 18·19 결번 — ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31] + ADR-0021 [32] + ADR-0022 [33][34]) |
+| `/lskun-kit:doctor` | 환경 진단 (라벨 [1]~[37] 중 18·19 결번 — ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31] + ADR-0021 [32] + ADR-0022 [33][34] + ADR-0023 [35][36][37]) (35개 항목) |
 | `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취/cancel (ADR-0021 + ADR-0022 자동 시퀀스) |
 
 ---
