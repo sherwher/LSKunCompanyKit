@@ -67,6 +67,9 @@ class MigrationPlan:
     worker_gaps: list[WorkerSchemaGap] = field(default_factory=list)
     #: ADR-0014 — legacy `## Project History` 섹션이 있어 rename 이 필요한 워커 목록.
     legacy_history_workers: list[str] = field(default_factory=list)
+    #: ADR-0023 (P122) — 파일명 stem != frontmatter name 인 워커 (stem, fm_name).
+    #: 진실원=stem 이므로 execute 가 frontmatter name 을 stem 으로 덮어쓴다.
+    name_mismatches: list[tuple[str, str]] = field(default_factory=list)
     claude_md_path: Path | None = None
     claude_md_marker_missing: bool = False
 
@@ -77,6 +80,7 @@ class MigrationPlan:
             and not self.worker_gaps
             and not self.claude_md_marker_missing
             and not self.legacy_history_workers
+            and not self.name_mismatches
         )
 
     def render(self) -> str:
@@ -108,6 +112,13 @@ class MigrationPlan:
                 f"legacy history: {len(self.legacy_history_workers)} 워커 "
                 f"(ADR-0014 — `## Archived History (pre-0.18)` 로 heading rename 예정)"
             )
+        if self.name_mismatches:
+            lines.append(
+                f"name 불일치 : {len(self.name_mismatches)} 워커 "
+                f"(ADR-0023 — frontmatter name 을 파일명 stem 으로 보정 예정)"
+            )
+            for stem, fm_name in self.name_mismatches:
+                lines.append(f"  - {stem}.md: name='{fm_name}' → '{stem}'")
         if self.is_no_op:
             lines.append("")
             lines.append("결과: migration 불필요 — 이미 최신 schema.")
@@ -191,6 +202,7 @@ def plan(
 
     gaps: list[WorkerSchemaGap] = []
     legacy_history: list[str] = []
+    name_mismatches: list[tuple[str, str]] = []
     hired_dir = company_root / "hired"
     if hired_dir.exists():
         for p in sorted(hired_dir.glob("*.md")):
@@ -210,6 +222,10 @@ def plan(
                 and ARCHIVED_HISTORY_HEADING not in text
             ):
                 legacy_history.append(p.stem)
+            # ADR-0023 (P122) — frontmatter name != 파일명 stem 포착 (유령참조).
+            fm_name = parsed_w.frontmatter.get("name")
+            if fm_name is not None and fm_name != p.stem:
+                name_mismatches.append((p.stem, fm_name))
 
     claude_md_path: Path | None = None
     marker_missing = False
@@ -225,6 +241,7 @@ def plan(
         company_detected_schema=company_schema,
         worker_gaps=gaps,
         legacy_history_workers=legacy_history,
+        name_mismatches=name_mismatches,
         claude_md_path=claude_md_path,
         claude_md_marker_missing=marker_missing,
     )
@@ -375,6 +392,22 @@ def execute(
         if new_text != old_text:
             worker_path.write_text(new_text, encoding="utf-8")
             result.workers_updated.append(name)
+
+    # 2c) ADR-0023 (P122) — frontmatter name 을 파일명 stem 으로 보정 (진실원=stem).
+    workers_updated_set = set(result.workers_updated)
+    for stem, _fm_name in plan.name_mismatches:
+        worker_path = plan.company_root / "hired" / f"{stem}.md"
+        if not worker_path.exists():
+            continue
+        bak = _backup_file(worker_path)
+        result.backups_created.append(bak)
+        parsed = fm.parse(worker_path.read_text(encoding="utf-8"))
+        new_fm = dict(parsed.frontmatter)
+        new_fm["name"] = stem  # 덮어쓰기 — _merge_frontmatter(누락만 추가)와 다름
+        worker_path.write_text(fm.dump(new_fm, parsed.body), encoding="utf-8")
+        if stem not in workers_updated_set:
+            result.workers_updated.append(stem)
+            workers_updated_set.add(stem)
 
     # 3) CLAUDE.md marker 박제
     if plan.claude_md_marker_missing and plan.claude_md_path is not None:
