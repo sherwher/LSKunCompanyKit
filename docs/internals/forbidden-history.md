@@ -106,6 +106,11 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0023 신규 금지 (채용 유령참조, P122)
+
+- **frontmatter `name` ≠ 파일명 stem 박제** — ADR-0023 (P122). `create_worker` 불변식 차단, doctor [35] ❌, migrate-schema 보정. 진실원 = 파일명 stem.
+- **채용 시 파일 생성 전 audit 먼저 기록 (고아 audit)** — ADR-0023 (P122). 순서 강제: ① `create_worker`(파일) → ② `record_hire`(audit). 파일 없는 audit = 유령참조 금지.
+
 ### ADR-0022 신규 금지 (외주 setup hook, P121)
 
 - **Stop hook 의 `stop_hook_active=true` payload 무시** — 무한 lockup. 무조건 allow + marker auto-unlink 단일 invariant.

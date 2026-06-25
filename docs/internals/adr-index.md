@@ -28,6 +28,7 @@
 | ADR-0020 | **워커 전문 도구 (`skills`) 박제 — JD 의 도구 차원 확장** | 활성 (v0.26.0+, ADR-0014 확장 / ADR-0009 범위 내 — spec: `docs/p111-worker-skills.md`) |
 | ADR-0021 | **외주 (레드팀 + 고객) — 회사 비종속 평가 자원** | 활성 (v0.27.0+, ADR-0014 확장 / ADR-0008 2축 유지 — spec: `docs/superpowers/specs/2026-05-28-external-redteam-customers-design.md`) |
 | ADR-0022 | **Multi-step CPO 시퀀스 결정론 강제 (외주 setup hook)** | 활성 (v0.28.0+, ADR-0021 보강 / forbidden-history.md:45 부분 supersede — spec: `docs/superpowers/specs/2026-05-28-external-setup-auto-sequence-design.md`) |
+| ADR-0023 | **채용 유령참조 — 진실원=파일명 stem, 3층 방어(예방/탐지/복구)** | 활성 (v0.29.0+, ADR-0003 frontmatter 무결성 강화 / ADR-0006 audit 정신 — spec: `docs/superpowers/specs/2026-06-25-phantom-reference-guard-design.md`) |
 
 ## Supersede Chain (시각화)
 
