@@ -51,11 +51,12 @@ META_DOMAIN = "meta"
 #: ADR-0004 §4 — ``model`` 미지정 시 워커 기본 모델 (CPO 는 메인 세션의 사용자 ``/model`` 설정).
 DEFAULT_WORKER_MODEL = "sonnet"
 
-#: ADR-0004 §4 — alias → 모델 ID (2026-05-18 기준 최신 Claude).
+#: ADR-0004 §4 — alias → 모델 ID (2026-06-25 기준 최신 Claude).
 #: hire/work 의 ``--model`` 옵션이 받는 alias 를 표준화. 모델 ID 직접 입력도 그대로 허용.
+#: opus alias 는 Opus 4.8 (claude-opus-4-8, GA, 4.7→4.8 breaking 없음) 로 갱신 (P123).
 MODEL_ALIASES: dict[str, str] = {
     "sonnet": "claude-sonnet-4-6",
-    "opus": "claude-opus-4-7",
+    "opus": "claude-opus-4-8",
     "haiku": "claude-haiku-4-5-20251001",
 }
 
@@ -65,9 +66,9 @@ def resolve_model(value: str | None) -> str | None:
 
     Examples:
         >>> resolve_model("opus")
-        'claude-opus-4-7'
-        >>> resolve_model("claude-opus-4-7")
-        'claude-opus-4-7'
+        'claude-opus-4-8'
+        >>> resolve_model("claude-opus-4-8")
+        'claude-opus-4-8'
         >>> resolve_model(None) is None
         True
     """

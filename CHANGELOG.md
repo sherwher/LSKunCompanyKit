@@ -5,6 +5,18 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.30.0] — 2026-06-25
+
+### Changed — 모델 라우팅 현행화 (P123)
+
+`opus` alias 의 해소 대상을 최신 Claude Opus 로 갱신. alias 자체는 그대로이므로 기존 워커 frontmatter (`model: opus`) 와 `--model=opus` 옵션은 변경 없이 동작한다.
+
+- **`opus` → `claude-opus-4-8`** (이전 `claude-opus-4-7`). Opus 4.7→4.8 은 breaking change 없음 (모델 ID 교체 + 재튜닝), 동일 가격대.
+- `sonnet` (`claude-sonnet-4-6`) / `haiku` (`claude-haiku-4-5-20251001`) 는 현행 유지.
+- 모델 ID 직접 입력 경로는 영향 없음 (`claude-opus-4-7` 등 과거 ID 도 그대로 통과).
+
+> ADR-0004 §4 의 alias→ID 매핑 현행화. 결정 변경 아님 (ID 값만 갱신). 437 tests OK.
+
 ## [0.29.0] — 2026-06-25
 
 ### Added — 채용 유령참조 3층 방어 (ADR-0023, P122)
