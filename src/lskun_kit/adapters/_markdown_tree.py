@@ -151,6 +151,15 @@ class MarkdownTreeAdapter(StorageAdapter):
         """``hired/<name>.md`` 신규 박제. 존재하면 ``FileExistsError`` raise."""
 
         path = self._worker_path(name)  # allowlist 가드 통과
+        # ADR-0023 — 진실원=파일명. frontmatter name 이 파일명 인자와 다르면 거부.
+        # list_workers 는 파일명 stem, read_worker 는 frontmatter name 을 반환하므로
+        # 둘이 어긋나면 routing/dispatch 가 깨진다 (유령참조 예방).
+        fm_name = frontmatter_dict.get("name")
+        if fm_name != name:
+            raise InvalidWorkerSchemaError(
+                f"frontmatter name={fm_name!r} != 파일명 {name!r} "
+                f"(ADR-0023: 파일명이 진실원). 유령참조 방지."
+            )
         if path.exists():
             raise FileExistsError(
                 f"worker already exists: hired/{name}.md ({path})"
