@@ -46,12 +46,13 @@ class ResolveModelTests(unittest.TestCase):
 
     def test_aliases_resolve_to_ids(self) -> None:
         self.assertEqual(resolve_model("sonnet"), "claude-sonnet-4-6")
-        self.assertEqual(resolve_model("opus"), "claude-opus-4-7")
+        self.assertEqual(resolve_model("opus"), "claude-opus-4-8")
         self.assertEqual(resolve_model("haiku"), "claude-haiku-4-5-20251001")
 
     def test_unknown_alias_returned_as_is(self) -> None:
         # 모델 ID 직접 입력 허용 — alias 사전에 없으면 그대로 반환
         self.assertEqual(resolve_model("claude-opus-4-7"), "claude-opus-4-7")
+        self.assertEqual(resolve_model("claude-opus-4-8"), "claude-opus-4-8")
         self.assertEqual(resolve_model("custom-model-id"), "custom-model-id")
 
     def test_default_model_is_known_alias(self) -> None:

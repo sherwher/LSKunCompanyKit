@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 23 (P123 — 모델 라우팅 현행화, 0.30.0)
+
+- **Phase 23 (0.30.0)** — `opus` alias → `claude-opus-4-8` (이전 4-7). ADR-0004 §4 alias→ID 매핑 현행화, 결정 변경 아님. sonnet/haiku 현행 유지, 모델 ID 직접 입력 경로 영향 없음. 437 tests OK.
+
 ### Phase 22 (P122 — 채용 유령참조 검증, ADR-0023, 0.29.0)
 
 - **Phase 22 (0.29.0)** — 채용 유령참조 검증 (P122, ADR-0023): create_worker name==stem 불변식 + doctor [35][36][37] + migrate-schema name→stem 보정.
