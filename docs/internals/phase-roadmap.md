@@ -5,6 +5,19 @@
 
 ## 8. 로드맵
 
+### Phase 22 (P122 — 채용 유령참조 검증, ADR-0023, 0.29.0)
+
+- **Phase 22 (0.29.0)** — 채용 유령참조 검증 (P122, ADR-0023): create_worker name==stem 불변식 + doctor [35][36][37] + migrate-schema name→stem 보정.
+
+```
+P122 ✅ ADR-0023 박제 — 채용 유령참조 3층 방어
+       예방: create_worker name==stem 불변식 (Task1)
+       탐지: phantom_diagnostics + doctor [35][36][37] (Task2/Task4)
+       복구: migrate-schema name→stem 보정 (Task3)
+       문서: 채용 순서(파일 먼저) 박제 + forbidden/roadmap/CHANGELOG (Task5)
+       version 0.28.0 → 0.29.0
+```
+
 ### Phase 15 (P83~P93 — Local SSOT 단일화 + Sync 분리 + 권한 박제 + 워커 해고 결합 해제, ADR-0015, 0.19.0)
 
 ```

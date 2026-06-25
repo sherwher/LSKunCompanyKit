@@ -320,6 +320,58 @@ class ExecuteTests(unittest.TestCase):
         self.assertIn("alice", result.workers_updated)
 
 
+class NameStemMismatchTests(unittest.TestCase):
+    """ADR-0023 (P122) — frontmatter name != 파일명 stem 감지 및 보정."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        (self.root / "company.md").write_text(COMPANY_V0_3, encoding="utf-8")
+        self.adapter = LocalAdapter(self.root)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_plan_detects_name_stem_mismatch(self) -> None:
+        # 파일명 harin.md, frontmatter name=harlin → plan 이 mismatch 포착.
+        from lskun_kit import schema_migration as sm  # noqa: F811
+        hired = self.root / "hired"
+        hired.mkdir(parents=True, exist_ok=True)
+        (hired / "harin.md").write_text(
+            "---\nname: harlin\nrole: eng\ndomain: medical\n"
+            "hired_at: 2026-06-25\nstorage_backend: local\n"
+            "display_name: 하린\n---\nJD\n",
+            encoding="utf-8",
+        )
+        p = sm.plan(self.adapter, self.root, backend="local")
+        self.assertIn(("harin", "harlin"), p.name_mismatches)
+        self.assertFalse(p.is_no_op)
+
+    def test_execute_fixes_name_to_stem(self) -> None:
+        # 보정 후 frontmatter name 이 stem(harin) 이 되고, 백업이 생기고,
+        # 그 외 필드는 보존된다.
+        from lskun_kit import schema_migration as sm  # noqa: F811
+        from lskun_kit.adapters import frontmatter as fm
+        hired = self.root / "hired"
+        hired.mkdir(parents=True, exist_ok=True)
+        target = hired / "harin.md"
+        target.write_text(
+            "---\nname: harlin\nrole: eng\ndomain: medical\n"
+            "hired_at: 2026-06-25\nstorage_backend: local\n"
+            "display_name: 하린\n---\nJD body 보존\n",
+            encoding="utf-8",
+        )
+        p = sm.plan(self.adapter, self.root, backend="local")
+        result = sm.execute(self.adapter, p, sm.MigrationAnswers())
+        parsed = fm.parse(target.read_text(encoding="utf-8"))
+        self.assertEqual(parsed.frontmatter["name"], "harin")  # stem 으로 보정
+        self.assertEqual(parsed.frontmatter["role"], "eng")     # 그외 보존
+        self.assertIn("JD body 보존", parsed.body)              # body 보존
+        self.assertIn("harin", result.workers_updated)
+        self.assertTrue(any(b.name.startswith("harin.md") for b in result.backups_created))
+
+
 class ClaudeMdInjectionTests(unittest.TestCase):
     """P50 — plan/execute 가 project_root 받으면 CLAUDE.md marker 박제도 함께."""
 

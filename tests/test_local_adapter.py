@@ -418,6 +418,45 @@ class BackupArtifactGuardTests(unittest.TestCase):
         names = self.adapter.list_workers()
         self.assertEqual(names, ["alice"])  # cpo 절대 안 들어옴
 
+    # ---- create_worker name==stem 불변식 (ADR-0023) ----
+
+    def test_create_worker_rejects_name_stem_mismatch(self) -> None:
+        # ADR-0023 — frontmatter name 이 파일명 인자와 다르면 거부 (유령참조 예방).
+        from lskun_kit.errors import InvalidWorkerSchemaError
+        with self.assertRaises(InvalidWorkerSchemaError):
+            self.adapter.create_worker(
+                name="harin",
+                frontmatter_dict={
+                    "name": "harlin",  # ← stem(harin) 과 불일치
+                    "role": "engineer",
+                    "domain": "medical",
+                    "hired_at": "2026-06-25",
+                    "storage_backend": "local",
+                    "display_name": "하린",
+                },
+                body="# harin\n\nJD\n",
+            )
+        # 파일이 생성되지 않았는지 확인 (예방이므로 디스크에 안 박혀야 함).
+        self.assertFalse((self.root / "hired" / "harin.md").exists())
+        self.assertFalse((self.root / "hired" / "harlin.md").exists())
+
+    def test_create_worker_accepts_name_stem_match(self) -> None:
+        # 회귀 — 일치하면 정상 생성.
+        self.adapter.create_worker(
+            name="harin",
+            frontmatter_dict={
+                "name": "harin",
+                "role": "engineer",
+                "domain": "medical",
+                "hired_at": "2026-06-25",
+                "storage_backend": "local",
+                "display_name": "하린",
+            },
+            body="# harin\n\nJD\n",
+        )
+        self.assertTrue((self.root / "hired" / "harin.md").exists())
+        self.assertEqual(self.adapter.read_worker("harin").name, "harin")
+
 
 if __name__ == "__main__":
     unittest.main()

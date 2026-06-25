@@ -48,7 +48,7 @@ arguments:
 2. CPO 가 요청을 받아:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
    - 적합 워커 있음 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = frontmatter / CPO 판단 / default. **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조).
-   - 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 → `[채용 알림]` 1줄 → 신규 워커 dispatch
+   - 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 (① `create_worker` 파일 먼저 → ② `record_hire` audit, ADR-0023) → `[채용 알림]` 1줄 → 신규 워커 dispatch
 3. CPO 가 워커 보고를 받아 **결재** (자가 평가 통과 → 승인 / 재작업 최대 2회)
 4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
 5. 사용자에게 결재된 결과 전달

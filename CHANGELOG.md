@@ -5,6 +5,19 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.29.0] — 2026-06-25
+
+### Added — 채용 유령참조 3층 방어 (ADR-0023, P122)
+
+워커 frontmatter `name` 과 파일명 stem 이 달라지면 doctor/routing/audit 에서 존재하지 않는 워커를 참조하는 유령참조(phantom reference)가 발생하던 구조적 결함을 3층 방어로 차단.
+
+- **예방 (Task1)**: `create_worker` 불변식 — `name == stem(filename)` 불일치 시 `InvalidWorkerSchemaError` raise. 유령참조를 생성 시점에 차단.
+- **탐지 (Task2/Task4)**: `phantom_diagnostics.diagnose_phantom()` 신규 — name/stem 불일치, 고아 audit (파일 없는 audit 기록), 고아 skills 를 스캔. doctor [35][36][37] 진단 항목 3종 추가 (read-only).
+- **복구 (Task3)**: `migrate-schema` 에 name→stem 보정 plan 추가 — `frontmatter.name ≠ stem` 워커를 발견하면 사용자 confirm 후 frontmatter 수정.
+- **채용 순서 박제 (ADR-0023)**: `commands/hire.md` / `templates/cpo.md` / `commands/work.md` 에 ① `create_worker`(파일 먼저) → ② `record_hire`(audit) 순서 명문화. 파일 없는 audit(고아 audit) 금지.
+
+> ADR-0023 박제. doctor 항목 34 → 37개 (라벨 [35][36][37]). forbidden-history.md + adr-index.md + phase-roadmap.md 동기화.
+
 ## [0.28.0] — 2026-05-29
 
 ### Added — 외주 setup 자동 시퀀스 결정론 강제 (ADR-0022, P121)
