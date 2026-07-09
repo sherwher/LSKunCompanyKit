@@ -59,6 +59,28 @@ routing context 의 `## Hired Workers (라우팅 후보)` 목록을 읽고, 각 
 - **워커는 채용 시 완성형.** 시간 흐름으로 자라지 않으므로 "오래 일한 워커가 더 잘함" 가정 금지.
 - **작업 연속성** — 같은 세션에서 최근 호출한 워커가 동일 도메인이면 유지 권장 (컨텍스트 절약, history 누적 아님).
 
+## 출력 위생 (Output Hygiene, ADR-0024)
+
+tool 구문이 응답 텍스트로 새는 사고를 막는 절대 규칙:
+
+- 도구 호출은 **실제 tool call 로만** 수행한다. `<invoke>` / `<function_calls>` / `Task(...)` / XML 태그 등 tool 호출 구문을 **응답 텍스트로 절대 출력하지 않는다**.
+- 본 문서와 command 문서의 `Task(...)` / `invoke_skill(...)` 코드 블록은 **개념 설명용 의사코드**다. 그대로 화면에 출력하거나 텍스트로 흉내내지 말 것.
+- dispatch 를 사용자에게 알릴 때는 자연어 1줄만 ("**<display_name>·<role>** 에게 위임합니다"). 실제 호출은 tool call 로.
+
+## Deep Work Protocol — dispatch prompt 표준 주입 (ADR-0024)
+
+모든 워커 dispatch (직통·라우팅·자동 채용 후) 시 prompt 에 다음 블록을 JD 뒤에 붙인다. 워커 결과물 깊이를 끌어내는 표준 프로토콜:
+
+```markdown
+## 작업 프로토콜 (Deep Work Protocol)
+1. 착수 전 — 요청을 1~2줄로 재해석하고, 암묵 가정과 성공 기준을 명시한다.
+2. 수행 — 핵심 결정마다 근거를 남기고, 배제한 대안이 있으면 이유를 1줄 적는다.
+3. 검증 — 완료 주장 전 실행/테스트/재독으로 확인한다. 확인 못 한 항목은 "미검증" 으로 표시한다.
+4. 보고 — 요약에 그치지 말고 상세 근거 (결정·대안·트레이드오프·검증 증거) 를 포함한다.
+```
+
+복잡·다단계·보안·아키텍처 작업은 opus dispatch 에 더해 prompt 에 "충분히 깊게 생각하고 진행하라" 지시를 포함한다.
+
 ## Task tool 로 워커 dispatch — 표준 절차 (ADR-0015 결정 3-A/3-B + ADR-0017)
 
 **Skill 경유 강제 + Allowlist dispatch**. Worker dispatch 는 반드시 `/LSKunCompanyKit:work` Skill 경유. Skill 내부에서 실제 워커 실행은 Task tool 로 dispatch 하되 **`subagent_type="claude"` 단일 허용** (ADR-0017 결정 1). 다음은 절대 금지:
@@ -72,13 +94,14 @@ routing context 의 `## Hired Workers (라우팅 후보)` 목록을 읽고, 각 
 > **회사 외 작업 (vercel/codex/figma 등 plugin subagent 정당 사용)** 이면 세션 단위로:
 > `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 로 1회 bypass. `.zshrc`/`.bashrc` 영구 export 금지 (doctor [23]).
 
-표준 절차 (의사코드, **실제 dispatch 는 `/LSKunCompanyKit:work <name>` Skill 호출**):
+표준 절차 (⚠️ 아래는 **개념 설명용 의사코드** — 응답 텍스트로 재출력 금지, 실제 dispatch 는 `/LSKunCompanyKit:work <name>` Skill 호출):
 
 ```
 워커 = adapter.read_worker(<name>)
 context = (
   worker.body  # frontmatter 제외 본문 (JD persona, ADR-0011 inline 박제)
   + build_skills_block(adapter, <name>)  # ADR-0020 — 전문 도구 블록 (선행 "\n\n" 포함, skills 비면 "")
+  + "\n\n" + deep_work_protocol  # ADR-0024 — §Deep Work Protocol 표준 블록
   + "\n\n" + user_request  # 사용자 요청 원문
 )
 model = (
@@ -128,19 +151,23 @@ Skill 이 다음 이유로 실패하면 **fallback 으로 Task tool 직접 호�
 ```
 ## 작업 결과
 <요약 3~5줄>
+<상세 — 핵심 결정·근거·배제한 대안·트레이드오프·검증 증거. 깊이 우선, 분량 제한 없음 (ADR-0024)>
 
 ## 자가 평가
-<통과 / 부분 통과 / 불확실> — <한 줄 사유>
+<통과 / 부분 통과 / 불확실> — <사유 + 미검증 항목 명시>
 ```
 
-ADR-0014 — `## first-pass 자가 점수` / `## reflection 후보` 섹션 박제 강제 폐기. 워커 보고는 결과 + 자가 평가 2 섹션만.
+ADR-0014 — `## first-pass 자가 점수` / `## reflection 후보` 섹션 박제 강제 폐기. 워커 보고는 결과 + 자가 평가 2 섹션만. ADR-0024 — 섹션 수는 유지하되 `## 작업 결과` 는 요약에 그치지 않고 상세 근거를 포함한다 (깊이 캡핑 금지).
 
 ## 결재 (Approval Loop) — 4단계 (ADR-0014 단순화)
 
 > 본 절차는 dispatch 1건당 정확히 1번 실행. 단계 skip 금지.
 
 1. **dispatch 시작 시 request_id 발급** — `audit.new_request_id()` 로 uuid4 발급
-2. **양식 검증 + 결과 평가** — 위 2 섹션 모두 존재? 사용자 요청 부합? 통과면 승인. 불통이면 재작업 지시 1회 (사유 명시). 동일 워커에 최대 2회 재작업.
+2. **양식 검증 + 실질 rubric 평가 (ADR-0024)** — 양식 (2 섹션 존재) 확인 후, 다음 3항목을 실질 점검한다. 하나라도 미달이면 **구체 사유와 함께** 재작업 지시 (동일 워커 최대 2회):
+   - **R1 요청 대조** — 사용자 요청의 각 요구가 결과 어디에 대응되는지 확인. 누락 요구 = 미달.
+   - **R2 검증 증거** — 실행·테스트·근거 없이 "완료" 만 주장 = 미달. "미검증" 표시 항목은 중요도 판단 후 승인 또는 rework.
+   - **R3 도메인 함정** — 워커 JD 의 도메인 지식 관점에서 함정·누락 점검 (예: 의료 SaaS 의 PHI 노출).
 3. **audit 박제 (ADR-0006)** — verdict 결정 순간:
    ```python
    from lskun_kit import audit

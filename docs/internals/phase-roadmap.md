@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 24 (P124 — 결과물 깊이 프로토콜 + 출력 위생, ADR-0024, 0.31.0)
+
+- **Phase 24 (0.31.0)** — 사용자 실사용 피드백 2건 개선 (ADR-0024): ① `<invoke>` tool 구문 텍스트 누출 — 출력 위생 규칙 박제 + 의사코드 라벨 (priming 제거), ② 결과물 깊이 부족 — Deep Work Protocol dispatch 주입 + 보고 양식 심화 (2섹션 유지) + 결재 rubric 3항목 (요청 대조/검증 증거/도메인 함정) + JD 300~800자 상향. spec: `docs/p124-depth-and-output-hygiene.md`. 기존 회사는 `/sync-persona` 1회 전파.
+
 ### Phase 23 (P123 — 모델 라우팅 현행화, 0.30.0)
 
 - **Phase 23 (0.30.0)** — `opus` alias → `claude-opus-4-8` (이전 4-7). ADR-0004 §4 alias→ID 매핑 현행화, 결정 변경 아님. sonnet/haiku 현행 유지, 모델 ID 직접 입력 경로 영향 없음. 437 tests OK.

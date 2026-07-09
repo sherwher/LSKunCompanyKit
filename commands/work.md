@@ -59,6 +59,10 @@ arguments:
 
 > **description 포맷 (필수)**: `subagent_type` 은 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. 따라서 `Task` tool 의 `description` 은 **`<워커명·role · 작업요약>`** 포맷으로 작성한다 (예: `하린·seo-growth-strategist · 검색 자산화 위임`). 직통 호출·CPO 라우팅·자동 채용 후 dispatch 모두 일괄 적용. 이렇게 해야 status line 만으로 "지금 누가 도는지" 가 보인다.
 
+> **Deep Work Protocol 주입 (ADR-0024)**: 모든 dispatch 경로 (직통·라우팅·자동 채용 후) 에서 prompt 에 CPO persona 의 §Deep Work Protocol 블록 (착수 전 재해석·가정 명시 → 근거·대안 → 검증 → 상세 보고) 을 JD 뒤에 붙인다. 복잡·다단계·보안·아키텍처 작업은 opus + "충분히 깊게 생각하고 진행하라" 지시 포함.
+
+> **출력 위생 (ADR-0024)**: 도구 호출은 실제 tool call 로만. `<invoke>` / `<function_calls>` / `Task(...)` 구문을 응답 텍스트로 출력 금지. 본 문서의 Python/Task 코드 블록은 개념 설명용 의사코드 — 재출력 금지.
+
 ## 사용 예
 
 ```bash
@@ -85,6 +89,8 @@ arguments:
 - Description 포맷 — `Task` tool `description` 은 `<워커명·role · 작업요약>` (subagent_type 이 늘 `claude` 라 status line 가독성 확보). 모든 dispatch 경로 일괄 적용.
 
 ## Python 진입점
+
+⚠️ 아래는 **개념 설명용 의사코드** (ADR-0024 출력 위생) — 응답 텍스트로 재출력하지 말 것.
 
 ```python
 from lskun_kit.routing import decide_target, build_cpo_routing_context
