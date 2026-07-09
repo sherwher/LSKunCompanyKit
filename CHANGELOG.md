@@ -5,6 +5,20 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.31.0] — 2026-07-09
+
+### Added — 결과물 깊이 프로토콜 + 출력 위생 (ADR-0024, P124)
+
+사용자 실사용 피드백 2건 (CPO/워커 결과물 깊이 부족 + `<invoke>` tool 구문 텍스트 누출) 에 대한 구조 개선. spec: `docs/p124-depth-and-output-hygiene.md`.
+
+- **출력 위생 (D1)**: `cpo.md` / `hr-lead.md` / `work.md` / `routing.py` 라우팅 컨텍스트에 규칙 박제 — 도구 호출은 실제 tool call 로만, `<invoke>`/`<function_calls>`/`Task(...)` 구문 텍스트 출력 금지. 문서 내 `Task(...)` 블록은 "개념 설명용 의사코드" 라벨 명시 (누출의 priming 원인 제거).
+- **Deep Work Protocol (D2)**: 모든 dispatch prompt 에 4단계 프로토콜 (재해석·가정 명시 → 근거·대안 → 검증 → 상세 보고) 주입. 복잡·다단계 작업은 opus + 깊은 사고 지시.
+- **보고 양식 심화 (D3)**: `## 작업 결과` = 요약 3~5줄 + 상세 근거 (결정·대안·트레이드오프·검증 증거, 분량 제한 없음). ADR-0014 의 2섹션 구조는 유지.
+- **결재 rubric 실질화 (D4)**: 양식 확인 → R1 요청 대조 / R2 검증 증거 / R3 도메인 함정 3항목 점검. 미달 시 구체 사유와 함께 rework.
+- **JD 분량 상향 (D5)**: 100~300자 → 300~800자, 핵심 역량에 도메인 함정·안티패턴 포함.
+
+> 기존 회사는 `/lskun-kit:sync-persona` 1회로 CPO/HR persona 전파. plugin core 로직 변경 없음 (컨텍스트 문자열 추가만).
+
 ## [0.30.0] — 2026-06-25
 
 ### Changed — 모델 라우팅 현행화 (P123)

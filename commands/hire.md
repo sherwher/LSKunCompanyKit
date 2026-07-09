@@ -42,7 +42,7 @@ model: <"sonnet" | "opus" | 모델 ID>   # optional, 생략 시 default
 
 # <worker>
 
-<JD 본문 — Responsibilities / Qualifications / Guidelines 3 섹션 (ADR-0011 + ADR-0014)>
+<JD 본문 — Responsibilities / Qualifications / Guidelines 3 섹션, 300~800자 + 도메인 함정·안티패턴 포함 (ADR-0011 + ADR-0014 + ADR-0024)>
 ```
 
 3. 이미 존재하면 ❌ 와 함께 거부한다 (덮어쓰기 방지).

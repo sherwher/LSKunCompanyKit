@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 23 (0.30.0) — **모델 라우팅 현행화 (P123)**: `opus` alias → `claude-opus-4-8` (ADR-0004 §4 alias→ID 매핑 갱신, 결정 변경 아님). **이전 (0.29.0)** = 채용 유령참조 검증 (P122, ADR-0023): `create_worker` name==stem 불변식 + doctor [35][36][37] + migrate-schema name→stem 보정. **이전 (0.28.0)** = 외주 setup 자동 시퀀스 결정론 강제 (ADR-0022). 멀티-step CPO 시퀀스(외주 setup)의 중간 멈춤을 PostToolUse:Task + Stop hook 이중 강제(push)로 차단, `/clear` 강제 break 는 command 본문 안내(pull)로 보완. marker(`.external-setup.json`) 존재 시에만 동작, enum allowlist + 24h TTL + `stop_hook_active` invariant + `LSKUN_ALLOW_EXTERNAL_HALT` escape hatch. 옛 버전 상세는 CHANGELOG 참조.
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 24 (0.31.0) — **결과물 깊이 프로토콜 + 출력 위생 (P124, ADR-0024)**: ① 출력 위생 — 도구 호출은 실제 tool call 로만, `<invoke>`/`Task(...)` 구문 텍스트 출력 금지 + 문서 의사코드 라벨 (누출 priming 제거), ② Deep Work Protocol dispatch 주입 (재해석·가정 → 근거·대안 → 검증 → 상세 보고) + 보고 양식 심화 (ADR-0014 2섹션 유지) + 결재 rubric 3항목 (요청 대조/검증 증거/도메인 함정) + JD 300~800자 상향. 기존 회사는 `/sync-persona` 1회 전파. **이전 (0.30.0)** = 모델 라우팅 현행화 (P123): `opus` alias → `claude-opus-4-8`. **이전 (0.29.0)** = 채용 유령참조 검증 (P122, ADR-0023). 옛 버전 상세는 CHANGELOG 참조.
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)

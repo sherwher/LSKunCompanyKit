@@ -63,7 +63,7 @@ CPO 가 Task tool 로 본 워커를 호출할 때 다음 정보가 주어진다:
 6. **JD body 작성 (ADR-0011 + ADR-0014)**
    - 본 단계는 keywords 단계와 같은 LLM 1회 호출에서 함께 수행 (ceremony 추가 최소화).
    - 입력: CPO 가 dispatch 시 넘긴 `role + domain + 한 줄 사유`, 회사 `company.md` 의 domain.
-   - 출력: 다음 3 섹션을 포함한 markdown string (분량 100~300자 권장):
+   - 출력: 다음 3 섹션을 포함한 markdown string (분량 **300~800자** 권장 — ADR-0024, 도메인 전문성이 실제로 박히는 분량):
      ```markdown
      # <display_name> — <role>
 
@@ -74,6 +74,7 @@ CPO 가 Task tool 로 본 워커를 호출할 때 다음 정보가 주어진다:
 
      ## 핵심 역량 (Qualifications)
      - <항목 3~5개 — 사용 도구, 패턴, 도메인 지식>
+     - <도메인 함정·안티패턴 1~3개 — "하지 말아야 할 것" (ADR-0024, 예: HIPAA PHI 로그 노출 금지, HL7 FHIR 날짜 포맷 함정)>
 
      ## 작업 지침 (Guidelines)
      - <항목 2~4개 — CPO 결재 양식 준수, 보고 양식 등>
@@ -136,6 +137,10 @@ display_name 은 사용자 명시 또는 자동 생성. CPO 가 자동으로 본
 ### audit log dangling (ADR-0019 — 단순화)
 
 `.audit/decisions.jsonl` 의 옛 이름 참조는 **rewrite 절대 금지** (ADR-0006 정신, 역사 기록 불변). 옛 archived 와 cross-check 메커니즘은 ADR-0019 로 폐기. dangling 자체는 schema 위반 아니므로 별도 진단 없음.
+
+## 출력 위생 (ADR-0024)
+
+도구 호출은 **실제 tool call 로만** 수행한다. `<invoke>` / `<function_calls>` / `Task(...)` 등 tool 구문을 응답 텍스트로 출력하지 않는다. 본 문서의 코드 블록은 개념 설명용 의사코드다.
 
 ## 권한 경계
 
