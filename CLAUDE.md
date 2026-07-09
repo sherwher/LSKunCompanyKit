@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 24 (0.31.0) — **결과물 깊이 프로토콜 + 출력 위생 (P124, ADR-0024)**: ① 출력 위생 — 도구 호출은 실제 tool call 로만, `<invoke>`/`Task(...)` 구문 텍스트 출력 금지 + 문서 의사코드 라벨 (누출 priming 제거), ② Deep Work Protocol dispatch 주입 (재해석·가정 → 근거·대안 → 검증 → 상세 보고) + 보고 양식 심화 (ADR-0014 2섹션 유지) + 결재 rubric 3항목 (요청 대조/검증 증거/도메인 함정) + JD 300~800자 상향. 기존 회사는 `/sync-persona` 1회 전파. **이전 (0.30.0)** = 모델 라우팅 현행화 (P123): `opus` alias → `claude-opus-4-8`. **이전 (0.29.0)** = 채용 유령참조 검증 (P122, ADR-0023). 옛 버전 상세는 CHANGELOG 참조.
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 24 (0.31.0) — 결과물 깊이 프로토콜 + 출력 위생 (P124, ADR-0024). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (라벨 [1]~[37] 중 18·19 결번 — ADR-0015 7-C/7-D + ADR-0016 [20][21] + ADR-0017 [22][23] + ADR-0020 [31] + ADR-0021 [32] + ADR-0022 [33][34] + ADR-0023 [35][36][37]) (35개 항목) |
+| `/lskun-kit:doctor` | 환경 진단 (35개 항목, 라벨 [1]~[37] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
 | `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취/cancel (ADR-0021 + ADR-0022 자동 시퀀스) |
 
 ---
@@ -50,16 +50,7 @@
 
 ### 2.1 ~~Reflection~~ — **ADR-0014 로 폐기 (2026-05-22)**
 
-옛 메커니즘: 작업 종료 hook → 워커 markdown 의 `## Project History` 1줄 append → 다음 dispatch context 주입.
-
-폐기 사유 (4 전문가 5차 만장일치):
-- 6일 실측: 41명 중 8명만 박제 (누락률 80.5%)
-- 박힌 8건 모두 80자 가드 우회 (100~1400자 narrative)
-- score 필드 의사결정 미사용 (architect 코드 검증)
-- 평가 자산 4 조건 모두 미충족 (analyst 정량)
-- 사용자 정체성 박제: "역사를 주입해서 커가는 것이 아니다"
-
-P79 에서 코드 제거 (~1,528 LoC + ~80 tests). 기존 사용자 자산 (LSKun 8명 박힌 narrative) 은 `## Archived History (pre-0.18)` 로 rename, read-only 보존.
+옛 메커니즘 (작업 종료 hook → 워커 markdown 에 history append → 다음 dispatch 주입) 을 4 전문가 5차 만장일치로 폐기 — 실측 누락률 80.5%, score 미사용, 사용자 정체성 ("역사를 주입해서 커가는 것이 아니다"). P79 에서 코드 제거, 기존 자산은 `## Archived History (pre-0.18)` 로 read-only 보존. 상세 근거는 ADR-0014.
 
 ### 2.2 Leader–Worker, 메인 세션 = CPO (ADR-0004)
 
@@ -69,7 +60,7 @@ P79 에서 코드 제거 (~1,528 LoC + ~80 tests). 기존 사용자 자산 (LSKu
 메인 세션 = CPO persona (CLAUDE.md inline 박제 + SessionStart hook 으로 회사 컨텍스트)
   ↓ Task tool
 워커 (frontmatter.model = sonnet|opus, persona = hired/<name>.md)
-  ↑ 보고 (작업 결과 / first-pass / reflection 후보 3섹션)
+  ↑ 보고 (작업 결과 / 자가 평가 2섹션, ADR-0014 + ADR-0024)
 메인 세션 = CPO 가 결재 → 사용자 응답
 ```
 
@@ -142,16 +133,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 
 ## 5. Zero-Base 원칙
 
-이전 ai-company / claude-company-kit 의 어떤 자산도 **승계 금지**. 컨셉만 가져온다.
-
-| 영역 | 처리 |
-|---|---|
-| 옛 코드 / scripts / templates | ❌ 0 승계 |
-| 옛 plugin manifest / hooks | ❌ 새로 작성 |
-| 옛 release.sh sanitize | ❌ 새로 작성 |
-| 옛 GitHub repo (`claude-company-kit`) | 방치, archive 표시 안 함 |
-| 옛 clone 폴더 / CLI / plugin install | 사용자 측에서 정리 완료 |
-| Git history | 새 repo, 새 commit history |
+이전 ai-company / claude-company-kit 의 어떤 자산도 **승계 금지** — 옛 코드/scripts/templates/manifest/hooks/release.sh 는 0 승계·전부 새로 작성, git history 도 새 repo. 옛 GitHub repo (`claude-company-kit`) 는 방치 (archive 표시 안 함).
 
 **컨셉만 승계 (ADR-0014 갱신):** JD-driven Workers (time-invariant state) + Storage Abstraction + SSOT 분리. ~~Reflection~~ — ADR-0014 (2026-05-22) 로 폐기.
 
@@ -190,7 +172,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 
 ## 8. 로드맵
 
-Phase 1~22 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 22 (0.29.0) — 채용 유령참조 검증 (P122, ADR-0023).
+Phase 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 는 §1 버전 필드 (plugin.json SSOT) 를 따른다 — 본 절에 Phase 번호를 중복 박제하지 말 것 (이중 SSOT 방지).
 
 ## 9. CPO / 인사팀장 동작 사양 (ADR-0002 + ADR-0004)
 
@@ -205,7 +187,7 @@ Phase 1~22 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/p
   - Task tool 로 워커 dispatch (model 결정 = frontmatter / 동적 override / default sonnet)
   - 워커 보고 결재 (first-pass ≥ 70 승인 / 재작업 최대 2회)
   - **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출 + 사용자 알림 1줄 (차단 X)
-  - Reflection 자동 박제 (워커 보고의 후보 → reflection.record)
+  - 결재 audit 박제 — 결재 1건마다 `audit.record()` (ADR-0006. ~~reflection.record~~ 는 ADR-0014 폐기)
 - **금지:** 워커 → 워커 chain, PRD/분기 회고 자동 생성, persona evolution narrative, CPO/HR 외 임원 자동 추가
 
 ### 인사팀장 (HR Lead)

@@ -5,6 +5,17 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.31.1] — 2026-07-09
+
+### Fixed — CLAUDE.md ADR-0014 정합성 정정 + 크기 회귀 가드 (P125)
+
+repo 헌법 (CLAUDE.md) 내부 모순 2건 정정 + 크기 회귀의 구조적 원인 제거. plugin 배포물 (templates/commands/hooks/core) 변경 없음 — **기존 회사 `/sync-persona` 불필요**.
+
+- **ADR-0014 잔재 정정**: §2.2 다이어그램 "보고 3섹션 (reflection 후보 포함)" → 현행 2섹션 (작업 결과 / 자가 평가, ADR-0014 + ADR-0024). §9 CPO 책임의 "Reflection 자동 박제 (reflection.record)" → 현행 "결재 audit 박제 (`audit.record()`, ADR-0006)". 0.18 폐기 이후 헌법에만 살아남았던 지시 모순 제거.
+- **크기 회귀 해소 (13,977 → 12,982 bytes)**: §1 버전 필드의 이전 버전 서술 누적 구조 제거 (버전별 상세 SSOT = CHANGELOG 명문화), doctor 라벨 나열·§2.1 폐기 사유·§5 Zero-Base 테이블 압축. hard cap (15 KB) 도달 예정이던 추세 차단.
+- **§8 낡은 정보 수정**: "현재 Phase 22 (0.29.0)" 이중 SSOT 제거 — Phase 는 §1 버전 필드 (plugin.json) 만 따름.
+- **회귀 가드 신규** (`tests/test_claude_md_consistency.py`, +3 tests): 취소선 밖 `reflection.record`/`reflection 후보` 재등장 차단 + §1 이전 버전 누적 패턴 차단. 437 → 440 tests.
+
 ## [0.31.0] — 2026-07-09
 
 ### Added — 결과물 깊이 프로토콜 + 출력 위생 (ADR-0024, P124)
