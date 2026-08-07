@@ -37,7 +37,7 @@ domain: <domain or company.domain or "meta">
 hired_at: <오늘 ISO 날짜>
 storage_backend: local
 display_name: <사람 이름>
-model: <"sonnet" | "opus" | 모델 ID>   # optional, 생략 시 default
+model: <"sonnet" | "opus" | 모델 ID>   # optional — 생략 권장 (미지정 = 메인 세션 모델 상속, ADR-0025 D4). 명시 시 override 로 존중
 ---
 
 # <worker>

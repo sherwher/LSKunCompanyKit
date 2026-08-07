@@ -106,6 +106,13 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0025 신규 금지 (Delegation Gate, P126)
+
+- **판정 게이트 없는 무조건 dispatch** — ADR-0025 (P126). 워커 매칭 ≠ dispatch 확정. dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 중 하나 충족 시에만. 미충족 = 빙의 (CPO 가 JD 주입받아 직접 수행). 근거: role 중심 분해는 안티패턴 (Anthropic·MAST·Cognition 외부 증거, ADR-0025 §배경).
+- **dispatch 워커에게 파일 쓰기 위임** — ADR-0025 D3. 워커는 read-only 기여 (분석·설계안·리뷰·탐색), 파일 수정은 제안 (diff/전문) 보고만. 쓰기는 CPO (메인 세션) 단일 스레드. "writes stay single-threaded".
+- **dispatch 시 sonnet 자동 강등** — ADR-0025 D4. model default = 미지정 (메인 세션 상속). sonnet 은 기계적 대량 작업에 한해 명시 지정. "위임 = 모델 다운그레이드" 역전 재도입 금지.
+- **같은 태스크의 순차 단계 (설계→구현→수정) 를 워커 여럿에게 분할 dispatch** — ADR-0025. 순차 단계는 한 컨텍스트 (빙의) 에서. 컨텍스트 중심 분해만 허용, role 중심 분해 금지.
+
 ### ADR-0023 신규 금지 (채용 유령참조, P122)
 
 - **frontmatter `name` ≠ 파일명 stem 박제** — ADR-0023 (P122). `create_worker` 불변식 차단, doctor [35] ❌, migrate-schema 보정. 진실원 = 파일명 stem.

@@ -33,6 +33,7 @@ ADR-0014 (2026-05-22) — Reflection 폐기로 `## Project History` 섹션은 �
     - body 본문만 교체. frontmatter 의 모든 기존 키 보존
     - 기존 `## Project History` 또는 `## Archived History (pre-0.18)` 섹션 있으면 보존 (사용자 자산)
     - frontmatter 에 `persona_synced_from: lskun-kit@<version>` + `persona_synced_at: <YYYY-MM-DD>` 박제
+5. **CLAUDE.md marker 재박제 (P126 — 마이그레이션 공백 해소)**: `--execute` 결과 **cpo 의 body 가 변경**됐고, 현재 프로젝트 root 의 `CLAUDE.md` 에 LSKUN-CPO marker 가 존재하면 (`persona_injection.detect`), `persona_injection.inject(Path.cwd(), <회사명>, <cpo display_name>, <새 cpo body>)` 로 marker 구간을 재박제한다 (손편집 감지 시 자동 백업 — init/migrate-schema 와 동일 메커니즘). marker 가 없으면 skip + 안내 1줄 ("다른 프로젝트에서 이 회사를 쓰면 그 프로젝트에서도 재박제 필요 — `/lskun-kit:init <회사명>` 멱등 재실행"). **sync 만 하고 marker 를 방치하면 CLAUDE.md 의 inline CPO persona 가 stale 로 남는다.**
 
 ## Idempotent 보장
 

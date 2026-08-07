@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 26 (P126 — Delegation Gate: 위임은 예외, 빙의가 기본, ADR-0025, 0.32.0)
+
+- **Phase 26 (0.32.0)** — 사용자 실사용 체감 ("단일 에이전트가 더 낫다") 을 외부 증거 (Berkeley MAST · Cognition · Anthropic) 로 검증 후 근본 원인 5개 해소 (ADR-0025): D1 Delegation Gate (dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만) + D2 빙의 기본 (CPO 가 워커 JD 주입받아 직접 수행) + D3 쓰기 단일화 (dispatch 워커 read-only, 쓰기는 메인 세션) + D4 모델 상속 (default sonnet 폐지) + D5 Handoff Brief (목표/제약/관련 파일/기존 결정/완료 기준) + D6 산출물 결재 (R2 실질화 + clean-context verifier). spec: `docs/p126-delegation-gate.md`. 기존 회사는 `/sync-persona --execute` + CLAUDE.md marker 재박제 (sync-persona 가 안내) 로 전파.
+
 ### Phase 24 (P124 — 결과물 깊이 프로토콜 + 출력 위생, ADR-0024, 0.31.0)
 
 - **Phase 24 (0.31.0)** — 사용자 실사용 피드백 2건 개선 (ADR-0024): ① `<invoke>` tool 구문 텍스트 누출 — 출력 위생 규칙 박제 + 의사코드 라벨 (priming 제거), ② 결과물 깊이 부족 — Deep Work Protocol dispatch 주입 + 보고 양식 심화 (2섹션 유지) + 결재 rubric 3항목 (요청 대조/검증 증거/도메인 함정) + JD 300~800자 상향. spec: `docs/p124-depth-and-output-hygiene.md`. 기존 회사는 `/sync-persona` 1회 전파.

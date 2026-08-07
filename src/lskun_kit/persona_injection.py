@@ -55,7 +55,7 @@ def render_persona_block(
         f"# CPO Persona — {cpo_display_name} of {company_name} "
         f"(auto-injected by LSKunCompanyKit)\n"
         f"\n"
-        f"> 본 구간은 `/lskun-kit:init` 또는 `/lskun-kit:doctor --reinject-cpo` 가 관리한다.\n"
+        f"> 본 구간은 `/lskun-kit:init` · `/lskun-kit:migrate-schema` · `/lskun-kit:sync-persona --execute` 가 관리한다.\n"
         f"> marker 사이는 직접 수정하지 말 것 — 다음 init 시 덮어쓴다.\n"
         f"> ADR-0004 §1 — 메인 Claude Code 세션이 본 persona 로 동작한다.\n"
         f"\n"

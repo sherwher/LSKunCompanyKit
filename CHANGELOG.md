@@ -5,6 +5,30 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.32.0] — 2026-08-07
+
+### Changed — Delegation Gate: 위임은 예외, 빙의가 기본 (ADR-0025, P126)
+
+사용자 실사용 체감 ("단일 에이전트가 플러그인보다 산출물이 좋다") 을 외부 증거 (Berkeley MAST arXiv 2503.13657 · Cognition "Don't Build Multi-Agents"/"Multi-Agents: What's Actually Working" · Anthropic "When to use multi-agent systems") 로 검증 후, 땜빵이 아닌 근본 원인 5개 (role 중심 분해 default · 압축 handoff 2회 · 위임 = 모델 다운그레이드 · 보고서 결재 · 게이트 부재) 를 해소. spec: `docs/p126-delegation-gate.md`.
+
+- **D1 Delegation Gate**: 워커 매칭 ≠ dispatch 확정. dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 중 하나 충족 시에만 (`cpo.md` 신설 절 + `work.md` + `routing.py`).
+- **D2 빙의(Embody) 기본**: 게이트 미충족 시 CPO(메인 세션)가 워커 JD 를 주입받아 그 전문가로서 직접 수행 — 도메인 전문성 + 풀 컨텍스트 + 메인 세션 모델 + 즉각 피드백 모두 유지. audit 은 reason `embody:` 접두로 동일 박제.
+- **D3 쓰기 단일화**: dispatch 워커는 read-only 기여 (분석·설계안·리뷰·탐색). 파일 수정은 제안 (diff/전문) 보고, 쓰기는 CPO 결재 후 메인 세션 수행. 순차 단계 분할 dispatch 금지.
+- **D4 모델 상속**: dispatch default sonnet 폐지 (ADR-0004 §4 supersede) — `--model` > frontmatter > **미지정 (메인 세션 모델 상속)**. `hire.md` 도 model 생략 권장으로 갱신.
+- **D5 Handoff Brief**: dispatch prompt 에 목표/제약/관련 파일/기존 결정/완료 기준 브리프 (CPO 직접 작성) 표준 주입 — 압축 handoff 손실 보상.
+- **D6 산출물 결재**: 워커 보고에 산출물 원본 (경로·diff·전문) 필수, 결재 R2 = 산출물 원본 직접 확인. 중요 산출물은 clean-context verifier dispatch.
+- **forbidden 4항 추가** (`forbidden-history.md` — 무조건 dispatch / 워커 쓰기 위임 / sonnet 자동 강등 / 순차 단계 분할 dispatch).
+
+### Fixed — sync-persona 후 CLAUDE.md stale (마이그레이션 공백)
+
+- `sync-persona --execute` 가 `hired/cpo.md` 만 갱신하고 프로젝트 CLAUDE.md 의 inline CPO persona 는 stale 로 남던 공백 해소 — cpo body 변경 시 marker 재박제 단계 추가 (`commands/sync-persona.md` §동작 5). `persona_injection` 의 존재하지 않는 `doctor --reinject-cpo` 참조도 실재 명령 3종으로 정정.
+
+### 기존 회사 마이그레이션 (필수 아님, 권장)
+
+1. plugin update → 0.32.0 reload
+2. `/lskun-kit:sync-persona --execute` — CPO persona 갱신 + CLAUDE.md marker 재박제 (자동 백업)
+3. 일반 워커 JD 변경 불필요. 기존 워커 frontmatter 의 `model: sonnet` 은 명시 override 로 계속 존중 — 메인 세션 모델 상속을 원하면 해당 키를 삭제 (자동 수정 없음)
+
 ## [0.31.1] — 2026-07-09
 
 ### Fixed — CLAUDE.md ADR-0014 정합성 정정 + 크기 회귀 가드 (P125)
