@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 24 (0.31.0) — 결과물 깊이 프로토콜 + 출력 위생 (P124, ADR-0024). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 26 (0.32.0) — Delegation Gate: 위임은 예외, 빙의가 기본 (P126, ADR-0025). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -58,10 +58,12 @@
 사용자
   ↓
 메인 세션 = CPO persona (CLAUDE.md inline 박제 + SessionStart hook 으로 회사 컨텍스트)
-  ↓ Task tool
-워커 (frontmatter.model = sonnet|opus, persona = hired/<name>.md)
-  ↑ 보고 (작업 결과 / 자가 평가 2섹션, ADR-0014 + ADR-0024)
-메인 세션 = CPO 가 결재 → 사용자 응답
+  ↓ Delegation Gate (ADR-0025) — ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만 dispatch
+  ├─ 미충족 (기본) → 빙의(embody): CPO 가 워커 JD 주입받아 직접 수행
+  └─ 충족 → Task tool
+       워커 (model 미지정=메인 세션 상속, persona = hired/<name>.md, read-only 기여 — 쓰기는 CPO)
+         ↑ 보고 (작업 결과 + 산출물 원본 / 자가 평가, ADR-0014 + ADR-0024 + ADR-0025)
+메인 세션 = CPO 가 산출물 확인 결재 → 사용자 응답
 ```
 
 CPO 는 **결재 라인 + 단독 채용 권한**. 부재 워커 발견 시 HR Lead 를 Task tool 로 호출하여 자동 채용, 사용자에게 알림 1줄. 워커 → 워커 chain 은 금지 (sub-leader 출현 방지).
@@ -155,6 +157,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - 외주 의견 위 집계·다수결·KPI / 레드팀 destructive 행위 — ADR-0021
 - 외주 setup hook 의 marker 외 입력 파싱 / `stop_hook_active` 무시 / enum 미강제 / 일반 dispatch 침투 — ADR-0022
 - frontmatter name ↔ 파일명 stem 불일치 / 파일 없는 채용 audit (유령참조) — ADR-0023
+- 판정 게이트 없는 무조건 dispatch / dispatch 워커에 파일 쓰기 위임 / dispatch 시 sonnet 자동 강등 — ADR-0025
 
 > 새 금지 항목 추가 시 [`docs/internals/forbidden-history.md`](docs/internals/forbidden-history.md) 갱신 필수.
 
@@ -184,8 +187,9 @@ Phase 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-
   - `/lskun-kit:work cpo "..."` → CPO 와 전략 대화
 - **책임:**
   - 요청 분석 → 적합 워커 라우팅 (도메인 일치 우선)
-  - Task tool 로 워커 dispatch (model 결정 = frontmatter / 동적 override / default sonnet)
-  - 워커 보고 결재 (first-pass ≥ 70 승인 / 재작업 최대 2회)
+  - **Delegation Gate 판정 (ADR-0025)** — ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만 dispatch, 그 외 빙의 (워커 JD 주입 직접 수행). dispatch 워커는 read-only 기여, 쓰기는 CPO 단일 스레드
+  - Task tool 로 워커 dispatch (model 결정 = `--model` / frontmatter / 미지정=메인 세션 상속, ADR-0025 D4)
+  - 워커 보고 결재 (산출물 원본 확인, ADR-0025 D6 / 재작업 최대 2회)
   - **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출 + 사용자 알림 1줄 (차단 X)
   - 결재 audit 박제 — 결재 1건마다 `audit.record()` (ADR-0006. ~~reflection.record~~ 는 ADR-0014 폐기)
 - **금지:** 워커 → 워커 chain, PRD/분기 회고 자동 생성, persona evolution narrative, CPO/HR 외 임원 자동 추가
