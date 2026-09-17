@@ -1,6 +1,6 @@
 """PreToolUse hook — 워커 → 워커 chain 금지 + Dispatch subagent_type allowlist enforcement.
 
-ADR-0001 §6 + ADR-0002 §6 + ADR-0004 §8 + ADR-0016 + ADR-0017.
+ADR-0001 §6 + ADR-0002 §6 + ADR-0004 §8 + ADR-0016 + ADR-0017 + ADR-0026.
 
 두 축 enforcement:
     (1) 활성 워커 세션 도중 Task tool 호출 → deny (chain 차단, ADR-0004 §8)
@@ -13,16 +13,20 @@ ADR-0001 §6 + ADR-0002 §6 + ADR-0004 §8 + ADR-0016 + ADR-0017.
     3. ``LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`` OR ``LSKUN_ALLOW_OMC_FALLBACK=1`` (별칭)
        → allow + stderr (allowlist bypass, ADR-0017 결정 2)
     4. 활성 회사 marker 부재 → allow (plugin 비활성)
-    5. 활성 워커 세션 존재 → **chain deny** (ADR-0004 §8)
+    5. 활성 워커 세션 존재 OR payload 에 ``agent_id`` (subagent 내부 호출, ADR-0026 D4)
+       → **chain deny** (ADR-0004 §8)
     6. ``subagent_type`` 미지정 / null → allow (일반 Task 호출)
-    7. ``subagent_type == "claude"`` → allow (정식 dispatch, ADR-0017 결정 1)
+    7. ``subagent_type`` 이 plugin 제공 agent → allow (정식 dispatch, ADR-0026 D3)
     8. fallthrough → **deny** (allowlist 본질, ADR-0017)
 
-Allowlist (ADR-0017 결정 1):
-    - ``claude`` (정확 매칭) — 정식 dispatch 경로
+Allowlist (ADR-0026 D3 — ADR-0017 결정 1 supersede):
+    - ``LSKunCompanyKit:worker`` — 일반 워커·외주. 쓰기·하위 dispatch 도구 없음
+    - ``LSKunCompanyKit:hr-lead`` — HR Lead. 쓰기 허용, 하위 dispatch 도구 없음
     - 미지정 / null — 일반 Task 호출 (subagent 선택 없이 default)
 
-차단 대상 (ADR-0017 결정 1 — claude 외 전부):
+차단 대상 (allowlist 외 전부):
+    - ``claude`` (ADR-0017 의 옛 정식 타입) — 도구 제한이 없어 쓰기 단일화 (ADR-0025 D3)
+      를 우회하므로 유예 없이 deny. deny 사유가 새 타입을 안내한다.
     - ``oh-my-claudecode:*`` (ADR-0016 차단 계승)
     - ``general-purpose`` (ADR-0016 차단 계승)
     - ``vercel:*``, ``codex:*``, ``figma:*``, ``posthog:*`` 등 외부 plugin subagent
@@ -73,10 +77,14 @@ ENV_ALLOW_NON_CLAUDE = "LSKUN_ALLOW_NON_CLAUDE_DISPATCH"  # ADR-0017 결정 2 (�
 ENV_ALLOW_OMC = "LSKUN_ALLOW_OMC_FALLBACK"                # ADR-0017 결정 2 (ADR-0016 별칭)
 ENV_DEBUG_DUMP = "LSKUN_HOOK_DEBUG_DUMP"
 
-# ADR-0017 결정 1 — Allowlist.
-# subagent_type == "claude" 만 정식 dispatch 로 허용. 그 외 전부 deny.
+# ADR-0026 D3 — Allowlist (ADR-0017 결정 1 supersede).
+# plugin 이 ``agents/`` 로 제공하는 2종만 정식 dispatch 로 허용. 그 외 전부 deny.
+# 타입 이름 = ``<plugin manifest name>:<agent name>``. agents/*.md 와의 정합은
+# tests/test_plugin_agents.py 가 가드한다.
 # subagent_type 미지정 / null 은 별도 평가 (일반 Task 호출로 allow).
-_ALLOWED_SUBAGENT = frozenset({"claude"})
+WORKER_AGENT = "LSKunCompanyKit:worker"
+HR_LEAD_AGENT = "LSKunCompanyKit:hr-lead"
+_ALLOWED_SUBAGENT = frozenset({WORKER_AGENT, HR_LEAD_AGENT})
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -149,6 +157,21 @@ def _decide(stdin_text: str) -> tuple[str, str]:
     # 5. chain 차단 (ADR-0004 §8) — allowlist 차단보다 우선 (ADR-0017 결정 7).
     from lskun_kit import session  # 지연 import — hooks 의존성 격리
 
+    # ADR-0026 D4 — payload 의 ``agent_id`` 는 subagent 내부 호출에만 실린다.
+    # 세션 파일이 없는 CPO 라우팅 dispatch 경로의 chain 도 여기서 잡는다.
+    origin_agent = data.get("agent_id") if isinstance(data, dict) else None
+    if isinstance(origin_agent, str) and origin_agent:
+        origin_type = data.get("agent_type") or "subagent"
+        return (
+            "deny",
+            (
+                f"LSKunCompanyKit: subagent ({origin_type}) 내부의 dispatch 호출 차단 "
+                f"(ADR-0004 §8 — 워커 → 워커 chain 금지, ADR-0026 D4). 추가 dispatch 가 "
+                f"필요하면 그 필요를 보고서에 적어 메인 세션 = CPO 에게 돌려보내라. "
+                f"디버깅 시 LSKUN_ALLOW_WORKER_CHAIN=1 로 bypass 가능."
+            ),
+        )
+
     sess = session.read(company_root)
     if sess is not None:
         return (
@@ -168,7 +191,7 @@ def _decide(stdin_text: str) -> tuple[str, str]:
     if not subagent_type:
         return "allow", ""
 
-    # 7. "claude" 정식 dispatch → allow.
+    # 7. plugin 제공 agent 정식 dispatch → allow (ADR-0026 D3).
     if subagent_type in _ALLOWED_SUBAGENT:
         return "allow", ""
 
@@ -176,10 +199,12 @@ def _decide(stdin_text: str) -> tuple[str, str]:
     return (
         "deny",
         (
-            f"LSKunCompanyKit: subagent_type='{subagent_type}' 차단 (ADR-0017 allowlist). "
+            f"LSKunCompanyKit: subagent_type='{subagent_type}' 차단 "
+            f"(ADR-0017 allowlist, ADR-0026). "
             f"활성 회사 컨텍스트 ({company_root.name}) 의 정식 dispatch 는 "
-            f"subagent_type='claude' 만 허용. "
-            f"LSKun 워커 dispatch: Task(subagent_type=\"claude\", prompt=...). "
+            f"subagent_type='{WORKER_AGENT}' (일반 워커·외주) 또는 "
+            f"'{HR_LEAD_AGENT}' (HR Lead) 만 허용 — 옛 'claude' 타입도 deny. "
+            f"같은 prompt 로 subagent_type 만 바꿔 다시 호출하라. "
             f"회사 외 작업 (vercel/codex/figma 등 plugin subagent 의도 사용) 이면: "
             f"export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1 (세션 단위 권장). "
             f".zshrc/.bashrc 영구 export 는 가드를 무력화한다 (doctor [23])."

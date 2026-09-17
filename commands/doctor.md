@@ -11,7 +11,7 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 
 ---
 
-## 진단 항목 (35개)
+## 진단 항목 (36개)
 
 순서대로 점검 후 ✅ / ⚠️ / ❌ 표기.
 
@@ -307,6 +307,19 @@ ADR-0019 (archive 폐기) 후 사용자가 옛 `archived/` 디렉토리를 미�
 > (orphan 양방향 + invalid + meta) 전체, [37] 은 유령참조 관점의 dangling 만 재확인.
 > 동일 사실이면 둘 다 같은 결과를 내야 정상 (cross-check).
 
+### 38. plugin agent 등록 (ADR-0026)
+
+dispatch allowlist 가 plugin 제공 agent 2종을 가리키므로, agent 파일이 없거나 도구 제한이
+풀려 있으면 dispatch 가 전부 막히거나 쓰기 단일화가 무력화된다.
+
+- `${CLAUDE_PLUGIN_ROOT}/agents/worker.md` · `agents/hr-lead.md` 존재 확인 — 부재 시 **❌**
+  `"agents/<name>.md 없음 — 모든 dispatch 가 allowlist 에서 deny 된다. plugin 재설치 필요"`
+- `worker.md` frontmatter `disallowedTools` 에 `Write`, `Edit`, `NotebookEdit`, `Agent` 포함 확인 —
+  누락 시 **❌** `"worker agent 도구 제한 누락: <도구> (ADR-0025 D3 / ADR-0004 §8 무력화)"`
+- `hr-lead.md` 의 `disallowedTools` 에 `Agent` 포함 확인 — 누락 시 **❌**
+- 두 파일 모두 `model: inherit` — 아니면 **⚠️** `"dispatch 모델 자동 강등 위험 (ADR-0025 D4)"`
+- 전부 정합 → ✅
+
 ### 26. **audit log 누적 크기 모니터링 (P109-B)**
 
 `<company_root>/.audit/decisions.jsonl` 의 파일 크기를 점검 (자동 회전 X, 안내만):
@@ -367,6 +380,7 @@ LSKunCompanyKit doctor (v<plugin-version>)
 [35] name↔파일명 정합 (ADR-0023) : ✅ 43/43 일치
 [36] 채용 audit↔파일 (ADR-0023)  : ✅ 정합 (고아 0)
 [37] dangling skills (ADR-0023)  : ✅ dangling 0
+[38] plugin agent 등록 (ADR-0026): ✅ worker / hr-lead 등록, 도구 제한 정합
 
 결과: 환경 정상. 일상 사용 가능 (정보성 ℹ️ 는 사용자 판단 사항).
 ```

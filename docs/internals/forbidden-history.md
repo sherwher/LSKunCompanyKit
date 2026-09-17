@@ -61,8 +61,8 @@
 - **`LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0016 결정 5) — 가드 무력화. 세션 단위 export 권장. doctor [21] 가 검출 + 경고
 - **PreToolUse:Skill 가드 추가로 사용자 명시 슬래시 `/oh-my-claudecode:*` 까지 차단** (ADR-0016) — 사용자 의도 무시. 본 ADR 범위는 메인 LLM 의 자의적 Agent → OMC 호출만
 - **Denylist 모델 재도입** (ADR-0017) — 4회째 재발 입증. allowlist 단일 정책 유지. 재도입 시 새 ADR + 5회째 재발 증거 필수
-- **Skill 문서·persona template 의 dispatch `subagent_type` 미규정** (ADR-0017) — `commands/work.md` / `templates/cpo.md` / `templates/hr-lead.md` 모두 `subagent_type="claude"` 명시 박제 필수. 누락 시 LLM 자의 선택 → ADR-0017 위반
-- **`subagent_type="claude"` 외 dispatch 의 silent 통과** (ADR-0017) — 반드시 stderr 안내 + escape hatch 경로 명시
+- **Skill 문서·persona template 의 dispatch `subagent_type` 미규정** (ADR-0017) — `commands/work.md` / `templates/cpo.md` / `templates/hr-lead.md` 모두 정식 dispatch 타입 명시 박제 필수 (ADR-0026 이후 `LSKunCompanyKit:worker` / `LSKunCompanyKit:hr-lead` — 옛 `claude` 는 deny). 누락 시 LLM 자의 선택 → ADR-0017 위반
+- **allowlist 외 dispatch 의 silent 통과** (ADR-0017, allowlist 내용은 ADR-0026 이 교체) — 반드시 stderr 안내 + escape hatch 경로 명시
 - **plugin 개발자 dogfood 시나리오를 위한 cwd-aware 가드 추가** (ADR-0017) — false positive 우려. escape hatch 1회 set 으로 처리
 - **`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` / `LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0017 결정 8) — allowlist 가드 무력화. 세션 단위 export 권장. doctor [23] 가 검출
 
@@ -105,6 +105,15 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`~/.lsk-external/` 등 회사 SSOT 외부 신규 최상위 디렉토리** — 3번째 SSOT 금지 (ADR-0008). external/ 은 회사 SSOT 하위.
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
+
+### ADR-0026 신규 금지 (Worker Agent, P129)
+
+- **dispatch 워커에 쓰기 가능 agent 타입 부여** — ADR-0026 D1. 일반 워커·외주 dispatch 는 `LSKunCompanyKit:worker` (`disallowedTools: Write, Edit, NotebookEdit, Agent`) 만. 쓰기 단일화 (ADR-0025 D3) 를 프롬프트가 아닌 도구 권한으로 강제한다.
+- **allowlist 에 `claude` 재허용 / 유예 기간 도입** — ADR-0026 D3. 도구 제한 없는 타입이 하나라도 allowlist 에 남으면 제한 전체가 무의미하다. deny 사유가 새 타입을 안내하므로 유예가 필요 없다.
+- **plugin agent 정의에 persona (JD) 복제** — ADR-0026 D1 + ADR-0014. JD 진실원은 `hired/<name>.md`, 전달 경로는 dispatch prompt. agent 본문은 역할 경계만.
+- **채용 시 워커별 agent 파일 동적 생성** — ADR-0026 비채택. 사용자 SSOT 와 plugin 배포물 혼합 (ADR-0015 위반) + reload 필요. 고정 agent 2종 유지.
+- **plugin agent 에 `memory:` 필드** — ADR-0014 정면 저촉 (세션 간 학습).
+- **worker agent 에서 `Bash` 제거 / `tools:` allowlist 전환** — ADR-0026 비채택. 테스트 실행·탐색·MCP·WebFetch 등 정당한 기여 경로를 막는다. Bash 경유 쓰기는 알려진 한계로 persona + 결재 R2 가 담당.
 
 ### ADR-0025 신규 금지 (Delegation Gate, P126)
 

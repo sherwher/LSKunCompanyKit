@@ -107,7 +107,7 @@ JD 가 정교해진다고 같은 도메인 안에서 role 을 미세 분화해 �
 
 CPO 는 이 응답을 받아 사용자에게 `[채용 알림]` 1줄을 emit 한 뒤 신규 워커 dispatch.
 
-> **dispatch 강제 (ADR-0017 결정 1)**: 신규 채용 직후 dispatch 도 반드시 `Task(subagent_type="claude", prompt=...)`. OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업 의도면 세션 단위 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`.
+> **dispatch 강제 (ADR-0017 결정 1)**: 신규 채용 직후 dispatch 는 CPO 가 수행하며 반드시 `subagent_type="LSKunCompanyKit:worker"` (ADR-0026). HR Lead 자신은 `LSKunCompanyKit:hr-lead` agent 로 실행되어 하위 dispatch 도구가 없다. 옛 `claude` 타입 / OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업 의도면 세션 단위 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`.
 
 ## 해고 — 사용자 명시 요청만 (ADR-0015 결정 7)
 

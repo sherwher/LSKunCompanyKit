@@ -22,7 +22,7 @@
 | ADR-0014 | **Reflection 메커니즘 완전 폐기 + JD-driven 정체성 박제** | 활성 (4 전문가 5차 만장일치, ~1,528 LoC 제거) |
 | ADR-0015 | **Local SSOT 단일화 + sync 분리 + 권한 박제 + 해고 결합 해제** | 활성 (결정 1~6 유지, 결정 7 ADR-0019 supersede) |
 | ~~ADR-0016~~ | 메인 세션 측 OMC fallback 차단 (denylist) | **supersede by ADR-0017** (메커니즘 계승, denylist → allowlist) |
-| ADR-0017 | **Dispatch subagent_type Allowlist (`claude` 단일)** | 활성 (v0.21.0+) |
+| ADR-0017 | **Dispatch subagent_type Allowlist (`claude` 단일)** | 활성 (v0.21.0+) — allowlist 모델·escape hatch·평가 순서 유지. 결정 1 (허용 타입 = `claude`) 은 ADR-0026 이 supersede (v0.34.0+) |
 | ADR-0019 | **Archive 메커니즘 완전 폐기** (`delete_worker`) | 활성 (v0.23.0+, ADR-0015 결정 7-A/7-B/7-C/7-D/7-E supersede) |
 | ADR-0018 | **No external harness, doctor is the harness** | 활성 (v0.25.0+, P106 메타 리뷰 + P109 자기관찰 도구 실증 후 박제 — design doc: `docs/p110-adr-0018.md`) |
 | ADR-0020 | **워커 전문 도구 (`skills`) 박제 — JD 의 도구 차원 확장** | 활성 (v0.26.0+, ADR-0014 확장 / ADR-0009 범위 내 — spec: `docs/p111-worker-skills.md`) |
@@ -31,6 +31,7 @@
 | ADR-0023 | **채용 유령참조 — 진실원=파일명 stem, 3층 방어(예방/탐지/복구)** | 활성 (v0.29.0+, ADR-0003 frontmatter 무결성 강화 / ADR-0006 audit 정신 — spec: `docs/superpowers/specs/2026-06-25-phantom-reference-guard-design.md`) |
 | ADR-0024 | **결과물 깊이 프로토콜 + 출력 위생** (Deep Work Protocol, 결재 rubric, JD 300~800자, tool 구문 텍스트 출력 금지) | 활성 (v0.31.0+, ADR-0014 보고 양식 2섹션 유지·내용 심화 — spec: `docs/p124-depth-and-output-hygiene.md`) |
 | ADR-0025 | **Delegation Gate — 위임은 예외, 빙의(embody)가 기본** (dispatch 3조건, 쓰기 단일화, 모델 상속, Handoff Brief, 산출물 결재) | 활성 (v0.32.0+, ADR-0004 §4 default sonnet supersede / 외부 증거: MAST·Cognition·Anthropic — spec: `docs/p126-delegation-gate.md`) |
+| ADR-0026 | **Worker Agent — 도구 권한으로 쓰기 단일화·chain 금지 강제** (plugin agent 2종, allowlist 교체, `agent_id` chain 판정) | 활성 (v0.34.0+, ADR-0017 결정 1 supersede — `claude` 타입 deny / ADR-0025 D3·ADR-0004 §8 강제 수단 승격 — spec: `docs/p129-worker-agent.md`) |
 
 ## Supersede Chain (시각화)
 

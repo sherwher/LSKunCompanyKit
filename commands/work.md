@@ -48,17 +48,17 @@ arguments:
 2. CPO 가 요청을 받아:
    - `hired/` 워커 검색 (frontmatter 의 `role`, `domain` 기준)
    - **Delegation Gate 판정 (ADR-0025)** — 적합 워커 선정 후, ①컨텍스트 보호 / ②병렬 탐색 / ③독립 검증 중 하나 이상 충족 시에만 dispatch. 미충족 → **빙의(embody)**: CPO 가 워커 JD body 를 읽어 직접 수행 (자연어 1줄 알림).
-   - 게이트 충족 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = `--model` / frontmatter / 미지정(상속, ADR-0025 D4). **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조). dispatch 워커는 read-only 기여 — 파일 수정은 제안 (diff/전문) 으로 보고, 쓰기는 CPO 가 결재 후 수행 (D3).
-   - 워커 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 (① `create_worker` 파일 먼저 → ② `record_hire` audit, ADR-0023) → `[채용 알림]` 1줄 → 신규 워커에 게이트 판정 적용 (dispatch 또는 빙의)
+   - 게이트 충족 → `Task` tool (현 Claude Code 에서는 `Agent` tool) 로 dispatch — **반드시 `subagent_type="LSKunCompanyKit:worker"`** (ADR-0026 — plugin 제공 agent, 쓰기·하위 dispatch 도구 없음). model 결정 = `--model` / frontmatter / 미지정(상속, ADR-0025 D4). **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조). dispatch 워커는 read-only 기여 — 파일 수정은 제안 (diff/전문) 으로 보고, 쓰기는 CPO 가 결재 후 수행 (D3).
+   - 워커 없음 → `Task(subagent_type="LSKunCompanyKit:hr-lead", ...)` 로 HR Lead 호출 → 자동 채용 (① `create_worker` 파일 먼저 → ② `record_hire` audit, ADR-0023) → `[채용 알림]` 1줄 → 신규 워커에 게이트 판정 적용 (dispatch 또는 빙의)
 3. CPO 가 워커 보고를 받아 **결재** (산출물 원본 확인, ADR-0025 D6 → 승인 / 재작업 최대 2회). 보고의 `상태:` 줄 (상태코드 4종, P127) 에 따라 분기 — `DONE` 결재 / `DONE_WITH_CONCERNS` 우려 판단 / `NEEDS_CONTEXT` 브리프 보강 후 재dispatch / `BLOCKED` 원인 해소 또는 사용자 보고. 빙의 건은 CPO 자신의 산출물에 **증거 게이트** (새 검증 증거 없이 완료 주장 금지) 를 적용
 4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
 5. 사용자에게 결재된 결과 전달
 
 > 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.
 
-> **dispatch 강제 (ADR-0017)**: Task tool 호출 시 반드시 `subagent_type="claude"`. OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업으로 다른 plugin subagent 가 정당 필요하면 세션 단위로 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 후 사용 (`.zshrc`/`.bashrc` 영구 export 금지, doctor [23] 가 검출).
+> **dispatch 강제 (ADR-0017 + ADR-0026)**: dispatch tool 호출 시 반드시 `subagent_type="LSKunCompanyKit:worker"` (HR Lead 는 `"LSKunCompanyKit:hr-lead"`). 옛 `claude` 타입 / OMC executor / general-purpose / 외부 plugin subagent (vercel/codex/figma 등) / Explore / Plan 호출은 PreToolUse hook 이 deny. 회사 외 작업으로 다른 plugin subagent 가 정당 필요하면 세션 단위로 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` 후 사용 (`.zshrc`/`.bashrc` 영구 export 금지, doctor [23] 가 검출).
 
-> **description 포맷 (필수)**: `subagent_type` 은 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. 따라서 `Task` tool 의 `description` 은 **`<워커명·role · 작업요약>`** 포맷으로 작성한다 (예: `하린·seo-growth-strategist · 검색 자산화 위임`). 직통 호출·CPO 라우팅·자동 채용 후 dispatch 모두 일괄 적용. 이렇게 해야 status line 만으로 "지금 누가 도는지" 가 보인다.
+> **description 포맷 (필수)**: `subagent_type` 이 워커마다 같은 값이라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. 따라서 `Task` tool 의 `description` 은 **`<워커명·role · 작업요약>`** 포맷으로 작성한다 (예: `하린·seo-growth-strategist · 검색 자산화 위임`). 직통 호출·CPO 라우팅·자동 채용 후 dispatch 모두 일괄 적용. 이렇게 해야 status line 만으로 "지금 누가 도는지" 가 보인다.
 
 > **규모 스케일링 (P127)**: 게이트 통과 후 투입 규모 — ① 컨텍스트 보호 = 1명 / ② 병렬 탐색 = 독립 서브태스크 수만큼, 상한 4 (브리프 작업 경계가 겹치지 않을 때만) / ③ 독립 검증 = verifier 1명. 상세는 CPO persona §규모 스케일링.
 
@@ -86,12 +86,12 @@ arguments:
 
 - CPO 호출 — 워커 이름 생략 시 메인 세션의 CPO 가 받음
 - Delegation Gate (ADR-0025) — dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만. 미충족 = 빙의 (CPO 가 JD 주입받아 직접 수행)
-- Leader-Worker dispatch — Task tool + 보고 양식 (산출물 원본 포함) + `subagent_type="claude"` 강제 (ADR-0017). dispatch 워커는 read-only 기여, 쓰기는 메인 세션 (D3)
+- Leader-Worker dispatch — Task tool + 보고 양식 (산출물 원본 포함) + `subagent_type="LSKunCompanyKit:worker"` 강제 (ADR-0026). dispatch 워커는 read-only 기여 — agent 정의의 `disallowedTools` 로 쓰기 도구 제거, 쓰기는 메인 세션 (D3)
 - 실행 품질 규격 (P127) — 보고 상태코드 4종 분기 / 빙의 경로 증거 게이트 / 규모 스케일링 (병렬 상한 4) / Handoff Brief 7필드
 - 자동 채용 — 사용자 알림만, 차단 X
 - 모델 라우팅 — default=미지정 (메인 세션 모델 상속, ADR-0025 D4). frontmatter/`--model` 은 명시 override
-- Dispatch allowlist — `claude` 외 subagent 는 PreToolUse hook 이 deny (ADR-0017). escape hatch=`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` (별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`).
-- Description 포맷 — `Task` tool `description` 은 `<워커명·role · 작업요약>` (subagent_type 이 늘 `claude` 라 status line 가독성 확보). 모든 dispatch 경로 일괄 적용.
+- Dispatch allowlist — `LSKunCompanyKit:worker` / `LSKunCompanyKit:hr-lead` 외 subagent (옛 `claude` 포함) 는 PreToolUse hook 이 deny (ADR-0017 + ADR-0026). subagent 내부에서 나온 dispatch 호출도 deny (chain 금지, `agent_id` 판정). escape hatch=`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` (별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`).
+- Description 포맷 — `Task` tool `description` 은 `<워커명·role · 작업요약>` (subagent_type 이 워커마다 같아 status line 가독성 확보). 모든 dispatch 경로 일괄 적용.
 
 ## Python 진입점
 
@@ -117,12 +117,12 @@ elif decision.mode == "cpo":
 else:  # missing-cpo
     print(decision.reason)
 
-# dispatch 직전 (ADR-0017 결정 1 — subagent_type="claude" 강제).
+# dispatch 직전 (ADR-0026 — subagent_type="LSKunCompanyKit:worker" 강제, HR Lead 는 "LSKunCompanyKit:hr-lead").
 # Task tool 호출은 host (메인 LLM) 측이므로 plugin core 가 직접 호출하지 않는다.
 # 호출자는 반드시 다음 형식으로 dispatch:
 #
 #   Task(
-#       subagent_type="claude",   # Allowlist 단일 허용 — claude 외는 PreToolUse hook 이 deny
+#       subagent_type="LSKunCompanyKit:worker",   # Allowlist — 그 외 (옛 claude 포함) 는 PreToolUse hook 이 deny
 #       prompt=f"{ctx}\n\n{user_request}",
 #       description="<워커명·role · 작업요약>",  # 필수 포맷 — status line 가독성
 #                                                # 예: "하린·seo-growth-strategist · 검색 자산화 위임"

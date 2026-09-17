@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 27 (0.33.1) — 실행 품질 규격화: 브리프·보고·검증 접점 (P127, ADR-0025/0024 보강) + dispatch tool 이름 변경 hotfix (P128). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 28 (0.34.0) — Worker Agent: 도구 권한으로 쓰기 단일화·chain 금지 강제 (P129, ADR-0026). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (35개 항목, 라벨 [1]~[37] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
+| `/lskun-kit:doctor` | 환경 진단 (36개 항목, 라벨 [1]~[38] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
 | `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취/cancel (ADR-0021 + ADR-0022 자동 시퀀스) |
 
 ---
@@ -61,7 +61,7 @@
   ↓ Delegation Gate (ADR-0025) — ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만 dispatch
   ├─ 미충족 (기본) → 빙의(embody): CPO 가 워커 JD 주입받아 직접 수행
   └─ 충족 → Task tool
-       워커 (model 미지정=메인 세션 상속, persona = hired/<name>.md, read-only 기여 — 쓰기는 CPO)
+       워커 (agent=LSKunCompanyKit:worker — 쓰기·하위 dispatch 도구 없음 (ADR-0026), model 상속, persona = hired/<name>.md)
          ↑ 보고 (작업 결과 + 산출물 원본 / 자가 평가, ADR-0014 + ADR-0024 + ADR-0025)
 메인 세션 = CPO 가 산출물 확인 결재 → 사용자 응답
 ```
@@ -151,7 +151,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - audit log 위 자동 평가·대시보드·KPI — ADR-0006
 - archive 메커니즘 재도입 — ADR-0019 (2026-05-27 폐기)
 - 외부 harness (cmux/ralph/ultrawork) plugin core 도입 — ADR-0009 self-contained
-- subagent_type="claude" 외 dispatch — ADR-0017 Allowlist
+- plugin 제공 agent (`LSKunCompanyKit:worker` / `:hr-lead`) 외 dispatch, dispatch 워커에 쓰기 가능 agent 부여 — ADR-0017 + ADR-0026
 - plugin core 안에서 외부 시스템 SDK / API 호출 — ADR-0009
 - skill marketplace/원격 다운로드 (네트워크 접촉) — ADR-0020 미채택 (생성만, 로컬 파일 Write)
 - 외주 의견 위 집계·다수결·KPI / 레드팀 destructive 행위 — ADR-0021
@@ -167,6 +167,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 
 - `src/lskun_kit/` — Python core (stdlib only, 0 외부 의존성)
 - `commands/` — slash command 본체 (markdown)
+- `agents/` — dispatch 전용 agent 2종, 도구 권한으로 쓰기·chain 제한 (ADR-0026)
 - `hooks/` — SessionStart + PreToolUse:Task hook
 - `tests/` — stdlib unittest
 - `docs/internals/` — 본 plugin 의 분리된 내부 문서 (P109-C)

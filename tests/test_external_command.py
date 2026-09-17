@@ -16,8 +16,11 @@ class ExternalCommandTest(unittest.TestCase):
         # B1 — 세션 clear 후 dispatch 명시.
         self.assertIn("clear", self.text)
 
-    def test_claude_subagent(self):
-        self.assertIn('subagent_type="claude"', self.text)
+    def test_plugin_agent_subagent_types(self):
+        """ADR-0026 — 외주 consult 는 worker agent, 구성은 hr-lead agent."""
+        self.assertIn('subagent_type="LSKunCompanyKit:worker"', self.text)
+        self.assertIn('subagent_type="LSKunCompanyKit:hr-lead"', self.text)
+        self.assertNotIn('subagent_type="claude"', self.text)
 
     def test_max_customers_guard(self):
         self.assertIn("7명", self.text)
