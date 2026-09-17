@@ -5,6 +5,28 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.38.0] — 2026-09-17
+
+### Changed — Persona 포인터 배포: 본문은 한 부, 프로젝트에는 포인터만 (ADR-0029, P134)
+
+저자 환경 실측: 회사 1개에 프로젝트 10개, 그중 8월의 Delegation Gate 가 반영된 곳은 1개였다. CPO persona 가 프로젝트마다 `CLAUDE.md` 에 복사되어 (ADR-0004 §1) 갱신이 프로젝트당 수동이고, 빠뜨려도 경고가 없었기 때문이다. 외주 저장소 2곳에는 CPO 구간이 원격까지 푸시되어 있었다. spec: `docs/p134-persona-pointer.md`.
+
+- **포인터**: 프로젝트의 CPO 구간은 `@~/.lskun-companies/<회사>/hired/cpo.md` import 1줄. persona 갱신은 **회사당 1회** `/lskun-kit:sync-persona --execute` 로 끝나고 모든 프로젝트가 다음 세션부터 따라온다.
+- **위치 = `CLAUDE.local.md`**: plugin 은 추적되는 `CLAUDE.md` 에 아무것도 쓰지 않는다. 제외는 `.git/info/exclude` 에 기록 (`.gitignore` 불변) — 외주 · 협업 저장소에 diff 도 흔적도 남지 않는다.
+- **전환 = `/lskun-kit:init <회사>` 재실행** (종전에는 silent skip): inline 구간 제거 (항상 백업, 남는 내용 없으면 파일 삭제) + 포인터 박제. **커밋하지 않는다.** `migrate-schema` · `sync-persona` 도 같은 경로.
+- **조용한 실패 방지**: 외부 import 는 프로젝트당 1회 승인이 필요하고 미승인이면 persona 가 조용히 빠진다. persona 끝의 `LSKUN-PERSONA-LOADED` 표식 + SessionStart 안내로 CPO 가 스스로 알린다. inline 프로젝트 · 회사 식별 불가 구간에도 1줄 알림. doctor [40] (38개 항목).
+- 손으로 쓰인 marker 변형 (`<!-- LSKUN-CPO:START -->`, `… company=X -->`) 도 구간으로 인식한다 (쓰기는 표준형만).
+- 자동 · 일괄 마이그레이션, hook 의 persona 자동 갱신은 **도입하지 않는다** (forbidden 7항). 542 → 543 tests.
+
+**알려진 한계**: 프로젝트당 승인 창 1회. 자가 점검은 LLM 지시라 haiku 는 놓쳤다 (sonnet 은 양방향 통과). persona 크기 (26,000자) 는 그대로 — 후속 과제.
+
+### 기존 회사 마이그레이션
+
+1. plugin update → 0.38.0, 세션 재시작
+2. 회사당 1회 `/lskun-kit:sync-persona --execute`
+3. 프로젝트마다 **마지막 1회** `/lskun-kit:init <회사>` → 다음 세션에서 외부 import 승인
+4. 추적되던 `CLAUDE.md` 의 구간 제거는 확인 후 직접 커밋
+
 ## [0.37.1] — 2026-09-17
 
 ### Added — plugin eval 회귀 suite (ADR-0028, P133) — 개발 도구

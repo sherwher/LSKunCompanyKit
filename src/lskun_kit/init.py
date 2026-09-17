@@ -31,8 +31,10 @@ from lskun_kit.adapters import frontmatter
 from lskun_kit.errors import ConfirmRequired
 from lskun_kit.paths import company_root, validate_company_name
 from lskun_kit.persona_injection import (
+    MODE_INLINE as _MODE_INLINE,
+    detect_mode as _detect_persona_mode,
     extract_company_name as _extract_marker_company,
-    inject as inject_cpo_persona,
+    inject_pointer as _inject_persona_pointer,
 )
 from lskun_kit.templates import iter_default_workers, render_default_worker
 
@@ -192,6 +194,24 @@ def run(
     hired_dir.mkdir(parents=True, exist_ok=True)
 
     company_md = co_root / "company.md"
+    if idempotency_row == "silent" and _detect_persona_mode(proj) == _MODE_INLINE:
+        # ADR-0029 D5 — 같은 회사지만 옛 inline 방식. 회사 자원은 건드리지 않고
+        # 포인터로만 전환한다 (stale 프로젝트를 갱신하는 명시 경로).
+        pointer = _convert_to_pointer(proj, resolved_company, hired_dir)
+        return InitResult(
+            backend=backend,
+            company_root=co_root,
+            company_name=resolved_company,
+            company_md_created=False,
+            company_md_path=company_md,
+            idempotency_row="pointer_converted",
+            workers_created=[],
+            workers_skipped=[],
+            notes=_pointer_notes(pointer),
+            persona_action=pointer.action,
+            persona_path=pointer.local_md_path,
+        )
+
     if idempotency_row == "silent":
         # 완전 멱등 — 회사 자원 / 워커 / persona 모두 skip
         return InitResult(
@@ -203,9 +223,9 @@ def run(
             idempotency_row=idempotency_row,
             workers_created=[],
             workers_skipped=[],
-            notes=["silent skip — 같은 회사 marker 가 이미 박제됨 (멱등)"],
+            notes=["silent skip — 같은 회사 포인터가 이미 박제됨 (멱등)"],
             persona_action="unchanged",
-            persona_path=proj / "CLAUDE.md",
+            persona_path=proj / "CLAUDE.local.md",
         )
 
     # company.md — 이미 있으면 보존, 없으면 신규 박제
@@ -256,21 +276,15 @@ def run(
         )
         workers_created.append(worker_name)
 
-    # CPO persona inline 박제 — joining / founded / marker_replaced 모두 박제
+    # CPO persona 포인터 박제 (ADR-0029) — joining / founded / marker_replaced 모두
     persona_action = "skipped"
     persona_path: Path | None = None
     if inject_persona:
-        cpo_md = hired_dir / "cpo.md"
-        if cpo_md.exists():
-            parsed = frontmatter.parse(cpo_md.read_text(encoding="utf-8"))
-            result = inject_cpo_persona(
-                project_root=proj,
-                company_name=resolved_company,
-                cpo_display_name=parsed.frontmatter.get("display_name", "CPO"),
-                cpo_body=parsed.body,
-            )
-            persona_action = result.action
-            persona_path = result.claude_md_path
+        if (hired_dir / "cpo.md").exists():
+            pointer = _convert_to_pointer(proj, resolved_company, hired_dir)
+            persona_action = pointer.action
+            persona_path = pointer.local_md_path
+            notes.extend(_pointer_notes(pointer))
         else:
             notes.append("CPO persona 박제 skip — hired/cpo.md 가 존재하지 않음")
 
@@ -287,6 +301,37 @@ def run(
         persona_action=persona_action,
         persona_path=persona_path,
     )
+
+
+def _convert_to_pointer(proj: Path, company_name: str, hired_dir: Path):
+    """``CLAUDE.local.md`` 에 포인터를 쓰고 추적 CLAUDE.md 의 inline 구간을 걷어낸다 (ADR-0029)."""
+
+    parsed = frontmatter.parse((hired_dir / "cpo.md").read_text(encoding="utf-8"))
+    return _inject_persona_pointer(
+        project_root=proj,
+        company_name=company_name,
+        cpo_display_name=parsed.frontmatter.get("display_name", "CPO"),
+    )
+
+
+def _pointer_notes(pointer) -> list[str]:
+    """포인터 박제 결과를 사용자 안내문으로."""
+
+    notes: list[str] = []
+    if pointer.removed_inline:
+        what = "파일 삭제 (persona 외 내용 없음)" if pointer.claude_md_deleted else "구간 제거"
+        notes.append(
+            f"CLAUDE.md 의 inline CPO 구간 → {what}. 백업: {pointer.backup_path}. "
+            "추적 중인 파일이면 변경을 확인 후 직접 커밋하라 (plugin 은 커밋하지 않는다)"
+        )
+    if pointer.action in ("created", "updated"):
+        notes.append(
+            "다음 세션에서 Claude Code 가 외부 import 승인을 묻는다 — 승인해야 CPO persona 가 로드된다"
+        )
+    if pointer.git_excluded:
+        notes.append("CLAUDE.local.md · 백업을 .git/info/exclude 에 기록 (.gitignore 불변)")
+    notes.extend(pointer.notes)
+    return notes
 
 
 def _render_company_md(

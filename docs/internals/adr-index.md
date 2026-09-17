@@ -9,7 +9,7 @@
 | ADR-0001 | Stateful Workers (창설) | 활성 (§3 일부 ADR-0014 supersede) |
 | ADR-0002 | CPO/HR pivot (Phase 2 진입) | 활성 (§3 일부 ADR-0004 supersede) |
 | ADR-0003 | 도메인 인지 워커 (`role × domain`) | 활성 |
-| ADR-0004 | **메인 세션 = CPO (Leader-Worker, 자동 채용)** | 활성 |
+| ADR-0004 | **메인 세션 = CPO (Leader-Worker, 자동 채용)** | 활성 — §1 persona 주입 방식 (inline 박제) 은 ADR-0029 가 supersede (v0.38.0+) |
 | ADR-0005 | Schema 마이그레이션 (`/lskun-kit:migrate-schema`) | 활성 |
 | ADR-0006 | CPO 결재 audit log (`.audit/decisions.jsonl`) | 활성 |
 | ~~ADR-0007~~ | SSOT 3축 + `.claude/lskun-kit.json` | **superseded by ADR-0008** |
@@ -34,6 +34,7 @@
 | ADR-0026 | **Worker Agent — 도구 권한으로 쓰기 단일화·chain 금지 강제** (plugin agent 2종, allowlist 교체, `agent_id` chain 판정) | 활성 (v0.34.0+, ADR-0017 결정 1 supersede — `claude` 타입 deny / ADR-0025 D3·ADR-0004 §8 강제 수단 승격 — spec: `docs/p129-worker-agent.md`) |
 | ADR-0027 | **결재 기록 진입점 `lskun-audit record`** (plugin `bin/`, 입력 3개 + 자동 해소, `--embody`, 손기록 금지, 하위 명령 단일) | 활성 (v0.35.0+, ADR-0006 보강 — schema·append-only·hook 미도입 유지 / ADR-0025 D2 `embody:` 규약 실행 수단 — spec: `docs/p130-audit-record-entrypoint.md`) |
 | ADR-0028 | **plugin eval 회귀 suite** (`evals/` — hook 발화 · agent 도구 제한 · CPO persona 준수를 실제 세션에서 확인. 메커니즘 · persona 준수만, 워커 · JD · 회사 KPI 아님) | 활성 (v0.37.1+, ADR-0018 자체 harness 보완 / ADR-0002 §5 · ADR-0006 · ADR-0011 측정 금지 유지 — spec: `evals/README.md`) |
+| ADR-0029 | **Persona 포인터 배포** (본문은 회사 SSOT 한 부, 프로젝트엔 `CLAUDE.local.md` 의 import 1줄. 추적 `CLAUDE.md` 비접촉, `.git/info/exclude`, 로드 표식 자가 점검, `/init` 재실행 = 전환) | 활성 (v0.38.0+, ADR-0004 §1 의 inline 박제 **방식** supersede — "메인 세션 = CPO" 결정은 유지 / ADR-0015 SSOT 단일화 연장 — spec: `docs/p134-persona-pointer.md`) |
 
 ## Supersede Chain (시각화)
 

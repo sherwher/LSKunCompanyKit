@@ -62,7 +62,7 @@ class EvalSuiteStructureTests(unittest.TestCase):
             co = Path(home) / ".lskun-companies" / "EvalCo"
             self.assertTrue((co / "hired" / "backend-engineer.md").exists())
             self.assertTrue((co / "hired" / "cpo.md").exists())
-            self.assertIn("LSKUN-CPO", (Path(work) / "CLAUDE.md").read_text(encoding="utf-8"))
+            self.assertIn("LSKUN-CPO", (Path(work) / "CLAUDE.local.md").read_text(encoding="utf-8"))
 
     def test_fixture_refuses_real_home(self) -> None:
         """이미 회사가 있는 HOME (= 실제 사용자 HOME) 에서는 아무것도 만들지 않는다."""
@@ -75,7 +75,7 @@ class EvalSuiteStructureTests(unittest.TestCase):
             )
             self.assertNotEqual(proc.returncode, 0)
             self.assertFalse((Path(home) / ".lskun-companies" / "EvalCo").exists())
-            self.assertFalse((Path(work) / "CLAUDE.md").exists())
+            self.assertFalse((Path(work) / "CLAUDE.local.md").exists())
 
     def test_fixture_refuses_non_empty_workspace(self) -> None:
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as work:

@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 32 (0.37.1) — plugin eval 회귀 suite (P133, ADR-0028). 같은 릴리스 묶음 P130~P133 은 CHANGELOG 참조. 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 33 (0.38.0) — Persona 포인터 배포: 본문은 회사 SSOT 한 부, 프로젝트엔 `CLAUDE.local.md` import 1줄 (P134, ADR-0029). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -33,7 +33,7 @@
 
 | 명령 | 역할 |
 |---|---|
-| `/lskun-kit:init` | 신규 회사 셋업 + CPO/HR 자동 hire |
+| `/lskun-kit:init` | 신규 회사 셋업 + CPO/HR 자동 hire. 같은 회사로 재실행 = 옛 inline persona → 포인터 전환 (ADR-0029) |
 | `/lskun-kit:hire` | 신규 워커 박제 (primitive) |
 | `/lskun-kit:work` | 워커 호출. 이름 생략 시 CPO 가 라우팅 (ADR-0015 7-E archived 가드) |
 | `/lskun-kit:sync-in` | ADR-0015 — 외부 mirror → `~/.lskun-companies/<name>/` (백업 자동) |
@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (37개 항목, 라벨 [1]~[39] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
+| `/lskun-kit:doctor` | 환경 진단 (38개 항목, 라벨 [1]~[40] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
 | `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취/cancel (ADR-0021 + ADR-0022 자동 시퀀스) |
 
 ---
@@ -57,7 +57,7 @@
 ```
 사용자
   ↓
-메인 세션 = CPO persona (CLAUDE.md inline 박제 + SessionStart hook 으로 회사 컨텍스트)
+메인 세션 = CPO persona (CLAUDE.local.md 의 import 포인터 → 회사 SSOT 의 cpo.md, ADR-0029 + SessionStart hook 으로 회사 컨텍스트)
   ↓ Delegation Gate (ADR-0025) — ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만 dispatch
   ├─ 미충족 (기본) → 빙의(embody): CPO 가 워커 JD 주입받아 직접 수행
   └─ 충족 → Task tool
@@ -157,6 +157,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - 외주 의견 위 집계·다수결·KPI / 레드팀 destructive 행위 — ADR-0021
 - 외주 setup hook 의 marker 외 입력 파싱 / `stop_hook_active` 무시 / enum 미강제 / 일반 dispatch 침투 — ADR-0022
 - frontmatter name ↔ 파일명 stem 불일치 / 파일 없는 채용 audit (유령참조) — ADR-0023
+- 추적되는 `CLAUDE.md` · `.gitignore` 에 쓰기 / persona 본문의 프로젝트별 복사 / 사용 프로젝트 일괄 · 자동 마이그레이션 / hook 의 persona 자동 갱신 — ADR-0029
 - 판정 게이트 없는 무조건 dispatch / dispatch 워커에 파일 쓰기 위임 / dispatch 시 sonnet 자동 강등 — ADR-0025
 
 > 새 금지 항목 추가 시 [`docs/internals/forbidden-history.md`](docs/internals/forbidden-history.md) 갱신 필수.
@@ -168,6 +169,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - `src/lskun_kit/` — Python core (stdlib only, 0 외부 의존성)
 - `commands/` — slash command 본체 (markdown)
 - `agents/` — dispatch 전용 agent 2종, 도구 권한으로 쓰기·chain 제한 (ADR-0026)
+- 사용자 프로젝트에 쓰는 파일은 `CLAUDE.local.md` (persona 포인터) 와 `.git/info/exclude` 뿐 (ADR-0029)
 - `bin/` — CPO 가 호출하는 내부 실행 파일 (`lskun-audit`, ADR-0027). 사용자 CLI 아님
 - `hooks/` — SessionStart + PreToolUse:Task hook
 - `tests/` — stdlib unittest

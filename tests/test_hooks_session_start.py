@@ -266,5 +266,58 @@ class CompactRecoveryTests(unittest.TestCase):
         self.assertIn("LSKunCompanyKit", out)
 
 
+class PersonaModeNoticeTests(unittest.TestCase):
+    """ADR-0029 D4·D6 — 포인터 방식은 로드 자가 점검을, 옛 inline 방식은 전환 알림을 받는다."""
+
+    def _ctx(self, proj: str) -> str:
+        rc, out, _ = _capture(session_start.main, env={}, cwd=Path(proj))
+        self.assertEqual(rc, 0)
+        return json.loads(out)["hookSpecificOutput"]["additionalContext"]
+
+    def test_pointer_project_gets_load_self_check(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                ctx = self._ctx(proj)
+        self.assertIn("LSKUN-PERSONA-LOADED", ctx)
+        self.assertIn("승인", ctx)
+        self.assertNotIn("구버전 inline", ctx)
+
+    def test_inline_project_gets_conversion_notice(self) -> None:
+        from lskun_kit import persona_injection as pi
+
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                (Path(proj) / "CLAUDE.local.md").unlink()
+                pi.inject(Path(proj), "LSKun", "이세근", "# cpo\n\n옛 본문\n")
+                ctx = self._ctx(proj)
+        self.assertIn("구버전 inline", ctx)
+        self.assertIn("/lskun-kit:init LSKun", ctx)
+        self.assertNotIn("LSKUN-PERSONA-LOADED", ctx)
+
+    def test_unidentifiable_legacy_marker_gets_notice(self) -> None:
+        """옛 세대 구간은 머리말 형식이 달라 회사명을 못 읽는다 — 그래도 조용히 넘어가지 않는다."""
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                (Path(proj) / "CLAUDE.md").write_text(
+                    "<!-- LSKUN-CPO:START - DO NOT EDIT INSIDE. Managed by LSKunCompanyKit -->\n"
+                    "# cpo — Chief Product Officer\n\n옛 세대 본문 (머리말에 회사명 없음)\n"
+                    "<!-- LSKUN-CPO:END -->\n",
+                    encoding="utf-8",
+                )
+                ctx = self._ctx(proj)
+        self.assertIn("회사를 식별할 수 없", ctx)
+        self.assertIn("/lskun-kit:init", ctx)
+        self.assertNotIn("### Hired 워커", ctx)
+
+    def test_cpo_template_carries_sentinel(self) -> None:
+        body = (ROOT / "src" / "lskun_kit" / "templates" / "cpo.md").read_text(encoding="utf-8")
+        self.assertIn("LSKUN-PERSONA-LOADED", body.splitlines()[-1] + body[-400:])
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

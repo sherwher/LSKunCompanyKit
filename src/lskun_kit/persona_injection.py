@@ -18,11 +18,26 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CLAUDE_MD_FILENAME = "CLAUDE.md"
+#: ADR-0029 D2 — 포인터가 사는 곳. Claude Code 공식 용도 = 버전 관리에 올리지 않는 개인용 지침.
+CLAUDE_LOCAL_MD_FILENAME = "CLAUDE.local.md"
 BACKUP_SUFFIX = ".lskun.bak"
+
+#: ADR-0029 D7 — marker 탐색 순서. local 이 우선.
+MARKER_FILENAMES = (CLAUDE_LOCAL_MD_FILENAME, CLAUDE_MD_FILENAME)
+
+#: ADR-0029 D4 — persona 본문 (templates/cpo.md) 끝의 로드 표식.
+PERSONA_LOADED_SENTINEL = "LSKUN-PERSONA-LOADED"
+
+MODE_POINTER = "pointer"
+MODE_INLINE = "inline"
 
 #: ADR-0004 §1 — plugin 관리 구간 marker. 본 marker 사이는 사용자 수정 금지.
 PERSONA_MARKER_START = "<!-- LSKUN-CPO:START - DO NOT EDIT INSIDE. Managed by LSKunCompanyKit -->"
 PERSONA_MARKER_END = "<!-- LSKUN-CPO:END -->"
+#: 구간 **인식**용 접두. 실사용에서 손으로 쓰인 변형 (``<!-- LSKUN-CPO:START -->``,
+#: ``<!-- LSKUN-CPO:START company=X -->``) 이 발견됐다 (ADR-0029 실측). 인식은 접두로
+#: 넓히고, plugin 이 **쓰는** marker 는 항상 표준형 ``PERSONA_MARKER_START`` 다.
+PERSONA_MARKER_START_PREFIX = "<!-- LSKUN-CPO:START"
 
 
 @dataclass(frozen=True)
@@ -68,6 +83,56 @@ def render_persona_block(
     )
 
 
+@dataclass(frozen=True)
+class PointerResult:
+    """``inject_pointer()`` 의 결과 (ADR-0029)."""
+
+    local_md_path: Path
+    action: str  # "created" | "updated" | "unchanged" | "skipped-no-project-root"
+    removed_inline: bool = False  # 추적 CLAUDE.md 에서 inline 구간을 제거했는가
+    claude_md_deleted: bool = False  # 구간 제거 후 남는 내용이 없어 파일을 지웠는가
+    backup_path: Path | None = None  # inline 제거 전 CLAUDE.md 원본
+    git_excluded: bool = False  # .git/info/exclude 에 기록됐는가
+    notes: tuple[str, ...] = ()
+
+
+def pointer_import_line(company_name: str) -> str:
+    """CPO persona 본문을 가리키는 import 1줄 (ADR-0029 D1).
+
+    ``~`` 표기를 쓴다 — 홈 경로 (사용자명) 가 파일에 남지 않고 머신 간에 같다.
+    """
+
+    from lskun_kit.paths import LSKUN_COMPANIES_DIRNAME, validate_company_name
+
+    validate_company_name(company_name)  # 경로에 들어가는 값 — 조작 문자 차단
+    return f"@~/{LSKUN_COMPANIES_DIRNAME}/{company_name}/hired/cpo.md"
+
+
+def render_pointer_block(company_name: str, cpo_display_name: str) -> str:
+    """marker 사이에 들어갈 포인터 블록 (ADR-0029 D1).
+
+    머리말 1줄은 inline 블록과 같은 형식이다 — ``extract_company_name`` 이
+    회사명을 이 줄에서 읽는다.
+    """
+
+    import_line = pointer_import_line(company_name)
+    inner = (
+        f"# CPO Persona — {cpo_display_name} of {company_name} "
+        f"(auto-injected by LSKunCompanyKit)\n"
+        f"\n"
+        f"> 포인터 방식 (ADR-0029) — persona 본문은 회사 SSOT 의 한 부를 import 한다.\n"
+        f"> 갱신은 회사당 1회 `/lskun-kit:sync-persona --execute`. 이 파일은 다시 건드릴 필요가 없다.\n"
+        f"> 처음 열 때 Claude Code 가 외부 import 승인을 묻는다 — 승인해야 persona 가 로드된다.\n"
+        f"\n"
+        f"{import_line}\n"
+    )
+    return (
+        f"\n{PERSONA_MARKER_START}\n"
+        f"{inner}"
+        f"{PERSONA_MARKER_END}\n"
+    )
+
+
 def find_marker_span(text: str) -> tuple[int, int] | None:
     """기존 marker 구간의 (start_idx, end_idx_exclusive) 반환. 없으면 ``None``.
 
@@ -79,7 +144,7 @@ def find_marker_span(text: str) -> tuple[int, int] | None:
     end_idx 는 ``PERSONA_MARKER_END`` 줄 끝 다음 newline 까지 포함.
     """
 
-    start = _find_line_start_marker(text, PERSONA_MARKER_START)
+    start = _find_line_start_marker(text, PERSONA_MARKER_START_PREFIX)
     if start == -1:
         return None
     # start 이후에서 END marker 도 줄 시작에서 찾는다.
@@ -234,13 +299,49 @@ def _block_contains_cpo_body(block: str, cpo_body: str) -> bool:
     return body in normalize(block)
 
 
-def detect(project_root: Path | str) -> bool:
-    """``<project_root>/CLAUDE.md`` 안에 정상 marker 구간이 존재하는지."""
+def _marker_block(project_root: Path | str) -> tuple[Path, str] | None:
+    """marker 구간을 가진 첫 파일과 그 구간 텍스트 (ADR-0029 D7 — local 우선)."""
 
-    path = Path(project_root).expanduser() / CLAUDE_MD_FILENAME
-    if not path.exists():
-        return False
-    return find_marker_span(path.read_text(encoding="utf-8")) is not None
+    root = Path(project_root).expanduser()
+    for filename in MARKER_FILENAMES:
+        path = root / filename
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        span = find_marker_span(text)
+        if span is not None:
+            return path, text[span[0]:span[1]]
+    return None
+
+
+def has_marker_file(project_root: Path | str) -> bool:
+    """marker 를 담을 수 있는 지침 파일이 하나라도 있는가 (상위 탐색의 빠른 필터)."""
+
+    root = Path(project_root).expanduser()
+    return any((root / name).is_file() for name in MARKER_FILENAMES)
+
+
+def detect(project_root: Path | str) -> bool:
+    """프로젝트 지침 파일 (local → CLAUDE.md) 에 정상 marker 구간이 존재하는지."""
+
+    return _marker_block(project_root) is not None
+
+
+def detect_mode(project_root: Path | str) -> str | None:
+    """marker 구간의 방식 — ``"pointer"`` / ``"inline"`` / ``None`` (marker 없음).
+
+    포인터 = 구간 안에 회사 SSOT 를 가리키는 import 줄이 있다. 그 밖은 inline
+    (본문 복사, ADR-0004 §1 의 옛 방식 — 머리말 형식이 다른 옛 세대 포함).
+    """
+
+    found = _marker_block(project_root)
+    if found is None:
+        return None
+    _, block = found
+    for line in block.splitlines():
+        if line.startswith("@") and line.rstrip().endswith("/hired/cpo.md"):
+            return MODE_POINTER
+    return MODE_INLINE
 
 
 #: marker 본문 첫 줄에서 회사 이름을 추출하는 패턴.
@@ -262,22 +363,146 @@ def extract_company_name(project_root: Path | str) -> str | None:
         회사 이름 (str) 또는 ``None`` (CLAUDE.md 부재 / marker 부재 / parse 실패).
     """
 
-    path = Path(project_root).expanduser() / CLAUDE_MD_FILENAME
-    if not path.exists():
+    found = _marker_block(project_root)
+    if found is None:
         return None
-    text = path.read_text(encoding="utf-8")
-    span = find_marker_span(text)
-    if span is None:
-        return None
-    start, end = span
-    block = text[start:end]
+    _, block = found
     m = _MARKER_COMPANY_PAT.search(block)
     if m is None:
         return None
     return m.group(1).strip()
 
 
+def inject_pointer(
+    project_root: Path | str,
+    company_name: str,
+    cpo_display_name: str,
+) -> PointerResult:
+    """``CLAUDE.local.md`` 에 포인터 블록을 쓰고, 추적 ``CLAUDE.md`` 의 inline 구간을 걷어낸다.
+
+    ADR-0029 D1·D2·D3·D5. 멱등. 커밋하지 않는다.
+
+    - ``CLAUDE.local.md``: marker 구간만 plugin 이 관리 (사용자 본문 보존)
+    - ``CLAUDE.md``: inline 구간이 있으면 제거 (항상 백업). 남는 내용이 없으면 파일 삭제
+    - git 저장소면 ``.git/info/exclude`` 에 local 파일과 백업을 기록 (``.gitignore`` 불변)
+    """
+
+    new_block = render_pointer_block(company_name, cpo_display_name)  # 회사명 검증 포함
+    root = Path(project_root).expanduser()
+    local_path = root / CLAUDE_LOCAL_MD_FILENAME
+    if not root.exists():
+        return PointerResult(local_md_path=local_path, action="skipped-no-project-root")
+
+    # 1. CLAUDE.local.md — marker 구간 교체 또는 append.
+    if not local_path.exists():
+        local_path.write_text(new_block.lstrip(), encoding="utf-8")
+        action = "created"
+    else:
+        current = local_path.read_text(encoding="utf-8")
+        span = find_marker_span(current)
+        if span is None:
+            suffix = "" if current.endswith("\n") or not current else "\n"
+            new_text = f"{current}{suffix}{new_block}"
+        else:
+            new_text = current[: span[0]] + new_block.lstrip("\n") + current[span[1]:]
+        if new_text == current:
+            action = "unchanged"
+        else:
+            local_path.write_text(new_text, encoding="utf-8")
+            action = "updated"
+
+    # 2. 추적 CLAUDE.md 의 inline 구간 제거.
+    removed_inline = False
+    deleted = False
+    backup_path: Path | None = None
+    tracked_path = root / CLAUDE_MD_FILENAME
+    if tracked_path.is_file():
+        tracked = tracked_path.read_text(encoding="utf-8")
+        span = find_marker_span(tracked)
+        if span is not None:
+            backup_path = tracked_path.with_suffix(tracked_path.suffix + BACKUP_SUFFIX)
+            backup_path.write_text(tracked, encoding="utf-8")
+            remainder = (tracked[: span[0]].rstrip("\n") + "\n" + tracked[span[1]:].lstrip("\n")).strip("\n")
+            if remainder.strip():
+                tracked_path.write_text(remainder + "\n", encoding="utf-8")
+            else:
+                tracked_path.unlink()
+                deleted = True
+            removed_inline = True
+            if action == "unchanged":
+                action = "updated"
+
+    # 3. git 제외.
+    excluded, note = _ensure_git_excluded(
+        root, (CLAUDE_LOCAL_MD_FILENAME, CLAUDE_MD_FILENAME + BACKUP_SUFFIX)
+    )
+    return PointerResult(
+        local_md_path=local_path,
+        action=action,
+        removed_inline=removed_inline,
+        claude_md_deleted=deleted,
+        backup_path=backup_path,
+        git_excluded=excluded,
+        notes=(note,) if note else (),
+    )
+
+
+def _ensure_git_excluded(project_root: Path, names: tuple[str, ...]) -> tuple[bool, str]:
+    """``<repo>/.git/info/exclude`` 에 ``names`` 를 기록 (ADR-0029 D3).
+
+    추적되는 ``.gitignore`` 를 건드리지 않는다 — 외주·협업 저장소에 diff 가 생기지 않는다.
+    저장소 root 는 ``project_root`` 에서 위로 올라가며 찾는다. 패턴은 슬래시 없이 적어
+    저장소 안 어느 깊이에서나 매치된다.
+
+    Returns:
+        (기록 보장 여부, 건너뛴 경우의 안내문).
+    """
+
+    cur = project_root.resolve()
+    git_dir: Path | None = None
+    while True:
+        candidate = cur / ".git"
+        if candidate.is_dir():
+            git_dir = candidate
+            break
+        if candidate.is_file():
+            return False, (
+                ".git 이 파일이다 (worktree / submodule) — exclude 를 기록하지 않았다. "
+                f"{', '.join(names)} 를 직접 ignore 하라."
+            )
+        if cur.parent == cur:
+            return False, ""  # git 저장소 아님 — 할 일 없음
+        cur = cur.parent
+
+    exclude = git_dir / "info" / "exclude"
+    try:
+        existing = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+        present = {ln.strip() for ln in existing.splitlines()}
+        missing = [n for n in names if n not in present]
+        if missing:
+            exclude.parent.mkdir(parents=True, exist_ok=True)
+            prefix = "" if existing.endswith("\n") or not existing else "\n"
+            header = "# LSKunCompanyKit (ADR-0029) — 개인용 persona 포인터·백업\n"
+            exclude.write_text(
+                existing + prefix + header + "\n".join(missing) + "\n", encoding="utf-8"
+            )
+    except OSError as e:
+        return False, f".git/info/exclude 기록 실패 ({e}) — {', '.join(names)} 를 직접 ignore 하라."
+    return True, ""
+
+
 __all__ = [
+    "CLAUDE_LOCAL_MD_FILENAME",
+    "MARKER_FILENAMES",
+    "PERSONA_LOADED_SENTINEL",
+    "MODE_POINTER",
+    "MODE_INLINE",
+    "PointerResult",
+    "pointer_import_line",
+    "render_pointer_block",
+    "inject_pointer",
+    "detect_mode",
+    "has_marker_file",
     "CLAUDE_MD_FILENAME",
     "BACKUP_SUFFIX",
     "PERSONA_MARKER_START",

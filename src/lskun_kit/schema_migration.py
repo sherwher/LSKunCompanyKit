@@ -231,7 +231,10 @@ def plan(
     marker_missing = False
     if project_root is not None and project_root.exists():
         claude_md_path = project_root / "CLAUDE.md"
-        marker_missing = not detect_persona(project_root)
+        # ADR-0029 — marker 부재뿐 아니라 옛 inline 방식도 "박제 필요" (포인터 전환).
+        from lskun_kit.persona_injection import MODE_POINTER, detect_mode
+
+        marker_missing = detect_mode(project_root) != MODE_POINTER
 
     return MigrationPlan(
         backend=backend,
@@ -411,8 +414,7 @@ def execute(
 
     # 3) CLAUDE.md marker 박제
     if plan.claude_md_marker_missing and plan.claude_md_path is not None:
-        if inject_persona_fn is None:
-            from lskun_kit.persona_injection import inject as inject_persona_fn  # type: ignore[assignment]
+        use_pointer = inject_persona_fn is None  # 기본 = 포인터 (ADR-0029). 주입 fn 은 테스트용.
         if cpo_body_provider is None:
             try:
                 cpo_worker = adapter.read_worker("cpo")
@@ -427,12 +429,21 @@ def execute(
         if plan.company_md_path.exists():
             parsed_c = fm.parse(plan.company_md_path.read_text(encoding="utf-8"))
             company_name = parsed_c.frontmatter.get("name", "")
-        inj = inject_persona_fn(
-            project_root=plan.claude_md_path.parent,
-            company_name=company_name or "(unnamed)",
-            cpo_display_name=cpo_display,
-            cpo_body=cpo_body,
-        )
+        if use_pointer:
+            from lskun_kit.persona_injection import inject_pointer
+
+            inj = inject_pointer(
+                project_root=plan.claude_md_path.parent,
+                company_name=company_name,
+                cpo_display_name=cpo_display,
+            )
+        else:
+            inj = inject_persona_fn(
+                project_root=plan.claude_md_path.parent,
+                company_name=company_name or "(unnamed)",
+                cpo_display_name=cpo_display,
+                cpo_body=cpo_body,
+            )
         result.claude_md_action = inj.action
         if inj.backup_path is not None:
             result.backups_created.append(inj.backup_path)

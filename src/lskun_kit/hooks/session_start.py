@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
 def _build_context(source: str = "") -> str:
     company_root = _find_active_company_root()
     if company_root is None:
-        return ""
+        return _orphan_marker_notice()
 
     company_meta = _read_company_meta(company_root)
     workers = _list_workers_with_meta(company_root)
@@ -161,9 +161,11 @@ def _build_context(source: str = "") -> str:
         f"- 회사: **{company_name}**"
         + (f" (domain={company_domain})" if company_domain else ""),
         f"- 회사 root: `{company_root}`",
-        "",
-        "### Hired 워커",
     ]
+    # ADR-0029 D4·D6 — 워커 명단 (수십 줄) 뒤에 두면 묻힌다. 실측: 맨 끝에 뒀을 때 작은
+    # 모델이 점검을 놓쳤다. 명단 앞에 둔다.
+    lines.extend(_persona_mode_lines(company_name))
+    lines.extend(["", "### Hired 워커"])
     if workers:
         for w in workers:
             name = _sanitize_inline(w.get("name", "?"), max_len=80)
@@ -194,6 +196,76 @@ def _build_context(source: str = "") -> str:
     if source == SOURCE_COMPACT:
         lines.extend(_compact_recovery_lines(company_root))
     return "\n".join(lines) + "\n"
+
+
+def _orphan_marker_notice() -> str:
+    """marker 는 있는데 회사를 식별하지 못한 프로젝트용 안내 (ADR-0029 D6).
+
+    옛 세대 inline 구간은 머리말 형식이 달라 회사명 추출이 실패한다. 그런 프로젝트는
+    hook · 가드가 전부 비활성인데도 persona 본문만 남아 있다 — 조용히 넘어가지 않는다.
+    회사 디렉토리가 없는 경우 (다른 머신 · 협업자) 는 기존대로 silent.
+    """
+
+    from lskun_kit.persona_injection import detect, extract_company_name
+
+    cwd = Path.cwd()
+    for _ in range(MAX_PARENT_DEPTH + 1):
+        if detect(cwd):
+            if extract_company_name(cwd):
+                return ""  # 회사명은 읽힘 — 회사 디렉토리 부재. 기존 동작 (silent) 유지
+            return (
+                "## LSKunCompanyKit — 구버전 CPO 구간\n\n"
+                "- 이 프로젝트의 지침 파일에 LSKUN-CPO 구간이 있지만 형식이 오래되어 회사를 식별할 수 없다."
+                " 그래서 회사 컨텍스트 주입 · dispatch 가드가 모두 꺼져 있다. 첫 응답에서 사용자에게 1줄로 알려라:"
+                " \"이 프로젝트의 CPO 구간이 구버전입니다 — `/lskun-kit:init <회사 이름>` 으로 전환하세요.\"\n"
+            )
+        if (cwd / ".git").exists() or cwd.parent == cwd:
+            break
+        cwd = cwd.parent
+    return ""
+
+
+def _persona_mode_lines(company_name: str) -> list[str]:
+    """ADR-0029 D4·D6 — persona 배포 방식에 따른 안내 (동적 정보 + 조용한 실패 방지).
+
+    - pointer: import 가 승인되지 않았거나 파일이 없으면 persona 가 **조용히** 빠진다.
+      본문 끝의 표식이 지침에 보이는지 CPO 스스로 확인하게 한다.
+    - inline (옛 방식): 프로젝트마다 복사본이라 stale 해진다. 전환 명령을 알린다.
+    """
+
+    from lskun_kit.persona_injection import (
+        MODE_INLINE,
+        MODE_POINTER,
+        PERSONA_LOADED_SENTINEL,
+        detect_mode,
+    )
+
+    found = _find_marker_project()
+    if found is None:
+        return []
+    mode = detect_mode(found[0])
+    if mode == MODE_POINTER:
+        return [
+            "",
+            "### CPO persona 로드 확인 (ADR-0029)",
+            "",
+            f"- 이 프로젝트의 CPO persona 는 `CLAUDE.local.md` 의 import 로 로드된다. 네 지침 안에"
+            f" `{PERSONA_LOADED_SENTINEL}` 표식이 **보이지 않으면** persona 본문이 로드되지 않은 것이다"
+            " — 첫 응답에서 사용자에게 알려라: \"CPO persona 가 로드되지 않았습니다. Claude Code 의 외부"
+            " import 승인이 필요합니다 (세션 재시작 시 승인 창) — 또는 `/lskun-kit:doctor` 로 점검하세요.\"",
+            "- 표식이 보이면 이 항목은 무시한다 (사용자에게 언급하지 않는다).",
+        ]
+    if mode == MODE_INLINE:
+        return [
+            "",
+            "### 구버전 inline persona (ADR-0029)",
+            "",
+            "- 이 프로젝트는 CPO persona 본문을 지침 파일에 복사해 둔 구버전 inline 방식이다. 복사본은 plugin"
+            " 업데이트를 따라오지 못한다. 첫 응답에서 사용자에게 1줄로 알려라:"
+            f" \"이 프로젝트의 CPO persona 는 구버전 방식입니다 — `/lskun-kit:init {company_name}` 로"
+            " 포인터 방식으로 전환하세요 (마지막 1회).\"",
+        ]
+    return []
 
 
 def _compact_recovery_lines(company_root: Path) -> list[str]:
@@ -235,16 +307,26 @@ def _find_active_company_root() -> Path | None:
         활성 회사 root path (``~/.lskun-companies/<name>/``) 또는 ``None``.
     """
 
+    found = _find_marker_project()
+    return found[1] if found is not None else None
+
+
+def _find_marker_project() -> "tuple[Path, Path] | None":
+    """(marker 가 있는 프로젝트 디렉토리, 활성 회사 root). 없으면 ``None``.
+
+    ``_find_active_company_root`` 와 같은 탐색 규칙. ADR-0029 D4·D6 는 marker 가
+    어느 디렉토리의 어떤 방식 (pointer / inline) 인지 알아야 한다.
+    """
+
     from lskun_kit.paths import company_root
     from lskun_kit.persona_injection import (
-        CLAUDE_MD_FILENAME,
         extract_company_name,
+        has_marker_file,
     )
 
     cwd = Path.cwd()
     for _ in range(MAX_PARENT_DEPTH + 1):
-        candidate_md = cwd / CLAUDE_MD_FILENAME
-        if candidate_md.exists():
+        if has_marker_file(cwd):  # ADR-0029 D7 — CLAUDE.local.md 우선, 그다음 CLAUDE.md
             name = extract_company_name(cwd)
             if name:
                 try:
@@ -252,7 +334,7 @@ def _find_active_company_root() -> Path | None:
                 except ValueError:
                     return None
                 if (co_root / "company.md").exists():
-                    return co_root
+                    return cwd, co_root
                 return None  # marker 는 있는데 회사 디렉토리 부재 — silent
         if (cwd / ".git").exists():
             break
