@@ -61,8 +61,8 @@
 - **`LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0016 결정 5) — 가드 무력화. 세션 단위 export 권장. doctor [21] 가 검출 + 경고
 - **PreToolUse:Skill 가드 추가로 사용자 명시 슬래시 `/oh-my-claudecode:*` 까지 차단** (ADR-0016) — 사용자 의도 무시. 본 ADR 범위는 메인 LLM 의 자의적 Agent → OMC 호출만
 - **Denylist 모델 재도입** (ADR-0017) — 4회째 재발 입증. allowlist 단일 정책 유지. 재도입 시 새 ADR + 5회째 재발 증거 필수
-- **Skill 문서·persona template 의 dispatch `subagent_type` 미규정** (ADR-0017) — `commands/work.md` / `templates/cpo.md` / `templates/hr-lead.md` 모두 `subagent_type="claude"` 명시 박제 필수. 누락 시 LLM 자의 선택 → ADR-0017 위반
-- **`subagent_type="claude"` 외 dispatch 의 silent 통과** (ADR-0017) — 반드시 stderr 안내 + escape hatch 경로 명시
+- **Skill 문서·persona template 의 dispatch `subagent_type` 미규정** (ADR-0017) — `commands/work.md` / `templates/cpo.md` / `templates/hr-lead.md` 모두 정식 dispatch 타입 명시 박제 필수 (ADR-0026 이후 `LSKunCompanyKit:worker` / `LSKunCompanyKit:hr-lead` — 옛 `claude` 는 deny). 누락 시 LLM 자의 선택 → ADR-0017 위반
+- **allowlist 외 dispatch 의 silent 통과** (ADR-0017, allowlist 내용은 ADR-0026 이 교체) — 반드시 stderr 안내 + escape hatch 경로 명시
 - **plugin 개발자 dogfood 시나리오를 위한 cwd-aware 가드 추가** (ADR-0017) — false positive 우려. escape hatch 1회 set 으로 처리
 - **`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` / `LSKUN_ALLOW_OMC_FALLBACK=1` 의 `.zshrc` / `.bashrc` 영구 export** (ADR-0017 결정 8) — allowlist 가드 무력화. 세션 단위 export 권장. doctor [23] 가 검출
 
