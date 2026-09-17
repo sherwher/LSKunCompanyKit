@@ -32,8 +32,9 @@ claude plugin eval . --scaffold --allow-tools Agent Write Edit "Bash(lskun-audit
 
 ## 케이스를 쓸 때 알아둘 것 (실측)
 
-- eval 세션은 **workspace 의 `CLAUDE.md` 를 로드하지 않는다.** CPO persona 가 필요한 행동 케이스는 prompt 가
-  먼저 `./CLAUDE.md` 를 Read 하도록 요청한다 (persona 본문을 케이스에 복제하지 않는다).
+- eval 세션은 **workspace 의 지침 파일 (`CLAUDE.md` · `CLAUDE.local.md`) 을 로드하지 않는다.** CPO persona 가 필요한
+  행동 케이스는 prompt 가 먼저 `./CLAUDE.local.md` 와 그 import 대상 (`hired/cpo.md`, ADR-0029) 을 Read 하도록
+  요청한다 (persona 본문을 케이스에 복제하지 않는다).
 - scaffold 의 `$HOME` 은 실행용 임시 HOME 과 같다 → `~/.lskun-companies/` fixture 가 hook 에 보인다.
 - `env` 는 `EVAL_*` 키만 허용 — `LSKUN_SSOT_ROOT` 를 쓸 수 없으므로 회사 검출은 CLAUDE.md marker 경로로만 된다.
 - `target: trace` 는 SessionStart 주입문과 Read 결과까지 포함한다. 워커 이름만 찾는 패턴은 항상 통과한다 →

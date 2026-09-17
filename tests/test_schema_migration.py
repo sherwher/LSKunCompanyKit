@@ -404,9 +404,13 @@ class ClaudeMdInjectionTests(unittest.TestCase):
             )
             result = sm.execute(adapter, p, answers)
             self.assertIn(result.claude_md_action, ("created", "updated"))
-            claude_md = proj / "CLAUDE.md"
-            self.assertTrue(claude_md.exists())
-            self.assertIn("LSKUN-CPO:START", claude_md.read_text(encoding="utf-8"))
+            # ADR-0029 — marker 는 CLAUDE.local.md 의 포인터로. 추적 CLAUDE.md 는 만들지 않는다.
+            local_md = proj / "CLAUDE.local.md"
+            self.assertTrue(local_md.exists())
+            text = local_md.read_text(encoding="utf-8")
+            self.assertIn("LSKUN-CPO:START", text)
+            self.assertIn("@~/.lskun-companies/Acme/hired/cpo.md", text)
+            self.assertFalse((proj / "CLAUDE.md").exists())
 
 
 if __name__ == "__main__":  # pragma: no cover

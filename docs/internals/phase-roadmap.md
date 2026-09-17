@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 33 (P134 — Persona 포인터 배포, ADR-0029, 0.38.0)
+
+- **Phase 33 (0.38.0)** — 실측: 회사 1개 · 프로젝트 10개 중 최신 persona 는 1개, 외주 저장소 2곳 원격에 CPO 구간 푸시. ADR-0004 §1 의 inline 복사 배포를 포인터로 교체: `CLAUDE.local.md` 의 `@~/.lskun-companies/<회사>/hired/cpo.md` 1줄 (추적 `CLAUDE.md` · `.gitignore` 비접촉, `.git/info/exclude`), 갱신은 회사당 1회 sync-persona, `/init` 재실행 = 전환 (커밋 없음), persona 로드 표식 자가 점검 + inline/식별불가 알림, 손글씨 marker 변형 인식, doctor [40]. 자동 · 일괄 마이그레이션과 hook 의 persona 자동 갱신은 비채택. 한계: 승인 창 1회, 자가 점검은 haiku 에서 미발화.
+
 ### Phase 32 (P133 — plugin eval 회귀 suite, ADR-0028, 0.37.1)
 
 - **Phase 32 (0.37.1)** — 단위 테스트가 실제 Claude Code 세션 동작을 보지 못해 P128 결함 (dispatch tool 이름 변경으로 가드 3종 사망) 을 놓친 공백 대응. `evals/` 5 케이스: session-context / allowlist-deny / worker-readonly / embody-gate / embody-audit. 범위 = 메커니즘 + persona 준수만 (워커 · JD · 회사 KPI 금지 유지). fixture 회사만 사용, persona 비복제 (workspace CLAUDE.md Read), 저자 명시 실행만. 첫 실행 (sonnet): core 4 케이스 통과 — embody-gate 에서 CPO 가 JD 를 읽고 빙의 알림 후 dispatch 없이 수행. embody-audit 는 저자 머신 Bash 샌드박스 제약으로 미실행.

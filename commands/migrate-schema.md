@@ -21,7 +21,7 @@ arguments:
 3. **plan 출력** — 사용자에게 무엇이 바뀔지 보여줌:
    - company.md 의 누락 필드 (예: `domain`)
    - 각 워커의 누락 필드 (예: `display_name`, `domain`)
-   - CLAUDE.md marker 부재 여부
+   - CPO marker 부재 또는 옛 inline 방식 여부 (ADR-0029 — 둘 다 "박제 필요")
 4. **인터뷰** — plan 이 no-op 아니면 사용자에게 질문:
    - 회사 `domain` (예: "의료 SaaS")
    - 일반 워커별 `display_name` (CPO/HR 도 포함 — 그 외 워커가 있으면 그것도)
@@ -30,7 +30,7 @@ arguments:
    - 변경 전 모든 파일 자동 백업 (`<file>.lskun-pre-migrate.bak`)
    - frontmatter 의 **누락 필드만 추가** — 기존 값 절대 덮어쓰지 않음
    - ADR-0014 — 기존 `## Project History` 섹션이 있으면 `## Archived History (pre-0.18)` 로 rename. 내부 entry 는 한 줄도 변경하지 않음 (사용자 자산 보존)
-   - CLAUDE.md marker 박제 (없으면 신규, 손편집 감지되면 추가 백업)
+   - `CLAUDE.local.md` 에 persona 포인터 박제 (ADR-0029). 추적 `CLAUDE.md` 의 옛 inline 구간은 제거 (항상 백업, 커밋 없음), `.git/info/exclude` 기록
 6. 결과 리포트 출력 — 변환 항목 / 백업 위치 / 손실 0 검증
 
 ## 안전 가드 (불가침)

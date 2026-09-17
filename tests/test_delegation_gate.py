@@ -110,10 +110,17 @@ class TestRoutingContextDelegationGate(unittest.TestCase):
 
 
 class TestSyncPersonaMigrationChain(unittest.TestCase):
-    def test_claude_md_reinject_step_documented(self) -> None:
+    def test_project_propagation_step_documented(self) -> None:
+        """sync 후 프로젝트 쪽이 stale 로 남지 않아야 한다.
+
+        P126 은 "CLAUDE.md marker 재박제" 단계로 막았고, ADR-0029 (P134) 가 그것을
+        포인터로 대체했다 — 포인터 프로젝트는 재박제가 필요 없고, 옛 inline
+        프로젝트는 sync-persona 가 포인터로 전환한다.
+        """
         body = SYNC_PERSONA_CMD.read_text(encoding="utf-8")
-        self.assertIn("CLAUDE.md marker 재박제", body)
-        self.assertIn("persona_injection.inject", body)
+        self.assertIn("ADR-0029", body)
+        self.assertIn("재박제가 필요 없다", body)
+        self.assertIn("persona_injection.inject_pointer", body)
 
 
 if __name__ == "__main__":

@@ -42,14 +42,13 @@ def _find_active_company_root() -> Path | None:
     """
     from lskun_kit.paths import company_root
     from lskun_kit.persona_injection import (
-        CLAUDE_MD_FILENAME,
         extract_company_name,
+        has_marker_file,
     )
 
     cwd = Path.cwd()
     for _ in range(MAX_PARENT_DEPTH + 1):
-        candidate_md = cwd / CLAUDE_MD_FILENAME
-        if candidate_md.exists():
+        if has_marker_file(cwd):  # ADR-0029 D7 — CLAUDE.local.md 우선, 그다음 CLAUDE.md
             name = extract_company_name(cwd)
             if name:
                 try:

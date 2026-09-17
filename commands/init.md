@@ -1,6 +1,6 @@
 ---
 name: lskun-kit:init
-description: 신규 회사 셋업 — Local SSOT 단일 backend (ADR-0015), company.md 생성, CPO/HR Lead 자동 hire, 사용자 프로젝트 CLAUDE.md 에 CPO persona inline 박제
+description: 신규 회사 셋업 — Local SSOT 단일 backend (ADR-0015), company.md 생성, CPO/HR Lead 자동 hire, 사용자 프로젝트 CLAUDE.local.md 에 CPO persona 포인터 박제 (ADR-0029)
 arguments:
   - name: company
     description: 회사 이름 (생략 시 project 디렉토리명 fallback)
@@ -32,7 +32,11 @@ ADR-0015 (2026-05-22) — Local SSOT 단일 backend. Vault 통합은 `/lskun-kit
 2. **회사 루트 디렉토리 생성** (기존 디렉토리 있으면 그대로 재사용)
 3. **company.md 박제** — 이미 있으면 **절대 덮어쓰지 않음** (보존 정책). frontmatter 에 `domain` 박제.
 4. **CPO + 인사팀장(hr-lead) 자동 hire** — 이미 있으면 skip. frontmatter 6 필수 필드 (`name`, `role`, `domain="meta"`, `hired_at`, `storage_backend`, `display_name`) + HR Lead 는 optional `model: sonnet`.
-5. **CPO persona inline 박제** — 사용자 프로젝트 root 의 `CLAUDE.md` 에 marker 구간 (`<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->`) 으로 hired/cpo.md 의 본문 박제. 기존 CLAUDE.md 본문은 보존, marker 구간만 갱신.
+5. **CPO persona 포인터 박제 (ADR-0029)** — 프로젝트 root 의 `CLAUDE.local.md` 에 marker 구간 (`<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->`) 으로 **import 1줄** (`@~/.lskun-companies/<회사>/hired/cpo.md`) 을 박제한다. 본문을 복사하지 않으므로 persona 갱신은 회사당 1회 `/lskun-kit:sync-persona --execute` 로 끝나고 이 파일은 다시 건드릴 필요가 없다.
+   - **추적되는 `CLAUDE.md` 에는 아무것도 쓰지 않는다.** 옛 inline 구간이 있으면 제거한다 (항상 `CLAUDE.md.lskun.bak` 백업, 남는 내용이 없으면 파일 삭제). **커밋은 하지 않는다** — 추적 중인 파일이면 사용자가 변경을 확인 후 직접 커밋.
+   - git 저장소면 `CLAUDE.local.md` 와 백업을 `.git/info/exclude` 에 기록한다 (`.gitignore` 불변 — 외주 · 협업 저장소에 diff 가 생기지 않는다). **프로젝트 root 자신의 `.git` 만** 대상이며 상위 저장소는 건드리지 않는다. worktree / submodule (`.git` 이 파일) · 상위 저장소의 하위 디렉토리면 건너뛰고 안내. 백업은 기존 파일을 덮어쓰지 않는다 (`.lskun.bak.1` …).
+   - **같은 회사로 재실행 = 전환 경로**: 이미 포인터면 silent skip (멱등), 옛 inline 이면 포인터로 전환한다 (`idempotency_row = "pointer_converted"`, 회사 자원은 건드리지 않음).
+   - 다음 세션에서 Claude Code 가 **외부 import 승인**을 1회 묻는다. 승인해야 persona 가 로드된다 — 사용자에게 반드시 안내할 것.
 6. 결과 진단 리포트 출력
 
 ## 사용 예
@@ -53,7 +57,7 @@ company root  : /Users/<you>/.lskun-companies/Acme
 company.md    : created → /Users/<you>/.lskun-companies/Acme/company.md
 멱등 분기      : row=founded (ADR-0015 결정 2-B)
 workers hired : cpo, hr-lead
-CPO persona   : created → <your-project>/CLAUDE.md
+CPO persona   : created → <your-project>/CLAUDE.local.md (포인터, ADR-0029)
 ```
 
 ## 구현
@@ -75,5 +79,5 @@ result = run(
 print(result.render())
 ```
 
-`inject_persona=False` 로 호출하면 CLAUDE.md 박제 skip (테스트 / dry-run 용도).
+`inject_persona=False` 로 호출하면 포인터 박제 skip (테스트 / dry-run 용도).
 

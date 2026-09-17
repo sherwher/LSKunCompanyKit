@@ -11,7 +11,7 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 
 ---
 
-## 진단 항목 (37개)
+## 진단 항목 (38개)
 
 순서대로 점검 후 ✅ / ⚠️ / ❌ 표기.
 
@@ -29,7 +29,7 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 ### 3. Storage backend 탐색 (ADR-0015 — Local 단일)
 
 - Local SSOT: `~/.lskun-companies/<name>/` (`paths.company_root(name)` 단일 진입점)
-- 회사 이름은 현재 프로젝트 CLAUDE.md 의 LSKUN-CPO marker 에서 추출 (`persona_injection.extract_company_name`)
+- 회사 이름은 현재 프로젝트 `CLAUDE.local.md` → `CLAUDE.md` 의 LSKUN-CPO marker 에서 추출 (`persona_injection.extract_company_name`)
 - `company.md` 유무 / `hired/` 워커 수 / `archived/` 워커 수
 - ~~dual-backend 감지~~ — ADR-0015 로 폐기 (Vault backend 자체가 폐기)
 - 잔재 정리: `$LSKUN_VAULT` env var 가 설정되어 있으면 ⚠️ "ADR-0015 — `LSKUN_VAULT` env var 는 더 이상 plugin core 가 참조하지 않음. `/lskun-kit:sync-in <name> <source>` 명령의 인자로만 사용. 환경변수는 제거 권장."
@@ -86,9 +86,9 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 - 없거나 빈 문자열 → ⚠️ "도메인 미박제 — `/lskun-kit:migrate-schema` 로 보강."
 - 있음 → ✅ + 값 출력
 
-### 11. **CPO persona CLAUDE.md 박제**
+### 11. **CPO persona marker 박제**
 
-사용자 프로젝트 root 의 `CLAUDE.md` 안에 `<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->` marker 구간 존재 여부:
+사용자 프로젝트 root 의 `CLAUDE.local.md` → `CLAUDE.md` 순으로 (ADR-0029 D7) `<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->` marker 구간 존재 여부 (`persona_injection.detect`):
 
 - 없음 → ⚠️ "CPO persona 미박제 — 메인 세션이 CPO 로 동작하지 않음. `/lskun-kit:migrate-schema` 또는 `/lskun-kit:init` 재실행."
 - 손상 (start 만 있고 end 없음) → ⚠️ "marker 손상 — 수동 수정 또는 재박제 필요"
@@ -332,6 +332,19 @@ CPO persona 가 결재 기록을 `lskun-audit record` 단일 경로로 수행하
 
 > 본 항목은 진입점의 **존재**만 본다. 기록 건수·누락률 같은 집계는 하지 않는다 (ADR-0006).
 
+### 40. persona 배포 방식 (ADR-0029)
+
+`persona_injection.detect_mode(<project_root>)` 와 git 상태로 판정한다. 현재 프로젝트 하나만 본다.
+
+- `"pointer"` → ✅ `"포인터 방식 — persona 갱신은 회사당 1회 sync-persona"`. 추가로:
+  - import 대상 `~/.lskun-companies/<회사>/hired/cpo.md` 부재 → **❌** `"포인터가 가리키는 persona 파일 없음"`
+  - 대상 파일에 `LSKUN-PERSONA-LOADED` 표식 없음 → ⚠️ `"persona 가 구버전 — /lskun-kit:sync-persona --execute (회사당 1회)"`
+  - `CLAUDE.local.md` 가 git 에 추적되고 있음 (`git ls-files --error-unmatch CLAUDE.local.md` 성공) → ⚠️ `"개인용 포인터가 저장소에 추적됨 — git rm --cached 후 .git/info/exclude 확인"`
+- `"inline"` → ⚠️ `"구버전 inline 방식 — /lskun-kit:init <회사> 로 전환 (마지막 1회)"`. 추가로 inline 구간이 든 파일이 git 에 추적되고 저장소에 remote 가 있으면 **❌** `"CPO persona 본문이 추적 파일에 있음 — 외주 · 협업 저장소로 내부 persona 가 나간다. 전환 후 변경을 커밋하라"`
+- marker 없음 → ℹ️ (항목 [11] 이 담당)
+
+> 외부 import 승인 여부는 Claude Code 내부 설정이라 doctor 가 읽지 않는다. 승인 누락은 SessionStart 의 로드 자가 점검 (persona 표식) 이 드러낸다.
+
 ### 26. **audit log 누적 크기 모니터링 (P109-B)**
 
 `<company_root>/.audit/decisions.jsonl` 의 파일 크기를 점검 (자동 회전 X, 안내만):
@@ -394,6 +407,7 @@ LSKunCompanyKit doctor (v<plugin-version>)
 [37] dangling skills (ADR-0023)  : ✅ dangling 0
 [38] plugin agent 등록 (ADR-0026): ✅ worker / hr-lead 등록, 도구 제한 정합
 [39] 결재 기록 진입점 (ADR-0027): ✅ bin/lskun-audit 실행 가능, 하위 명령 record 단일
+[40] persona 배포 방식 (ADR-0029): ✅ 포인터 방식 — persona 갱신은 회사당 1회 sync-persona
 
 결과: 환경 정상. 일상 사용 가능 (정보성 ℹ️ 는 사용자 판단 사항).
 ```

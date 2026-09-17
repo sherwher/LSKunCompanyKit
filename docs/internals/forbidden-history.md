@@ -106,6 +106,16 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0029 신규 금지 (persona 포인터 배포, P134)
+
+- **추적되는 `CLAUDE.md` 에 plugin 이 persona 본문 · 포인터를 씀** — ADR-0029 D2. plugin 이 쓰는 곳은 `CLAUDE.local.md` 뿐. 실측: 외주 저장소 2곳의 원격 master 에 CPO 구간이 올라가 있었다.
+- **persona 본문의 프로젝트별 복사 (inline 박제) 재도입** — ADR-0029 D1. 실측: 10개 프로젝트 중 9개가 stale. 본문은 회사 SSOT 에 한 부.
+- **추적되는 `.gitignore` 수정** — ADR-0029 D3. 제외는 `.git/info/exclude` 에만.
+- **plugin 이 사용 프로젝트를 스캔해 일괄 · 자동 마이그레이션** (홈 스캔, `~/.claude/projects` 파싱, 프로젝트 목록 registry) — ADR-0029 비채택. 전환은 열린 프로젝트 하나에서, 사용자 명시 명령으로만.
+- **hook 이 persona 파일 · 지침 파일을 자동으로 갱신** — ADR-0029 비채택. plugin 업데이트만으로 작업 중인 세션의 CPO 행동이 바뀐다. 갱신은 회사당 1회의 명시 `sync-persona`.
+- **plugin 이 `~/.claude.json` 의 import 승인 플래그를 읽거나 씀** — Claude Code 내부 설정. 승인 누락은 persona 로드 표식 자가 점검으로 드러낸다.
+- **plugin 이 사용자 저장소에 커밋 · history rewrite** — 전환은 작업 트리까지만.
+
 ### ADR-0028 신규 금지 (plugin eval suite, P133)
 
 - **워커 산출물 품질 · JD 품질 · 회사 성과를 점수화하는 eval 케이스** — ADR-0028 D2. 케이스 대상은 plugin 의 메커니즘 (hook · 도구 제한) 과 persona 준수뿐. 그 밖은 ADR-0002 §5 · ADR-0006 · ADR-0011 이 금지한 측정 지표.

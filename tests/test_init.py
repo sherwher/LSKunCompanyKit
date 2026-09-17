@@ -160,8 +160,9 @@ class RunIdempotencyRow3SilentTests(unittest.TestCase):
                 # 1차 init
                 run(Path(proj), company_name="LSKun",
                     cpo_name="이세근", hr_name="김지혜")
-                claude_md = Path(proj) / "CLAUDE.md"
+                claude_md = Path(proj) / "CLAUDE.local.md"  # ADR-0029 — 포인터는 local 파일에
                 first = claude_md.read_text(encoding="utf-8")
+                self.assertFalse((Path(proj) / "CLAUDE.md").exists())
 
                 # 2차 init (같은 회사)
                 result = run(Path(proj), company_name="LSKun",
@@ -169,7 +170,7 @@ class RunIdempotencyRow3SilentTests(unittest.TestCase):
                 self.assertEqual(result.idempotency_row, "silent")
                 self.assertEqual(result.workers_created, [])
                 self.assertEqual(result.persona_action, "unchanged")
-                # CLAUDE.md 한 글자도 안 변함
+                # 포인터 파일 한 글자도 안 변함
                 self.assertEqual(claude_md.read_text(encoding="utf-8"), first)
 
 
@@ -237,12 +238,15 @@ class RunPersonaInjectionTests(unittest.TestCase):
             with _patched_home(fake_home):
                 run(Path(proj), company_name="LSKun",
                     cpo_name="이세근", hr_name="김지혜")
-                content = (Path(proj) / CLAUDE_MD_FILENAME).read_text(
+                content = (Path(proj) / "CLAUDE.local.md").read_text(
                     encoding="utf-8"
                 )
                 self.assertIn(PERSONA_MARKER_START, content)
                 self.assertIn("이세근", content)
-                self.assertIn("LSKun", content)
+                self.assertIn("@~/.lskun-companies/LSKun/hired/cpo.md", content)
+                # ADR-0029 — 본문 복사 없음, 추적 파일 미생성
+                self.assertNotIn("Delegation Gate", content)
+                self.assertFalse((Path(proj) / CLAUDE_MD_FILENAME).exists())
 
     def test_persona_reinject_preserves_user_claude_md_outside_markers(self) -> None:
         with tempfile.TemporaryDirectory() as fake_home, \
@@ -258,9 +262,34 @@ class RunPersonaInjectionTests(unittest.TestCase):
                 content = (Path(proj) / CLAUDE_MD_FILENAME).read_text(
                     encoding="utf-8"
                 )
-                # 사용자 본문 보존 + persona 추가
-                self.assertIn("사용자 정의 가이드.", content)
-                self.assertIn(PERSONA_MARKER_START, content)
+                # ADR-0029 D2 — 사용자의 추적 CLAUDE.md 는 한 글자도 건드리지 않는다
+                self.assertEqual(content, user_text)
+                local = (Path(proj) / "CLAUDE.local.md").read_text(encoding="utf-8")
+                self.assertIn(PERSONA_MARKER_START, local)
+
+    def test_same_company_inline_project_is_converted_to_pointer(self) -> None:
+        """ADR-0029 D5 — 옛 inline 프로젝트에서 init 재실행 = 포인터 전환 (silent skip 아님)."""
+        from lskun_kit import persona_injection as pi
+
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                # 옛 방식 상태를 재현: local 포인터 제거 + CLAUDE.md 에 inline 구간
+                (Path(proj) / "CLAUDE.local.md").unlink()
+                (Path(proj) / CLAUDE_MD_FILENAME).write_text("# Project\n\n규칙.\n", encoding="utf-8")
+                pi.inject(Path(proj), "LSKun", "이세근", "# cpo\n\n옛 본문\n")
+                self.assertEqual(pi.detect_mode(Path(proj)), "inline")
+
+                result = run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+
+                self.assertEqual(result.idempotency_row, "pointer_converted")
+                self.assertEqual(result.workers_created, [])
+                self.assertEqual(pi.detect_mode(Path(proj)), "pointer")
+                tracked = (Path(proj) / CLAUDE_MD_FILENAME).read_text(encoding="utf-8")
+                self.assertIn("규칙.", tracked)
+                self.assertNotIn("LSKUN-CPO", tracked)
+                self.assertTrue(any("백업" in n for n in result.notes))
 
 
 if __name__ == "__main__":  # pragma: no cover
