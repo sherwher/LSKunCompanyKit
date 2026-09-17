@@ -5,6 +5,24 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.33.0] — 2026-09-17
+
+### Changed — 실행 품질 규격화: 브리프·보고·검증 접점 (P127, ADR-0025/0024 보강)
+
+외부 플러그인 생태계 (obra/superpowers · Anthropic 멀티에이전트 연구 · CrewAI 가이드) 와 Claude Code 공식 기능을 조사한 결과, 새 메커니즘을 얹기보다 이미 있는 세 접점 (dispatch 브리프 · 워커 보고 · 완료 검증) 을 규격화하는 편이 비용 대비 효과가 크다는 결론. 기존 결정을 뒤집지 않는 절차 구체화이므로 새 ADR 없음. spec: `docs/p127-execution-quality.md`.
+
+- **Handoff Brief 7필드**: `기대 출력 형식` / `도구·소스 가이드` 추가 — 모호한 위임 지시가 subagent 중복·누락의 주원인이라는 Anthropic 실측 반영 (`cpo.md` §Handoff Brief).
+- **증거 게이트 (빙의 경로)**: 기본 경로인 빙의에는 완료 주장 규율이 없던 공백 해소 — 이번 턴의 새 검증 증거 없이 "완료" 주장 금지, 없으면 "미검증" 보고. 결재 루프 적용 범위를 "dispatch 1건당" → "dispatch 또는 빙의 1건당" 으로 확장 (`embody:` audit 규약과 정합).
+- **보고 상태코드 4종**: `## 자가 평가` 첫 줄을 `상태: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED` 로 고정 (옛 "통과 / 부분 통과 / 불확실" 대체, 2섹션 구조 불변 — ADR-0014). CPO 분기 고정: `NEEDS_CONTEXT` 는 브리프 보강 후 재dispatch, `BLOCKED` 는 재작업이 아니라 원인 해소·사용자 보고. HR Lead 보고 양식도 동일 적용. audit schema (verdict enum) 변경 없음.
+- **규모 스케일링**: Delegation Gate 통과 후 투입 규모 — ① 컨텍스트 보호 1명 / ② 병렬 탐색은 독립 서브태스크 수만큼 상한 4 (브리프 작업 경계 비중첩 시에만) / ③ verifier 1명.
+- `work.md` · `routing.py` 라우팅 컨텍스트에 동일 규격 반영. 워커에게는 Deep Work Protocol 4단계로 상태 줄 전달. 450 → 464 tests.
+
+### 기존 회사 마이그레이션 (필수 아님, 권장)
+
+1. plugin update → 0.33.0 reload
+2. `/lskun-kit:sync-persona --execute` — CPO / HR Lead persona 갱신 + CLAUDE.md marker 재박제 (자동 백업)
+3. 일반 워커 JD 변경 불필요 — 상태코드는 모든 dispatch 에 주입되는 Deep Work Protocol 블록으로 전달된다
+
 ## [0.32.0] — 2026-08-07
 
 ### Changed — Delegation Gate: 위임은 예외, 빙의가 기본 (ADR-0025, P126)

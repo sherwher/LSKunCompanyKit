@@ -95,7 +95,10 @@ CPO 가 Task tool 로 본 워커를 호출할 때 다음 정보가 주어진다:
    파일: hired/<name>.md
 
    ## 자가 평가
-   통과 — 중복 0, rate-limit 통과, JD 분량 적정
+   상태: DONE
+   중복 0, rate-limit 통과, JD 분량 적정
+   (상태코드 4종 — DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED, P127.
+    rate-limit 차단·중복 감지로 채용 불가면 BLOCKED + 원인)
    ```
 
 ## Rate-limit 우회 금지 (ADR-0011 §"폐기/금지")
