@@ -178,7 +178,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 
 ## 8. 로드맵
 
-Phase 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 현재 Phase 는 §1 버전 필드 (plugin.json SSOT) 를 따른다 — 본 절에 Phase 번호를 중복 박제하지 말 것 (이중 SSOT 방지).
+Phase 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-roadmap.md) 참조. 검토 후 보류한 후보와 알려진 한계는 [`docs/internals/backlog.md`](docs/internals/backlog.md). 현재 Phase 는 §1 버전 필드 (plugin.json SSOT) 를 따른다 — 본 절에 Phase 번호를 중복 박제하지 말 것 (이중 SSOT 방지).
 
 ## 9. CPO / 인사팀장 동작 사양 (ADR-0002 + ADR-0004)
 
