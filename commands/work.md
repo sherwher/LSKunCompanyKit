@@ -50,7 +50,7 @@ arguments:
    - **Delegation Gate 판정 (ADR-0025)** — 적합 워커 선정 후, ①컨텍스트 보호 / ②병렬 탐색 / ③독립 검증 중 하나 이상 충족 시에만 dispatch. 미충족 → **빙의(embody)**: CPO 가 워커 JD body 를 읽어 직접 수행 (자연어 1줄 알림).
    - 게이트 충족 → `Task` tool 로 dispatch — **반드시 `subagent_type="claude"`** (ADR-0017 결정 1 — Allowlist). model 결정 = `--model` / frontmatter / 미지정(상속, ADR-0025 D4). **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조). dispatch 워커는 read-only 기여 — 파일 수정은 제안 (diff/전문) 으로 보고, 쓰기는 CPO 가 결재 후 수행 (D3).
    - 워커 없음 → `Task(subagent_type="claude", ...)` 로 HR Lead 호출 → 자동 채용 (① `create_worker` 파일 먼저 → ② `record_hire` audit, ADR-0023) → `[채용 알림]` 1줄 → 신규 워커에 게이트 판정 적용 (dispatch 또는 빙의)
-3. CPO 가 워커 보고를 받아 **결재** (산출물 원본 확인, ADR-0025 D6 → 승인 / 재작업 최대 2회)
+3. CPO 가 워커 보고를 받아 **결재** (산출물 원본 확인, ADR-0025 D6 → 승인 / 재작업 최대 2회). 보고의 `상태:` 줄 (상태코드 4종, P127) 에 따라 분기 — `DONE` 결재 / `DONE_WITH_CONCERNS` 우려 판단 / `NEEDS_CONTEXT` 브리프 보강 후 재dispatch / `BLOCKED` 원인 해소 또는 사용자 보고. 빙의 건은 CPO 자신의 산출물에 **증거 게이트** (새 검증 증거 없이 완료 주장 금지) 를 적용
 4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
 5. 사용자에게 결재된 결과 전달
 
@@ -60,7 +60,9 @@ arguments:
 
 > **description 포맷 (필수)**: `subagent_type` 은 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. 따라서 `Task` tool 의 `description` 은 **`<워커명·role · 작업요약>`** 포맷으로 작성한다 (예: `하린·seo-growth-strategist · 검색 자산화 위임`). 직통 호출·CPO 라우팅·자동 채용 후 dispatch 모두 일괄 적용. 이렇게 해야 status line 만으로 "지금 누가 도는지" 가 보인다.
 
-> **Handoff Brief + Deep Work Protocol 주입 (ADR-0025 D5 + ADR-0024)**: 모든 dispatch 경로 (직통·라우팅·자동 채용 후) 에서 prompt 에 CPO persona 의 §Handoff Brief (목표/제약/관련 파일/기존 결정/완료 기준 — CPO 직접 작성) 와 §Deep Work Protocol 블록 (착수 전 재해석·가정 명시 → 근거·대안 → 검증 → 상세 보고) 을 JD 뒤에 붙인다. 복잡·다단계·보안·아키텍처 작업은 모델 상속 유지 + "충분히 깊게 생각하고 진행하라" 지시 포함.
+> **규모 스케일링 (P127)**: 게이트 통과 후 투입 규모 — ① 컨텍스트 보호 = 1명 / ② 병렬 탐색 = 독립 서브태스크 수만큼, 상한 4 (브리프 작업 경계가 겹치지 않을 때만) / ③ 독립 검증 = verifier 1명. 상세는 CPO persona §규모 스케일링.
+
+> **Handoff Brief + Deep Work Protocol 주입 (ADR-0025 D5 + ADR-0024)**: 모든 dispatch 경로 (직통·라우팅·자동 채용 후) 에서 prompt 에 CPO persona 의 §Handoff Brief (목표/제약/관련 파일/기존 결정/기대 출력 형식/도구·소스 가이드/완료 기준 — CPO 직접 작성) 와 §Deep Work Protocol 블록 (착수 전 재해석·가정 명시 → 근거·대안 → 검증 → 상세 보고) 을 JD 뒤에 붙인다. 복잡·다단계·보안·아키텍처 작업은 모델 상속 유지 + "충분히 깊게 생각하고 진행하라" 지시 포함.
 
 > **출력 위생 (ADR-0024)**: 도구 호출은 실제 tool call 로만. `<invoke>` / `<function_calls>` / `Task(...)` 구문을 응답 텍스트로 출력 금지. 본 문서의 Python/Task 코드 블록은 개념 설명용 의사코드 — 재출력 금지.
 
@@ -85,6 +87,7 @@ arguments:
 - CPO 호출 — 워커 이름 생략 시 메인 세션의 CPO 가 받음
 - Delegation Gate (ADR-0025) — dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 시에만. 미충족 = 빙의 (CPO 가 JD 주입받아 직접 수행)
 - Leader-Worker dispatch — Task tool + 보고 양식 (산출물 원본 포함) + `subagent_type="claude"` 강제 (ADR-0017). dispatch 워커는 read-only 기여, 쓰기는 메인 세션 (D3)
+- 실행 품질 규격 (P127) — 보고 상태코드 4종 분기 / 빙의 경로 증거 게이트 / 규모 스케일링 (병렬 상한 4) / Handoff Brief 7필드
 - 자동 채용 — 사용자 알림만, 차단 X
 - 모델 라우팅 — default=미지정 (메인 세션 모델 상속, ADR-0025 D4). frontmatter/`--model` 은 명시 override
 - Dispatch allowlist — `claude` 외 subagent 는 PreToolUse hook 이 deny (ADR-0017). escape hatch=`LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1` (별칭 `LSKUN_ALLOW_OMC_FALLBACK=1`).
