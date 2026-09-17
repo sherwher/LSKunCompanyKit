@@ -4,6 +4,12 @@
 #   - 도메인 워커 1명 (backend-engineer) — 라우팅·빙의·dispatch 케이스용
 # 각 케이스의 fixture.sh 가 source 한다. 케이스 디렉토리가 아니므로 prompt.md 를 두지 않는다.
 set -euo pipefail
+# 방어 가드 — `claude plugin eval --scaffold` 는 빈 workspace + 임시 HOME 에서 실행한다.
+# 그 밖의 환경 (실제 HOME, 작업 중인 디렉토리) 에서 실수로 실행되면 아무것도 만들지 않는다.
+if [ -e "$HOME/.lskun-companies" ] || [ -n "$(ls -A . 2>/dev/null)" ]; then
+  echo "eval fixture: 임시 HOME · 빈 workspace 가 아니다 (HOME=$HOME, PWD=$PWD) — 중단" >&2
+  exit 1
+fi
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PYTHONPATH="$PLUGIN_ROOT/src" python3 - <<'PY'
 from datetime import date

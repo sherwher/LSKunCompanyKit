@@ -77,6 +77,7 @@ def _sanitize_inline(value: str, max_len: int = MAX_FIELD_LENGTH) -> str:
 
 SOURCE_COMPACT = "compact"
 STDIN_WAIT_SECONDS = 0.5
+STDIN_MAX_BYTES = 64 * 1024  # SessionStart payload 는 수백 바이트
 
 
 def _read_stdin_nonblocking() -> str:
@@ -87,6 +88,7 @@ def _read_stdin_nonblocking() -> str:
     읽을 데이터가 준비된 경우에만 읽는다.
     """
 
+    import os
     import select
 
     stream = sys.stdin
@@ -98,8 +100,14 @@ def _read_stdin_nonblocking() -> str:
         return stream.read()  # fileno 없는 in-memory stream (테스트 mock)
     if stream.isatty():
         return ""
+    if os.name == "nt":
+        # Windows 의 select 는 소켓만 지원한다. Claude Code 는 payload 후 stdin 을 닫는다.
+        return stream.read()
     ready, _, _ = select.select([fd], [], [], STDIN_WAIT_SECONDS)
-    return stream.read() if ready else ""
+    if not ready:
+        return ""
+    # os.read 는 준비된 만큼만 돌려준다 — 상대가 stdin 을 닫지 않아도 멈추지 않는다.
+    return os.read(fd, STDIN_MAX_BYTES).decode("utf-8", errors="replace")
 
 
 def _read_source() -> str:

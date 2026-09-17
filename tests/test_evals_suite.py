@@ -64,6 +64,30 @@ class EvalSuiteStructureTests(unittest.TestCase):
             self.assertTrue((co / "hired" / "cpo.md").exists())
             self.assertIn("LSKUN-CPO", (Path(work) / "CLAUDE.md").read_text(encoding="utf-8"))
 
+    def test_fixture_refuses_real_home(self) -> None:
+        """이미 회사가 있는 HOME (= 실제 사용자 HOME) 에서는 아무것도 만들지 않는다."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as work:
+            (Path(home) / ".lskun-companies" / "RealCo").mkdir(parents=True)
+            proc = subprocess.run(
+                ["bash", str(CASES[0] / "fixture.sh")],
+                cwd=work, capture_output=True, text=True,
+                env={"HOME": home, "PATH": os.environ.get("PATH", "")},
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertFalse((Path(home) / ".lskun-companies" / "EvalCo").exists())
+            self.assertFalse((Path(work) / "CLAUDE.md").exists())
+
+    def test_fixture_refuses_non_empty_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as work:
+            (Path(work) / "existing.txt").write_text("x", encoding="utf-8")
+            proc = subprocess.run(
+                ["bash", str(CASES[0] / "fixture.sh")],
+                cwd=work, capture_output=True, text=True,
+                env={"HOME": home, "PATH": os.environ.get("PATH", "")},
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertFalse((Path(home) / ".lskun-companies").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
