@@ -284,6 +284,21 @@ class PersonaModeNoticeTests(unittest.TestCase):
         self.assertIn("승인", ctx)
         self.assertNotIn("구버전 inline", ctx)
 
+    def test_pointer_project_with_stale_company_persona_gets_sync_notice(self) -> None:
+        """plugin 업데이트 후 sync-persona 전 — 표식이 없으므로 로드 점검 대신 sync 안내."""
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                cpo = company_root("LSKun") / "hired" / "cpo.md"
+                cpo.write_text(
+                    cpo.read_text(encoding="utf-8").replace("LSKUN-PERSONA-LOADED", "(옛 template)"),
+                    encoding="utf-8",
+                )
+                ctx = self._ctx(proj)
+        self.assertIn("/lskun-kit:sync-persona --execute", ctx)
+        self.assertNotIn("로드되지 않은 것", ctx)
+
     def test_inline_project_gets_conversion_notice(self) -> None:
         from lskun_kit import persona_injection as pi
 

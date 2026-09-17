@@ -198,6 +198,19 @@ def _build_context(source: str = "") -> str:
     return "\n".join(lines) + "\n"
 
 
+def _persona_file_has_sentinel(company_root: Path) -> bool:
+    """회사 SSOT 의 ``hired/cpo.md`` 에 로드 표식이 있는가. 읽기 실패 시 True (점검 경로 유지)."""
+
+    from lskun_kit.persona_injection import PERSONA_LOADED_SENTINEL
+
+    try:
+        return PERSONA_LOADED_SENTINEL in (company_root / "hired" / "cpo.md").read_text(
+            encoding="utf-8"
+        )
+    except OSError:
+        return True
+
+
 def _orphan_marker_notice() -> str:
     """marker 는 있는데 회사를 식별하지 못한 프로젝트용 안내 (ADR-0029 D6).
 
@@ -244,6 +257,17 @@ def _persona_mode_lines(company_name: str) -> list[str]:
     if found is None:
         return []
     mode = detect_mode(found[0])
+    if mode == MODE_POINTER and not _persona_file_has_sentinel(found[1]):
+        # plugin 은 올라갔는데 회사 persona 가 아직 옛 template — 표식이 없으니 로드 점검을
+        # 시키면 항상 오경고가 난다. 결정론적으로 판정해 정확한 조치를 알린다.
+        return [
+            "",
+            "### CPO persona 구버전 (ADR-0029)",
+            "",
+            "- 회사의 CPO persona 파일 (`hired/cpo.md`) 이 현재 plugin 보다 오래된 template 이다."
+            " 첫 응답에서 사용자에게 1줄로 알려라: \"회사 CPO persona 가 구버전입니다 —"
+            " `/lskun-kit:sync-persona --execute` 를 실행하세요 (회사당 1회, 모든 프로젝트에 반영).\"",
+        ]
     if mode == MODE_POINTER:
         return [
             "",
