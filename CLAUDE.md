@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 31 (0.37.0) — HR Lead JD 자가 점검 (P132, ADR-0024 보강). 이번 릴리스 묶음 P130~P132 는 CHANGELOG 참조. 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 32 (0.37.1) — plugin eval 회귀 suite (P133, ADR-0028). 같은 릴리스 묶음 P130~P133 은 CHANGELOG 참조. 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -171,6 +171,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - `bin/` — CPO 가 호출하는 내부 실행 파일 (`lskun-audit`, ADR-0027). 사용자 CLI 아님
 - `hooks/` — SessionStart + PreToolUse:Task hook
 - `tests/` — stdlib unittest
+- `evals/` — `claude plugin eval` 행동 회귀 suite (개발 도구, 런타임 비참조 — ADR-0028)
 - `docs/internals/` — 본 plugin 의 분리된 내부 문서 (P109-C)
 
 **hired/ 같은 회사 운영 데이터는 본 repo 에 절대 작성 금지** (사용자 SSOT `~/.lskun-companies/<name>/` 에만).

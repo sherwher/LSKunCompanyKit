@@ -106,6 +106,14 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0028 신규 금지 (plugin eval suite, P133)
+
+- **워커 산출물 품질 · JD 품질 · 회사 성과를 점수화하는 eval 케이스** — ADR-0028 D2. 케이스 대상은 plugin 의 메커니즘 (hook · 도구 제한) 과 persona 준수뿐. 그 밖은 ADR-0002 §5 · ADR-0006 · ADR-0011 이 금지한 측정 지표.
+- **eval 이 사용자의 실제 회사 · audit 을 읽음** — ADR-0028 D3. fixture 회사 (`EvalCo`, 임시 HOME) 만.
+- **eval 케이스에 persona 본문 복제** (`append_system_prompt` 등) — ADR-0028 D4. SSOT 는 `templates/cpo.md`.
+- **eval 의 CI · hook · 정기 실행 / 결과 추세 추적 · 대시보드** — ADR-0028 D5. 저자 명시 실행만, `results/` 는 gitignore.
+- **eval 케이스를 통과시키려고 grader 를 느슨하게 함** — 실패는 조사 계기. 과제나 패턴이 틀렸으면 그것을 고친다.
+
 ### ADR-0027 신규 금지 (결재 기록 진입점, P130)
 
 - **`.audit/decisions.jsonl` 손기록** (Write · Edit · `echo >>` 로 직접 append / 수정) — ADR-0027 D4. `lskun-audit record` 가 유일한 기록 경로. 손기록은 `AuditEntry` schema 검증을 우회한다 (실사용에서 `first_pass_score: null` entry 로 확인됨).

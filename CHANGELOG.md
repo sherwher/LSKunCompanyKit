@@ -5,6 +5,18 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.37.1] — 2026-09-17
+
+### Added — plugin eval 회귀 suite (ADR-0028, P133) — 개발 도구
+
+단위 테스트는 payload 를 직접 만들어 넣기 때문에, Claude Code 가 dispatch tool 이름을 바꿔 가드 3종이 죽은 것 (P128) 을 놓쳤다. 실제 세션에서의 동작을 확인하는 `claude plugin eval` suite 를 `evals/` 에 추가했다. plugin 런타임은 이 디렉토리를 읽지 않는다.
+
+- 5 케이스: `session-context` (SessionStart 주입) / `allowlist-deny` (ADR-0017 · 0026) / `worker-readonly` (ADR-0026) / `embody-gate` (ADR-0025) / `embody-audit` (ADR-0027, Bash 필요 — `core` 태그 제외).
+- 범위는 plugin 의 메커니즘과 persona 준수뿐이다. 워커 산출물 · JD · 회사 성과를 점수화하지 않는다 (ADR-0002 §5 · ADR-0006 · ADR-0011 유지). fixture 회사 (`EvalCo`) 만 쓰고 실제 회사 · audit 을 읽지 않는다.
+- 실행은 저자 명시 명령만 (비용 발생) — `claude plugin eval . --tag core --scaffold --allow-tools Agent Write Edit`. 상세와 실측 제약은 `evals/README.md`.
+- 첫 실행 (sonnet, 1 run): core 4 케이스 통과. `embody-gate` 에서 CPO 는 워커 JD 파일을 읽고 빙의 알림 1줄을 낸 뒤 dispatch 없이 수행했다. `embody-audit` 는 저자 머신의 Bash 샌드박스 제약으로 아직 실행하지 못했다.
+- 515 → 521 tests (suite 구조 가드).
+
 ## [0.37.0] — 2026-09-17
 
 ### Added — HR Lead JD 자가 점검 (P132, ADR-0024 보강)

@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: session-context
+description: SessionStart hook 이 활성 회사와 hired 워커 목록을 주입하는지 확인한다.
+tags: [core, smoke, hooks]
+context:
+  scaffold_script: fixture.sh

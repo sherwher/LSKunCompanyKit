@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: embody-gate
+description: Delegation Gate 미충족 작업 (작은 순차 구현) 에서 CPO 가 dispatch 하지 않고 빙의로 직접 수행하고, 결재를 --embody 로 기록하려 하는지 확인한다 (ADR-0025 D1·D2 + ADR-0027).
+tags: [core, behavior, cpo]
+context:
+  scaffold_script: fixture.sh
