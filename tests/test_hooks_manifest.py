@@ -46,9 +46,9 @@ class HooksManifestTests(unittest.TestCase):
             f"unexpected hook events: {set(hooks.keys()) - allowed_events}",
         )
 
-        # PostToolUse 는 Task matcher + external 모듈 경로 강제.
+        # PostToolUse 는 dispatch tool matcher (Task|Agent, P128) + external 모듈 경로 강제.
         for e in hooks.get("PostToolUse", []):
-            self.assertEqual(e["matcher"], "Task")
+            self.assertEqual(e["matcher"], "Task|Agent")
             for cmd in e["hooks"]:
                 self.assertIn("post_tool_use_external", cmd["command"])
 
@@ -64,11 +64,15 @@ class HooksManifestTests(unittest.TestCase):
         self.assertIn("Stop", hooks)
 
     def test_hook_matchers_are_expected(self) -> None:
-        """SessionStart/Stop 은 '*'. PreToolUse/PostToolUse 는 'Task' 로 좁힘."""
+        """SessionStart/Stop 은 '*'. PreToolUse/PostToolUse 는 dispatch tool 로 좁힘.
+
+        P128 — Claude Code 가 dispatch tool 이름을 Task → Agent 로 바꿨다.
+        옛/새 버전 모두 발화하도록 두 이름을 명시한다.
+        """
         expected = {
             "SessionStart": "*",
-            "PreToolUse": "Task",
-            "PostToolUse": "Task",  # ADR-0022 외주 setup push
+            "PreToolUse": "Task|Agent",
+            "PostToolUse": "Task|Agent",  # ADR-0022 외주 setup push
             "Stop": "*",            # ADR-0022 외주 setup turn 차단
         }
         for event, entries in self.manifest["hooks"].items():

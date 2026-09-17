@@ -6,7 +6,7 @@ Task tool 실행이 끝날 때마다 본 hook 가 marker 를 읽어 "다음 판�
 이어가도록 push 한다.
 
 평가 순서 (spec §5.1):
-    1. ``tool_name != "Task"`` → exit 0 (출력 없음)
+    1. ``tool_name`` 이 dispatch tool (``Task`` / ``Agent``, P128) 이 아니면 → exit 0 (출력 없음)
     2. ``LSKUN_ALLOW_EXTERNAL_HALT=1`` → exit 0 + stderr 경고 (사용자 escape)
     3. 활성 회사 root 검출 실패 → exit 0
     4. marker 부재 → exit 0
@@ -47,7 +47,6 @@ _SRC_DIR = str(Path(__file__).resolve().parents[2])
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-TOOL_TASK = "Task"
 ENV_ALLOW_HALT = "LSKUN_ALLOW_EXTERNAL_HALT"
 
 
@@ -71,8 +70,10 @@ def _run(stdin_text: str) -> None:
     data = _parse_payload(stdin_text)
     tool_name = data.get("tool_name") if isinstance(data, dict) else ""
 
-    # 1. Task tool 외는 무조건 종료.
-    if tool_name != TOOL_TASK:
+    # 1. dispatch tool (Task / Agent, P128) 외는 무조건 종료.
+    from lskun_kit.hooks._common import DISPATCH_TOOL_NAMES
+
+    if tool_name not in DISPATCH_TOOL_NAMES:
         return
 
     # 2. escape hatch — 사용자가 명시적으로 push 차단 요청.

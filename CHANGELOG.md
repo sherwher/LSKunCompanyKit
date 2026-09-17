@@ -5,6 +5,20 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.33.1] — 2026-09-17
+
+### Fixed — chain 차단 · dispatch allowlist · 외주 push 가 작동하지 않던 결함 (P128)
+
+Claude Code 가 subagent dispatch tool 이름을 `Task` → `Agent` 로 바꾼 뒤, hook matcher `Task` 는 계속 발화하지만 payload 의 `tool_name` 은 `"Agent"` 로 전달된다 (v2.1.274 실측, `LSKUN_HOOK_DEBUG_DUMP=1`). `pre_tool_use.py` / `post_tool_use_external.py` 가 첫 분기에서 `tool_name != "Task"` 로 전부 통과시켜 다음 세 가드가 조용히 무력화되어 있었다:
+
+- 워커 → 워커 chain 차단 (ADR-0004 §8)
+- dispatch `subagent_type` allowlist (ADR-0017)
+- 외주 setup 다음 step push (ADR-0022 — Stop hook 가드는 영향 없음)
+
+수정: 두 이름을 모두 dispatch 로 판정 (`hooks/_common.DISPATCH_TOOL_NAMES`), `hooks.json` matcher 를 `Task|Agent` 로 명시 (별칭 의존 제거). 수정본을 `--plugin-dir` 로 로드한 실제 세션에서 `subagent_type='Explore'` deny 확인. 464 → 469 tests.
+
+**주의 (동작 변화)**: 업데이트 후 활성 회사 프로젝트에서 allowlist 가 다시 작동한다 — `claude` 외 subagent (Explore / Plan / 외부 plugin agent) 는 deny 된다. 회사 외 작업에는 세션 단위 `export LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`.
+
 ## [0.33.0] — 2026-09-17
 
 ### Changed — 실행 품질 규격화: 브리프·보고·검증 접점 (P127, ADR-0025/0024 보강)
