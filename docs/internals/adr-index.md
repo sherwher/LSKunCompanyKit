@@ -33,6 +33,7 @@
 | ADR-0025 | **Delegation Gate — 위임은 예외, 빙의(embody)가 기본** (dispatch 3조건, 쓰기 단일화, 모델 상속, Handoff Brief, 산출물 결재) | 활성 (v0.32.0+, ADR-0004 §4 default sonnet supersede / 외부 증거: MAST·Cognition·Anthropic — spec: `docs/p126-delegation-gate.md`) |
 | ADR-0026 | **Worker Agent — 도구 권한으로 쓰기 단일화·chain 금지 강제** (plugin agent 2종, allowlist 교체, `agent_id` chain 판정) | 활성 (v0.34.0+, ADR-0017 결정 1 supersede — `claude` 타입 deny / ADR-0025 D3·ADR-0004 §8 강제 수단 승격 — spec: `docs/p129-worker-agent.md`) |
 | ADR-0027 | **결재 기록 진입점 `lskun-audit record`** (plugin `bin/`, 입력 3개 + 자동 해소, `--embody`, 손기록 금지, 하위 명령 단일) | 활성 (v0.35.0+, ADR-0006 보강 — schema·append-only·hook 미도입 유지 / ADR-0025 D2 `embody:` 규약 실행 수단 — spec: `docs/p130-audit-record-entrypoint.md`) |
+| ADR-0028 | **plugin eval 회귀 suite** (`evals/` — hook 발화 · agent 도구 제한 · CPO persona 준수를 실제 세션에서 확인. 메커니즘 · persona 준수만, 워커 · JD · 회사 KPI 아님) | 활성 (v0.37.1+, ADR-0018 자체 harness 보완 / ADR-0002 §5 · ADR-0006 · ADR-0011 측정 금지 유지 — spec: `evals/README.md`) |
 
 ## Supersede Chain (시각화)
 

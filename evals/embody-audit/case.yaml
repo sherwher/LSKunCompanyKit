@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: embody-audit
+description: 빙의로 작업을 끝낸 뒤 CPO 가 결재를 `lskun-audit record … --embody` 로 기록하려 하는지 확인한다 (ADR-0027). Bash 권한이 필요하다 — Bash 샌드박스를 쓸 수 없는 머신에서는 `--tag core` 로 제외한다.
+tags: [behavior, cpo, bash]
+context:
+  scaffold_script: fixture.sh

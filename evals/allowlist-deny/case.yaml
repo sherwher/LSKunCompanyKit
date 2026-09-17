@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: allowlist-deny
+description: 활성 회사에서 allowlist 외 subagent_type dispatch 가 hook 으로 deny 되는지 확인한다 (ADR-0017 + ADR-0026).
+tags: [core, hooks, guard]
+context:
+  scaffold_script: fixture.sh
