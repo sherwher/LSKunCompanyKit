@@ -8,7 +8,7 @@ ADR-0001 §6 + ADR-0002 §6 + ADR-0004 §8 + ADR-0016 + ADR-0017.
         deny (Dispatch subagent_type Allowlist, ADR-0017 — denylist (ADR-0016) 폐기).
 
 평가 순서 (ADR-0017 결정 7, ADR-0016 결정 7 갱신):
-    1. ``tool_name != "Task"`` → allow
+    1. ``tool_name`` 이 dispatch tool (``Task`` / ``Agent``, P128) 이 아니면 → allow
     2. ``LSKUN_ALLOW_WORKER_CHAIN=1`` → allow + stderr (chain bypass)
     3. ``LSKUN_ALLOW_NON_CLAUDE_DISPATCH=1`` OR ``LSKUN_ALLOW_OMC_FALLBACK=1`` (별칭)
        → allow + stderr (allowlist bypass, ADR-0017 결정 2)
@@ -67,7 +67,6 @@ _SRC_DIR = str(Path(__file__).resolve().parents[2])
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-TOOL_TASK = "Task"
 ENV_SSOT_ROOT = "LSKUN_SSOT_ROOT"
 ENV_ALLOW_CHAIN = "LSKUN_ALLOW_WORKER_CHAIN"
 ENV_ALLOW_NON_CLAUDE = "LSKUN_ALLOW_NON_CLAUDE_DISPATCH"  # ADR-0017 결정 2 (신규 정식)
@@ -114,8 +113,10 @@ def _decide(stdin_text: str) -> tuple[str, str]:
     data = _parse_payload(stdin_text)
     tool_name = data.get("tool_name") if isinstance(data, dict) else ""
 
-    # 1. Task tool 외는 무조건 allow.
-    if tool_name != TOOL_TASK:
+    # 1. dispatch tool (Task / Agent, P128) 외는 무조건 allow.
+    from lskun_kit.hooks._common import DISPATCH_TOOL_NAMES
+
+    if tool_name not in DISPATCH_TOOL_NAMES:
         return "allow", ""
 
     # 2. chain bypass.

@@ -15,6 +15,12 @@ from pathlib import Path
 #: 활성 회사 SSOT root 를 O(1) 로 알려주는 env var (hooks 가 1순위로 참조).
 ENV_SSOT_ROOT = "LSKUN_SSOT_ROOT"
 
+#: subagent dispatch tool 의 payload ``tool_name`` (P128).
+#: Claude Code 가 ``Task`` → ``Agent`` 로 이름을 바꿨다 (v2.1.274 실측 —
+#: matcher ``Task`` 는 계속 발화하지만 payload 는 ``"Agent"``). 옛 버전
+#: 호환을 위해 두 이름을 모두 dispatch 로 판정한다.
+DISPATCH_TOOL_NAMES = frozenset({"Task", "Agent"})
+
 
 def detect_company_root() -> "Path | None":
     """활성 회사 root 검출.
@@ -37,4 +43,4 @@ def detect_company_root() -> "Path | None":
     return _find_active_company_root()
 
 
-__all__ = ["ENV_SSOT_ROOT", "detect_company_root"]
+__all__ = ["DISPATCH_TOOL_NAMES", "ENV_SSOT_ROOT", "detect_company_root"]

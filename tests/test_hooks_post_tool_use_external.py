@@ -132,6 +132,16 @@ class MarkerPresentTest(unittest.TestCase):
         self.assertIsNotNone(state)
         self.assertEqual(state.step_count_so_far, 2)
 
+    def test_agent_tool_name_also_advances(self) -> None:
+        """P128 — payload tool_name 이 ``Agent`` (Task 의 새 이름) 여도 push."""
+        ess.start("acme", "redteam-q2")
+        rc, out, _ = _run(
+            _task_payload("Agent"),
+            {"LSKUN_SSOT_ROOT": str(self.company_root)},
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("<system-reminder>", out)
+
     def test_reminder_contains_next_action_label(self) -> None:
         ess.start("acme", "redteam-q2")
         rc, out, _ = _run(

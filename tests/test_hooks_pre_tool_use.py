@@ -375,5 +375,49 @@ class AllowlistAdr0017NewTests(unittest.TestCase):
         self.assertIn("alice", reason)
 
 
+class AgentToolNameTests(unittest.TestCase):
+    """P128 — Claude Code 가 subagent dispatch tool 이름을 ``Task`` → ``Agent`` 로 변경.
+
+    실측 (v2.1.274): matcher ``Task`` 는 여전히 발화하지만 payload 의
+    ``tool_name`` 은 ``"Agent"``. 두 이름 모두 dispatch 로 판정해야 chain 차단 /
+    allowlist 가 살아난다.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        self.env = {"LSKUN_SSOT_ROOT": str(self.root)}
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _agent_payload(subagent_type: str | None = None) -> str:
+        payload: dict[str, object] = {"tool_name": "Agent"}
+        if subagent_type is not None:
+            payload["tool_input"] = {"subagent_type": subagent_type}
+        return json.dumps(payload)
+
+    def test_agent_tool_non_claude_denied(self) -> None:
+        out = _run(self._agent_payload("Explore"), self.env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("ADR-0017", out["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_agent_tool_claude_allowed(self) -> None:
+        out = _run(self._agent_payload("claude"), self.env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
+
+    def test_agent_tool_chain_denied(self) -> None:
+        session.start(self.root, "alice")
+        out = _run(self._agent_payload("claude"), self.env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("ADR-0004", out["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_legacy_task_name_still_enforced(self) -> None:
+        out = _run(_task_payload("Explore"), self.env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
+
+
 if __name__ == "__main__":
     unittest.main()

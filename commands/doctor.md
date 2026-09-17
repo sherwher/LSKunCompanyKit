@@ -48,14 +48,14 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 
 ### 6. Hook 등록 상태 (ADR-0014 갱신)
 
-- plugin 자체의 `hooks/hooks.json` 에 SessionStart + PreToolUse(Task) 가 박제되어 있는지 점검
+- plugin 자체의 `hooks/hooks.json` 에 SessionStart + PreToolUse(Task|Agent) 가 박제되어 있는지 점검
 - ADR-0014 — Stop / PostToolUse hook 은 reflection 폐기로 제거됨. 잔존 시 ⚠️
 - 사용자가 `~/.claude/settings.json` 등에서 본 plugin 의 hook 을 override / disable 했는지 best-effort 캡처
 - plugin manifest 정상이고 사용자 override 없으면 ✅
 
 ### 6b. PreToolUse chain-guard hook
 
-- plugin `hooks/hooks.json` 의 PreToolUse 배열에 `pre_tool_use.py` 직접 경로 호출 (matcher=`Task`) 포함 여부
+- plugin `hooks/hooks.json` 의 PreToolUse 배열에 `pre_tool_use.py` 직접 경로 호출 (matcher=`Task|Agent`, P128 — Claude Code 의 dispatch tool 이름 변경 대응) 포함 여부
 - 모든 hook command 는 `python3 ${CLAUDE_PLUGIN_ROOT}/src/lskun_kit/hooks/*.py` 형식. `python3 -m lskun_kit...` 형식이 남아있으면 ❌ "ModuleNotFoundError 발현 가능"
 - 미등록 시 ❌ "워커 → 워커 chain 차단 무력화 — sub-leader 출현 위험"
 - `LSKUN_ALLOW_WORKER_CHAIN=1` 환경변수 설정 감지 시 ⚠️ "chain enforcement bypass 활성화 중 — 디버깅 외 비권장"
@@ -341,7 +341,7 @@ LSKunCompanyKit doctor (v<plugin-version>)
 [3]  Storage backend (Local 단일)   : ✅ ~/.lskun-companies/LSKun/ 존재, hired=3, archived=0
 [4]  SSOT cross-contamination       : ✅ 분리 정상
 [5]  Worker frontmatter             : ✅ 3/3 통과 (필드 6개 모두)
-[6]  Hook 등록 (ADR-0014/0022)      : ✅ SessionStart + PreToolUse(Task) + PostToolUse(Task) + Stop 박제됨
+[6]  Hook 등록 (ADR-0014/0022)      : ✅ SessionStart + PreToolUse(Task|Agent) + PostToolUse(Task|Agent) + Stop 박제됨
 [7]  Sync 명령 (ADR-0015)           : ✅ /lskun-kit:sync-in, /lskun-kit:sync-out 등록됨
 [8]  init 실행 상태                  : ✅ company.md 존재
 [9]  CPO / 인사팀장                  : ✅ cpo, hr-lead 모두 hired
