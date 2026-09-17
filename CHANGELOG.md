@@ -5,6 +5,16 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.37.0] — 2026-09-17
+
+### Added — HR Lead JD 자가 점검 (P132, ADR-0024 보강)
+
+워커는 채용 시 1회 박제되는 완성형이라 (ADR-0014) 채용 시점의 JD 품질이 전부다. 외부 조사 (CrewAI "crafting effective agents" · contains-studio/agents) 의 교훈 — 도메인 특정 role, 구체적 제약, 명시적 한계, 호출 계기가 드러나는 설명 — 을 HR Lead 의 채용 직전 자가 점검 5문항으로 반영했다: 도메인 특정성 / 함정의 구체성 / 한계 명시 / keywords 정합 / 정적 서술.
+
+- **코드 검증이 아니다.** plugin core 의 JD schema · 검증 코드 · JD 측정 지표는 ADR-0011 이 금지한다 (forbidden-history). 점검은 HR Lead persona 의 판단이며 `/doctor` 항목도 추가하지 않는다. 새 ADR 없음.
+- 기존 워커 JD 는 바뀌지 않는다 (자동 갱신 금지). 신규 채용부터 적용되며, 기존 JD 개선은 사용자 명시 요청 (`/lskun-kit:work hr-lead "..."`) 으로만.
+- 512 → 515 tests.
+
 ## [0.36.0] — 2026-09-17
 
 ### Added — 컨텍스트 압축 직후 복구 정보 (P131, ADR-0025 D2 보강)

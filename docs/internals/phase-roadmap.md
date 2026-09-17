@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 31 (P132 — HR Lead JD 자가 점검, ADR-0024 보강, 0.37.0)
+
+- **Phase 31 (0.37.0)** — 채용 직전 1회 자가 점검 5문항 (도메인 특정성 · 함정의 구체성 · 한계 명시 · keywords 정합 · 정적 서술) 을 HR Lead persona 에 박제. 외부 근거: CrewAI · contains-studio. 코드 기반 JD lint · doctor 항목 · 측정 지표는 ADR-0011 금지에 따라 **비채택** — persona 판단으로만. 새 ADR 없음.
+
 ### Phase 30 (P131 — 컨텍스트 압축 직후 복구 정보, ADR-0025 D2 보강, 0.36.0)
 
 - **Phase 30 (0.36.0)** — 빙의 기본 경로에서는 워커 JD 가 메인 컨텍스트에 살고, 압축이 이를 요약으로 뭉갠다. SessionStart hook 이 `source=compact` 일 때만 복구 블록 (활성 워커 세션 · JD 원문 위치 · 결재 기록 확인 위치) 을 덧붙인다. 새 행동 규칙 없음 (동적 정보만), stdin 논블로킹 읽기. 새 ADR 없음.
