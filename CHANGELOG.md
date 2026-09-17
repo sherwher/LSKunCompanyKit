@@ -16,7 +16,8 @@
 - **전환 = `/lskun-kit:init <회사>` 재실행** (종전에는 silent skip): inline 구간 제거 (항상 백업, 남는 내용 없으면 파일 삭제) + 포인터 박제. **커밋하지 않는다.** `migrate-schema` · `sync-persona` 도 같은 경로.
 - **조용한 실패 방지**: 외부 import 는 프로젝트당 1회 승인이 필요하고 미승인이면 persona 가 조용히 빠진다. persona 끝의 `LSKUN-PERSONA-LOADED` 표식 + SessionStart 안내로 CPO 가 스스로 알린다. inline 프로젝트 · 회사 식별 불가 구간에도 1줄 알림. doctor [40] (38개 항목).
 - 손으로 쓰인 marker 변형 (`<!-- LSKUN-CPO:START -->`, `… company=X -->`) 도 구간으로 인식한다 (쓰기는 표준형만).
-- 자동 · 일괄 마이그레이션, hook 의 persona 자동 갱신은 **도입하지 않는다** (forbidden 7항). 542 → 543 tests.
+- 자동 · 일괄 마이그레이션, hook 의 persona 자동 갱신은 **도입하지 않는다** (forbidden 7항).
+- 릴리스 전 독립 리뷰 반영: 기존 백업을 덮어쓰지 않는다 (`.lskun.bak.1` …), `.git/info/exclude` 는 프로젝트 root 자신의 `.git` 만 (상위의 무관한 저장소 비접촉). 542 → 547 tests.
 
 **알려진 한계**: 프로젝트당 승인 창 1회. 자가 점검은 LLM 지시라 haiku 는 놓쳤다 (sonnet 은 양방향 통과). persona 크기 (26,000자) 는 그대로 — 후속 과제.
 

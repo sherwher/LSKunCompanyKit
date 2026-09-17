@@ -26,7 +26,8 @@
 
 - **D1** 프로젝트의 CPO 구간 = 머리말 1줄 + `@~/.lskun-companies/<회사>/hired/cpo.md`. 갱신은 회사당 1회 `sync-persona`.
 - **D2** 포인터 위치 = `CLAUDE.local.md`. 추적 `CLAUDE.md` 비접촉.
-- **D3** git 제외 = `.git/info/exclude` (`.gitignore` 불변). worktree / submodule · 비저장소는 건너뜀.
+- **D3** git 제외 = **프로젝트 root 자신의** `.git/info/exclude` (`.gitignore` 불변). 상위로 올라가지 않는다 — 상위에는 무관한 저장소 (홈의 dotfiles, 남의 monorepo) 가 있을 수 있다. worktree / submodule · 상위 저장소의 하위 디렉토리 · 비저장소는 건너뛰고 안내.
+- **백업은 덮어쓰지 않는다** — `CLAUDE.md.lskun.bak` 이 있으면 `.1`, `.2` … (릴리스 전 독립 리뷰 지적 반영).
 - **D4** 로드 자가 점검 — `templates/cpo.md` 끝의 `LSKUN-PERSONA-LOADED` 표식 + SessionStart 안내 (워커 명단 **앞**).
 - **D5** `/lskun-kit:init <회사>` 재실행 = inline → pointer 전환 (`idempotency_row = "pointer_converted"`). inline 구간 제거 시 항상 백업, 남는 내용 없으면 파일 삭제, **커밋 없음**. `migrate-schema` · `sync-persona` 도 같은 함수.
 - **D6** inline 프로젝트 · 회사 식별 불가 구간에 SessionStart 1줄 알림.
@@ -34,7 +35,7 @@
 
 ## 4. 검증
 
-- stdlib unittest 543 OK — 포인터 주입 · 전환 · 손글씨 변형 · git exclude (`git status` 로 local 파일 · 백업 비노출 확인) · init 전환 행 · hook 안내 3종
+- stdlib unittest 547 OK — 포인터 주입 · 전환 · 손글씨 변형 · git exclude (`git status` 로 local 파일 · 백업 비노출 확인) · init 전환 행 · hook 안내 3종
 - 10개 프로젝트 `CLAUDE.md` **사본** 으로 전환 시험 — 전부 `inline → pointer`, 추적 파일에서 구간 제거 확인 (예: ilsaek 10,018 → 882자, userAPP 은 persona 뿐이라 파일 삭제)
 - 실제 세션 (sonnet): 미승인 포인터 → "CPO persona 가 로드되지 않았습니다…" 경고 / import 로드된 포인터 → 경고 없이 CPO 로 동작
 

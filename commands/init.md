@@ -34,7 +34,7 @@ ADR-0015 (2026-05-22) — Local SSOT 단일 backend. Vault 통합은 `/lskun-kit
 4. **CPO + 인사팀장(hr-lead) 자동 hire** — 이미 있으면 skip. frontmatter 6 필수 필드 (`name`, `role`, `domain="meta"`, `hired_at`, `storage_backend`, `display_name`) + HR Lead 는 optional `model: sonnet`.
 5. **CPO persona 포인터 박제 (ADR-0029)** — 프로젝트 root 의 `CLAUDE.local.md` 에 marker 구간 (`<!-- LSKUN-CPO:START -->` ~ `<!-- LSKUN-CPO:END -->`) 으로 **import 1줄** (`@~/.lskun-companies/<회사>/hired/cpo.md`) 을 박제한다. 본문을 복사하지 않으므로 persona 갱신은 회사당 1회 `/lskun-kit:sync-persona --execute` 로 끝나고 이 파일은 다시 건드릴 필요가 없다.
    - **추적되는 `CLAUDE.md` 에는 아무것도 쓰지 않는다.** 옛 inline 구간이 있으면 제거한다 (항상 `CLAUDE.md.lskun.bak` 백업, 남는 내용이 없으면 파일 삭제). **커밋은 하지 않는다** — 추적 중인 파일이면 사용자가 변경을 확인 후 직접 커밋.
-   - git 저장소면 `CLAUDE.local.md` 와 백업을 `.git/info/exclude` 에 기록한다 (`.gitignore` 불변 — 외주 · 협업 저장소에 diff 가 생기지 않는다). worktree / submodule (`.git` 이 파일) 이면 건너뛰고 안내.
+   - git 저장소면 `CLAUDE.local.md` 와 백업을 `.git/info/exclude` 에 기록한다 (`.gitignore` 불변 — 외주 · 협업 저장소에 diff 가 생기지 않는다). **프로젝트 root 자신의 `.git` 만** 대상이며 상위 저장소는 건드리지 않는다. worktree / submodule (`.git` 이 파일) · 상위 저장소의 하위 디렉토리면 건너뛰고 안내. 백업은 기존 파일을 덮어쓰지 않는다 (`.lskun.bak.1` …).
    - **같은 회사로 재실행 = 전환 경로**: 이미 포인터면 silent skip (멱등), 옛 inline 이면 포인터로 전환한다 (`idempotency_row = "pointer_converted"`, 회사 자원은 건드리지 않음).
    - 다음 세션에서 Claude Code 가 **외부 import 승인**을 1회 묻는다. 승인해야 persona 가 로드된다 — 사용자에게 반드시 안내할 것.
 6. 결과 진단 리포트 출력

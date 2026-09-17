@@ -120,6 +120,19 @@ class InjectPointerTests(unittest.TestCase):
                 local = (proj / "CLAUDE.local.md").read_text(encoding="utf-8")
                 self.assertIn(pi.PERSONA_MARKER_START, local)  # 쓰는 marker 는 표준형
 
+    def test_existing_backup_is_never_overwritten(self) -> None:
+        """기존 ``.lskun.bak`` 은 사용자 원본의 유일한 사본일 수 있다."""
+        (self.proj / "CLAUDE.md").write_text("# 지침\n", encoding="utf-8")
+        _inline(self.proj)
+        precious = self.proj / "CLAUDE.md.lskun.bak"
+        precious.write_text("PRECIOUS USER BACKUP", encoding="utf-8")
+
+        res = pi.inject_pointer(self.proj, "LSKun", "자비스")
+
+        self.assertEqual(precious.read_text(encoding="utf-8"), "PRECIOUS USER BACKUP")
+        self.assertEqual(res.backup_path.name, "CLAUDE.md.lskun.bak.1")
+        self.assertIn("LSKUN-CPO", res.backup_path.read_text(encoding="utf-8"))
+
     def test_invalid_company_name_rejected(self) -> None:
         """import 경로에 들어가는 값 — 경로 조작 문자 차단."""
         for bad in ("../evil", "a/b", "", "x\ny"):
@@ -161,6 +174,28 @@ class GitExcludeTests(unittest.TestCase):
         pi.inject_pointer(self.proj, "LSKun", "자비스")
         exclude = (self.proj / ".git" / "info" / "exclude").read_text(encoding="utf-8")
         self.assertEqual(exclude.count("CLAUDE.local.md"), 1)
+
+    def test_parent_repo_exclude_is_never_touched(self) -> None:
+        """프로젝트가 상위 저장소의 하위 디렉토리 — 상위 (dotfiles·남의 monorepo) 설정 비접촉."""
+        sub = self.proj / "apps" / "mine"
+        sub.mkdir(parents=True)
+        exclude = self.proj / ".git" / "info" / "exclude"
+        before = exclude.read_text(encoding="utf-8") if exclude.exists() else None
+
+        res = pi.inject_pointer(sub, "LSKun", "자비스")
+
+        self.assertFalse(res.git_excluded)
+        self.assertTrue(any("상위 저장소" in n for n in res.notes))
+        after = exclude.read_text(encoding="utf-8") if exclude.exists() else None
+        self.assertEqual(before, after)
+        self.assertTrue((sub / "CLAUDE.local.md").exists())
+
+    def test_numbered_backups_are_excluded_too(self) -> None:
+        (self.proj / "CLAUDE.md").write_text("# 지침\n", encoding="utf-8")
+        _inline(self.proj)
+        (self.proj / "CLAUDE.md.lskun.bak").write_text("old", encoding="utf-8")
+        pi.inject_pointer(self.proj, "LSKun", "자비스")
+        self.assertNotIn(".lskun.bak", self._status())
 
     def test_non_repo_skips_exclude(self) -> None:
         with tempfile.TemporaryDirectory() as plain:

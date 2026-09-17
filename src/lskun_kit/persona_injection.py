@@ -420,7 +420,7 @@ def inject_pointer(
         tracked = tracked_path.read_text(encoding="utf-8")
         span = find_marker_span(tracked)
         if span is not None:
-            backup_path = tracked_path.with_suffix(tracked_path.suffix + BACKUP_SUFFIX)
+            backup_path = _unique_backup_path(tracked_path)
             backup_path.write_text(tracked, encoding="utf-8")
             remainder = (tracked[: span[0]].rstrip("\n") + "\n" + tracked[span[1]:].lstrip("\n")).strip("\n")
             if remainder.strip():
@@ -433,8 +433,9 @@ def inject_pointer(
                 action = "updated"
 
     # 3. git 제외.
+    # 백업은 충돌 시 ``.lskun.bak.1`` 처럼 번호가 붙는다 — 패턴 끝의 ``*`` 가 전부 덮는다.
     excluded, note = _ensure_git_excluded(
-        root, (CLAUDE_LOCAL_MD_FILENAME, CLAUDE_MD_FILENAME + BACKUP_SUFFIX)
+        root, (CLAUDE_LOCAL_MD_FILENAME, CLAUDE_MD_FILENAME + BACKUP_SUFFIX + "*")
     )
     return PointerResult(
         local_md_path=local_path,
@@ -447,32 +448,50 @@ def inject_pointer(
     )
 
 
+def _unique_backup_path(path: Path) -> Path:
+    """``<path>.lskun.bak`` — 이미 있으면 ``.1``, ``.2`` … 를 붙인다.
+
+    기존 백업을 **절대 덮어쓰지 않는다.** 앞선 전환 시도나 P34 의 손편집 감지가 남긴
+    백업은 사용자 원본의 유일한 사본일 수 있다.
+    """
+
+    base = path.with_suffix(path.suffix + BACKUP_SUFFIX)
+    if not base.exists():
+        return base
+    n = 1
+    while True:
+        candidate = base.with_name(f"{base.name}.{n}")
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
 def _ensure_git_excluded(project_root: Path, names: tuple[str, ...]) -> tuple[bool, str]:
     """``<repo>/.git/info/exclude`` 에 ``names`` 를 기록 (ADR-0029 D3).
 
     추적되는 ``.gitignore`` 를 건드리지 않는다 — 외주·협업 저장소에 diff 가 생기지 않는다.
-    저장소 root 는 ``project_root`` 에서 위로 올라가며 찾는다. 패턴은 슬래시 없이 적어
-    저장소 안 어느 깊이에서나 매치된다.
+
+    **``project_root`` 자신의 ``.git`` 만 대상이다. 상위로 올라가지 않는다.** 상위에는
+    프로젝트와 무관한 저장소 (홈의 dotfiles 저장소, 다른 팀의 monorepo) 가 있을 수 있고,
+    plugin 이 그 설정을 고쳐서는 안 된다. 프로젝트가 저장소의 하위 디렉토리면 건너뛰고 안내한다.
 
     Returns:
         (기록 보장 여부, 건너뛴 경우의 안내문).
     """
 
-    cur = project_root.resolve()
-    git_dir: Path | None = None
-    while True:
-        candidate = cur / ".git"
-        if candidate.is_dir():
-            git_dir = candidate
-            break
-        if candidate.is_file():
+    git_dir = project_root / ".git"
+    if git_dir.is_file():
+        return False, (
+            ".git 이 파일이다 (worktree / submodule) — exclude 를 기록하지 않았다. "
+            f"{', '.join(names)} 를 직접 ignore 하라."
+        )
+    if not git_dir.is_dir():
+        if _inside_some_git_repo(project_root):
             return False, (
-                ".git 이 파일이다 (worktree / submodule) — exclude 를 기록하지 않았다. "
-                f"{', '.join(names)} 를 직접 ignore 하라."
+                "이 프로젝트는 상위 저장소의 하위 디렉토리다 — 상위 저장소의 설정은 건드리지 않는다. "
+                f"{', '.join(names)} 를 직접 ignore 하라 (그 저장소의 .git/info/exclude 권장)."
             )
-        if cur.parent == cur:
-            return False, ""  # git 저장소 아님 — 할 일 없음
-        cur = cur.parent
+        return False, ""  # git 저장소 아님 — 할 일 없음
 
     exclude = git_dir / "info" / "exclude"
     try:
@@ -489,6 +508,17 @@ def _ensure_git_excluded(project_root: Path, names: tuple[str, ...]) -> tuple[bo
     except OSError as e:
         return False, f".git/info/exclude 기록 실패 ({e}) — {', '.join(names)} 를 직접 ignore 하라."
     return True, ""
+
+
+def _inside_some_git_repo(path: Path) -> bool:
+    """상위 어딘가에 ``.git`` 이 있는가 — 안내문 분기용. **읽기만 한다.**"""
+
+    cur = path.resolve()
+    while cur.parent != cur:
+        cur = cur.parent
+        if (cur / ".git").exists():
+            return True
+    return False
 
 
 __all__ = [
