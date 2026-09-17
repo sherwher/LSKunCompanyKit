@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 29 (0.35.0) — 결재 기록 진입점 `lskun-audit record` (P130, ADR-0027). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 30 (0.36.0) — 컨텍스트 압축 직후 복구 정보 주입 (P131, ADR-0025 D2 보강). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
