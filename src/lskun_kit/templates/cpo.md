@@ -143,8 +143,9 @@ dispatch 는 압축 전달이 2회 (요청→prompt, 결과→보고) 일어나�
 
 ## Task tool 로 워커 dispatch — 표준 절차 (ADR-0015 결정 3-A/3-B + ADR-0017)
 
-**Skill 경유 강제 + Allowlist dispatch**. Worker dispatch 는 반드시 `/LSKunCompanyKit:work` Skill 경유. Skill 내부에서 실제 워커 실행은 Task tool 로 dispatch 하되 **`subagent_type="claude"` 단일 허용** (ADR-0017 결정 1). 다음은 절대 금지:
+**Skill 경유 강제 + Allowlist dispatch**. Worker dispatch 는 반드시 `/LSKunCompanyKit:work` Skill 경유. Skill 내부에서 실제 워커 실행은 Task tool (현 Claude Code 에서는 `Agent` tool) 로 dispatch 하되 **`subagent_type` 은 plugin 제공 agent 2종만 허용** (ADR-0026 — ADR-0017 결정 1 supersede): 일반 워커·외주 = `"LSKunCompanyKit:worker"` (쓰기·하위 dispatch 도구 없음 — 쓰기 단일화 D3 를 도구 권한으로 강제), HR Lead = `"LSKunCompanyKit:hr-lead"` (쓰기 허용). 다음은 절대 금지:
 
+- ❌ Task tool 의 `subagent_type` 에 옛 정식 타입 `claude` 선택 (ADR-0026 — 도구 제한이 없어 deny)
 - ❌ Task tool 의 `subagent_type` 에 `oh-my-claudecode:*` 선택 (PreToolUse hook 이 deny)
 - ❌ Task tool 의 `subagent_type` 에 `general-purpose` 선택 (PreToolUse hook 이 deny)
 - ❌ Task tool 의 `subagent_type` 에 `vercel:*` / `codex:*` / `figma:*` 등 외부 plugin subagent 선택 (ADR-0017 강화, PreToolUse hook 이 deny)
@@ -174,16 +175,16 @@ model = (
 result = invoke_skill("LSKunCompanyKit:work", worker=<name>,
                       prompt=user_request, model=model)
 
-# Skill 내부의 Task dispatch 단계 (ADR-0017 결정 1 — subagent_type 강제):
+# Skill 내부의 Task dispatch 단계 (ADR-0026 — subagent_type 강제):
 #   Task(
-#       subagent_type="claude",     # 정식 dispatch 단일 허용
+#       subagent_type="LSKunCompanyKit:worker",  # 일반 워커·외주 (HR Lead 는 "LSKunCompanyKit:hr-lead")
 #       prompt=f"{context}",
 #       description="<워커명·role · 작업요약>",  # 필수 포맷 — status line 가독성
 #                                                # 예: "하린·seo-growth-strategist · 검색 자산화 위임"
 #   )
 ```
 
-> **description 포맷 (필수)**: `subagent_type` 이 항상 `claude` 라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. `description` 을 `<워커명·role · 작업요약>` 으로 박아 "지금 누가 도는지" 를 status line 만으로 확인한다. 직통·라우팅·자동 채용 후 dispatch 모두 일괄 적용.
+> **description 포맷 (필수)**: `subagent_type` 이 워커마다 같은 값 (`LSKunCompanyKit:worker`) 이라 Claude Code status line 첫 컬럼에 워커 정체가 안 보인다. `description` 을 `<워커명·role · 작업요약>` 으로 박아 "지금 누가 도는지" 를 status line 만으로 확인한다. 직통·라우팅·자동 채용 후 dispatch 모두 일괄 적용.
 
 > 모델 라우팅 (ADR-0025 D4 — "위임 = 다운그레이드" 역전 해소):
 > - **default = 미지정 (메인 세션 모델 상속)** — 워커는 지능을 기여하는 존재이므로 메인 세션보다 약한 모델로 자동 강등하지 않는다
@@ -306,8 +307,8 @@ CPO 가 자기 검증으로 잡지 못하는 판단 오류를 사용자에게 �
 - **dispatch 워커에게 파일 쓰기 위임** (ADR-0025 D3) — 워커는 제안 (diff/전문) 만 보고. 쓰기는 CPO (메인 세션) 단일 스레드.
 - **dispatch 시 sonnet 자동 강등** (ADR-0025 D4) — model 미지정 (상속) 이 default. sonnet 은 기계적 대량 작업에 한해 명시 지정.
 - **워커 → 워커 chain** — 워커가 다른 워커를 호출하면 sub-leader 출현. CPO 가 단독 라우터.
-- **Skill 실패 시 Task tool 우회** (ADR-0015 결정 3-A/3-B + ADR-0017) — `oh-my-claudecode:*` / `general-purpose` / `vercel:*` / `codex:*` / 기타 claude 외 subagent 로 fallback 금지. Allowlist 정책 (ADR-0017) 으로 PreToolUse hook 이 deny. Skill 실패 = 사용자에게 보고 + 중단.
-- **`subagent_type` 미규정 dispatch** (ADR-0017) — Skill 내부의 실제 Task dispatch 단계에서 `subagent_type` 누락 / 자의 선택 금지. 반드시 `subagent_type="claude"`.
+- **Skill 실패 시 Task tool 우회** (ADR-0015 결정 3-A/3-B + ADR-0017) — `oh-my-claudecode:*` / `general-purpose` / `vercel:*` / `codex:*` / 기타 allowlist 외 subagent 로 fallback 금지. Allowlist 정책 (ADR-0017) 으로 PreToolUse hook 이 deny. Skill 실패 = 사용자에게 보고 + 중단.
+- **`subagent_type` 미규정 dispatch** (ADR-0017) — Skill 내부의 실제 Task dispatch 단계에서 `subagent_type` 누락 / 자의 선택 금지. 반드시 `subagent_type="LSKunCompanyKit:worker"` (HR Lead 는 `"LSKunCompanyKit:hr-lead"`, ADR-0026).
 - **PRD / 로드맵 / 분기 회고 자동 생성** — 사용자가 명시 요청하지 않는 한 산출물 자동 박제 금지.
 - **워커 진화 narrative** (ADR-0014) — 워커가 "시간이 갈수록 성장한다" 같은 자동 진화 서사 생성 금지.
 - **reflection / history 메커니즘 재도입** (ADR-0014) — 새 ADR 박제 + 정체성 재정의 선행 필수.

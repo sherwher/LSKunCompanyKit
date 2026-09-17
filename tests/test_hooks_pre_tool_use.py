@@ -273,15 +273,37 @@ class AllowlistAdr0017NewTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    # N1. claude 정식 dispatch → allow
-    def test_claude_subagent_allowed(self) -> None:
+    # N1. ADR-0026 D3 — 정식 dispatch 는 plugin 제공 agent 2종만 allow
+    def test_worker_agent_allowed(self) -> None:
         out = _run(
-            _task_payload("claude"),
+            _task_payload("LSKunCompanyKit:worker"),
             self.env_with_marker,
         )
         self.assertEqual(
             out["hookSpecificOutput"]["permissionDecision"], "allow"
         )
+
+    def test_hr_lead_agent_allowed(self) -> None:
+        out = _run(
+            _task_payload("LSKunCompanyKit:hr-lead"),
+            self.env_with_marker,
+        )
+        self.assertEqual(
+            out["hookSpecificOutput"]["permissionDecision"], "allow"
+        )
+
+    # N1b. ADR-0026 D3 — 옛 `claude` 타입은 유예 없이 deny, 사유가 새 이름을 안내
+    def test_legacy_claude_subagent_denied_with_guidance(self) -> None:
+        out = _run(
+            _task_payload("claude"),
+            self.env_with_marker,
+        )
+        decision = out["hookSpecificOutput"]["permissionDecision"]
+        reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertEqual(decision, "deny")
+        self.assertIn("ADR-0026", reason)
+        self.assertIn("LSKunCompanyKit:worker", reason)
+        self.assertIn("LSKunCompanyKit:hr-lead", reason)
 
     # N2. subagent_type 미지정 / null → allow (일반 Task)
     def test_null_subagent_allowed(self) -> None:
@@ -360,16 +382,16 @@ class AllowlistAdr0017NewTests(unittest.TestCase):
             out["hookSpecificOutput"]["permissionDecisionReason"],
         )
 
-    # N8. chain + allowlist 동시 — claude 인 경우에도 chain 우선
-    def test_chain_takes_precedence_even_with_claude(self) -> None:
+    # N8. chain + allowlist 동시 — allowlist 통과 타입이어도 chain 우선
+    def test_chain_takes_precedence_even_with_allowed_type(self) -> None:
         session.start(self.root, "alice")
         out = _run(
-            _task_payload("claude"),
+            _task_payload("LSKunCompanyKit:worker"),
             self.env_with_marker,
         )
         decision = out["hookSpecificOutput"]["permissionDecision"]
         reason = out["hookSpecificOutput"]["permissionDecisionReason"]
-        # claude 는 allowlist 통과지만, chain 검사가 먼저 deny.
+        # worker agent 는 allowlist 통과지만, chain 검사가 먼저 deny.
         self.assertEqual(decision, "deny")
         self.assertIn("ADR-0004", reason)
         self.assertIn("alice", reason)
@@ -404,19 +426,66 @@ class AgentToolNameTests(unittest.TestCase):
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIn("ADR-0017", out["hookSpecificOutput"]["permissionDecisionReason"])
 
-    def test_agent_tool_claude_allowed(self) -> None:
-        out = _run(self._agent_payload("claude"), self.env)
+    def test_agent_tool_worker_allowed(self) -> None:
+        out = _run(self._agent_payload("LSKunCompanyKit:worker"), self.env)
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
 
     def test_agent_tool_chain_denied(self) -> None:
         session.start(self.root, "alice")
-        out = _run(self._agent_payload("claude"), self.env)
+        out = _run(self._agent_payload("LSKunCompanyKit:worker"), self.env)
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIn("ADR-0004", out["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_legacy_task_name_still_enforced(self) -> None:
         out = _run(_task_payload("Explore"), self.env)
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
+
+
+class SubagentOriginChainTests(unittest.TestCase):
+    """ADR-0026 D4 — payload 에 ``agent_id`` 가 있으면 subagent 내부에서 나온 호출.
+
+    세션 파일이 없어도 (= CPO 라우팅 dispatch 경로) 워커 → 워커 chain 을 잡는다.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "hired").mkdir(parents=True)
+        self.env = {"LSKUN_SSOT_ROOT": str(self.root)}
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _payload(subagent_type: str, agent_id: str | None) -> str:
+        data: dict[str, object] = {
+            "tool_name": "Agent",
+            "tool_input": {"subagent_type": subagent_type},
+        }
+        if agent_id is not None:
+            data["agent_id"] = agent_id
+            data["agent_type"] = "LSKunCompanyKit:worker"
+        return json.dumps(data)
+
+    def test_dispatch_from_subagent_denied(self) -> None:
+        out = _run(self._payload("LSKunCompanyKit:worker", "agent-abc"), self.env)
+        decision = out["hookSpecificOutput"]["permissionDecision"]
+        reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertEqual(decision, "deny")
+        self.assertIn("ADR-0004", reason)
+
+    def test_dispatch_from_main_session_allowed(self) -> None:
+        out = _run(self._payload("LSKunCompanyKit:worker", None), self.env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
+
+    def test_chain_bypass_env_allows_subagent_origin(self) -> None:
+        env = dict(self.env, LSKUN_ALLOW_WORKER_CHAIN="1")
+        out = _run(self._payload("LSKunCompanyKit:worker", "agent-abc"), env)
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
+
+    def test_no_company_marker_not_enforced(self) -> None:
+        out = _run(self._payload("general-purpose", "agent-abc"), {})
+        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "allow")
 
 
 if __name__ == "__main__":

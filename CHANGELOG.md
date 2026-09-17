@@ -5,6 +5,27 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.34.0] — 2026-09-17
+
+### Changed — Worker Agent: 도구 권한으로 쓰기 단일화·chain 금지 강제 (ADR-0026, P129)
+
+ADR-0025 는 "dispatch 워커는 read-only 기여" (D3) 를 persona 지시로만 두고, 도구 수준 강제는 "Task tool 하위 도구 제어 불가 — 구현 불가" 로 비채택했다. Claude Code v2.1.274 실측으로 전제가 바뀌었음을 확인하고 공식 메커니즘으로 강제한다. spec: `docs/p129-worker-agent.md`.
+
+- **D1 `agents/worker.md`**: `disallowedTools: Write, Edit, NotebookEdit, Agent`, `model: inherit`. 일반 워커·외주 dispatch 전용. JD 는 계속 dispatch prompt 로 전달 (agent 본문에 persona 복제 없음).
+- **D2 `agents/hr-lead.md`**: `disallowedTools: Agent` 만. 채용 파일·skill 파일 작성을 위해 쓰기 유지.
+- **D3 allowlist 교체 (ADR-0017 결정 1 supersede)**: `{claude}` → `{LSKunCompanyKit:worker, LSKunCompanyKit:hr-lead}`. 옛 `claude` 타입은 유예 없이 deny — deny 사유가 새 타입을 안내하므로 persona 미sync 회사도 다음 시도에 통과한다.
+- **D4 chain 차단 이중화 (ADR-0004 §8)**: agent 정의에서 `Agent` 도구 제거 + hook 이 payload `agent_id` (subagent 내부 호출에만 실림) 로 chain 판정. 세션 파일이 없는 CPO 라우팅 dispatch 경로의 chain 도 잡는다.
+- **D5** 외주 (레드팀·고객) dispatch 도 worker agent. **D6** doctor [38] plugin agent 등록 점검 (36개 항목), forbidden 6항 추가.
+- 실제 세션 검증 (수정본 `--plugin-dir` 로드): `claude` deny + 안내 / worker agent 의 도구 목록에 Write·Agent 없음, 파일 미생성 / hr-lead agent 는 Write 성공, Agent 없음. 469 → 490 tests.
+
+**알려진 한계**: Bash 경유 쓰기는 막지 못한다 (Bash 제거 시 테스트 실행·탐색 불가 — persona + 결재 R2 가 담당). `subagent_type` 미지정 호출은 ADR-0017 결정대로 계속 allow.
+
+### 기존 회사 마이그레이션
+
+1. plugin update → 0.34.0, **세션 재시작 또는 `/reload-plugins`** (agents/ 는 live reload 대상 아님)
+2. `/lskun-kit:sync-persona --execute` — CPO / HR Lead persona 의 dispatch 타입 안내 갱신 + CLAUDE.md marker 재박제
+3. 일반 워커 JD 변경 불필요
+
 ## [0.33.1] — 2026-09-17
 
 ### Fixed — chain 차단 · dispatch allowlist · 외주 push 가 작동하지 않던 결함 (P128)

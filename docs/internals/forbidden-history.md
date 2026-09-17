@@ -106,6 +106,15 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0026 신규 금지 (Worker Agent, P129)
+
+- **dispatch 워커에 쓰기 가능 agent 타입 부여** — ADR-0026 D1. 일반 워커·외주 dispatch 는 `LSKunCompanyKit:worker` (`disallowedTools: Write, Edit, NotebookEdit, Agent`) 만. 쓰기 단일화 (ADR-0025 D3) 를 프롬프트가 아닌 도구 권한으로 강제한다.
+- **allowlist 에 `claude` 재허용 / 유예 기간 도입** — ADR-0026 D3. 도구 제한 없는 타입이 하나라도 allowlist 에 남으면 제한 전체가 무의미하다. deny 사유가 새 타입을 안내하므로 유예가 필요 없다.
+- **plugin agent 정의에 persona (JD) 복제** — ADR-0026 D1 + ADR-0014. JD 진실원은 `hired/<name>.md`, 전달 경로는 dispatch prompt. agent 본문은 역할 경계만.
+- **채용 시 워커별 agent 파일 동적 생성** — ADR-0026 비채택. 사용자 SSOT 와 plugin 배포물 혼합 (ADR-0015 위반) + reload 필요. 고정 agent 2종 유지.
+- **plugin agent 에 `memory:` 필드** — ADR-0014 정면 저촉 (세션 간 학습).
+- **worker agent 에서 `Bash` 제거 / `tools:` allowlist 전환** — ADR-0026 비채택. 테스트 실행·탐색·MCP·WebFetch 등 정당한 기여 경로를 막는다. Bash 경유 쓰기는 알려진 한계로 persona + 결재 R2 가 담당.
+
 ### ADR-0025 신규 금지 (Delegation Gate, P126)
 
 - **판정 게이트 없는 무조건 dispatch** — ADR-0025 (P126). 워커 매칭 ≠ dispatch 확정. dispatch 는 ①컨텍스트 보호 ②병렬 탐색 ③독립 검증 중 하나 충족 시에만. 미충족 = 빙의 (CPO 가 JD 주입받아 직접 수행). 근거: role 중심 분해는 안티패턴 (Anthropic·MAST·Cognition 외부 증거, ADR-0025 §배경).

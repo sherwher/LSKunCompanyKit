@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 28 (P129 — Worker Agent: 도구 권한으로 쓰기 단일화·chain 금지 강제, ADR-0026, 0.34.0)
+
+- **Phase 28 (0.34.0)** — ADR-0025 가 "구현 불가" 로 비채택했던 워커 read-only 강제를 Claude Code 공식 기능 (plugin `agents/` + `disallowedTools`) 실측 후 도입 (ADR-0026): D1 `agents/worker.md` (Write·Edit·NotebookEdit·Agent 제거, model inherit) + D2 `agents/hr-lead.md` (Agent 만 제거, 쓰기 허용) + D3 allowlist 교체 (`claude` → plugin agent 2종, `claude` 유예 없이 deny — deny 사유가 새 타입 안내) + D4 chain 차단 이중화 (도구 제거 + payload `agent_id` 판정) + D5 외주도 worker agent + D6 doctor [38]. 선행 hotfix P128 (0.33.1) — dispatch tool 이름 `Task` → `Agent` 변경으로 죽어 있던 chain 차단·allowlist·외주 push 복구. spec: `docs/p129-worker-agent.md`. 기존 회사는 plugin update + reload 후 `/sync-persona --execute`.
+
 ### Phase 27 (P127 — 실행 품질 규격화: 브리프·보고·검증 접점, ADR-0025/0024 보강, 0.33.0)
 
 - **Phase 27 (0.33.0)** — 외부 생태계 (superpowers · Anthropic 멀티에이전트 연구 · CrewAI) 와 Claude Code 공식 기능 조사 결과, 새 메커니즘 추가보다 기존 접점 규격화가 효과적이라는 결론으로 4항 보강 (새 ADR 없음): Handoff Brief 2필드 추가 (기대 출력 형식 / 도구·소스 가이드) + 빙의 경로 증거 게이트 (새 검증 증거 없이 완료 주장 금지, 결재 루프를 빙의 건까지 확장) + 워커 보고 상태코드 4종 (`DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED`) 과 CPO 분기 고정 + 규모 스케일링 (①1명 / ②상한 4 / ③verifier 1명). spec: `docs/p127-execution-quality.md`. 기존 회사는 `/sync-persona --execute` 로 전파.

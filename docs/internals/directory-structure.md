@@ -9,6 +9,7 @@ LSKunCompanyKit/
 ├── .claude-plugin/
 │   ├── plugin.json           # version SSOT (ADR-0012) — 0.21.1
 │   └── marketplace.json      # version 필드 없음 — plugin.json 으로 fallback
+├── agents/                    # dispatch 전용 agent 2종 — worker (쓰기·하위 dispatch 도구 없음) / hr-lead (ADR-0026)
 ├── hooks/
 │   └── hooks.json            # SessionStart + PreToolUse:Task (ADR-0014 — Stop/PostToolUse 제거. ADR-0016 — denylist (supersede). ADR-0017 — Allowlist 정책 전환)
 ├── commands/                  # 9개 slash command (ADR-0015 — /migrate 제거, /sync-in /sync-out 신규)
