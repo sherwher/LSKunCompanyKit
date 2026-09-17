@@ -25,6 +25,10 @@ from lskun_kit.init import run as init_run  # noqa: E402
 from lskun_kit.paths import company_root  # noqa: E402
 
 
+# stdin 을 패치하지 않는 테스트는 payload 가 오지 않는다 — 실환경용 대기 시간을 끈다.
+session_start.STDIN_WAIT_SECONDS = 0
+
+
 def _capture(func, env: dict[str, str], cwd: Path) -> tuple[int, str, str]:
     old_env = os.environ.copy()
     old_cwd = Path.cwd()
@@ -205,6 +209,61 @@ class SessionStartHookTests(unittest.TestCase):
                 rc, out, _ = _capture(session_start.main, env={}, cwd=Path(proj))
                 self.assertEqual(rc, 0)
                 self.assertEqual(out, "")
+
+
+class CompactRecoveryTests(unittest.TestCase):
+    """P131 — SessionStart 는 ``source=compact`` 에서도 발화한다.
+
+    압축 직후에는 빙의 중이던 워커 JD 와 진행 중 결재 맥락이 요약으로 뭉개진다.
+    hook 은 그 시점에만 복구용 동적 정보 (활성 워커 세션 + 재독 포인터) 를 덧붙인다.
+    """
+
+    def _ctx(self, proj: str, source: str | None) -> str:
+        stdin_text = json.dumps({"hook_event_name": "SessionStart", "source": source}) if source else ""
+        with mock.patch("sys.stdin", io.StringIO(stdin_text)):
+            rc, out, _ = _capture(session_start.main, env={}, cwd=Path(proj))
+        self.assertEqual(rc, 0)
+        return json.loads(out)["hookSpecificOutput"]["additionalContext"]
+
+    def test_compact_source_adds_recovery_block(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                ctx = self._ctx(proj, "compact")
+        self.assertIn("### 컨텍스트 압축 직후", ctx)
+        self.assertIn("hired/", ctx)
+        self.assertIn("활성 워커 세션: 없음", ctx)
+
+    def test_compact_reports_active_worker_session(self) -> None:
+        from lskun_kit import session
+
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                session.start(company_root("LSKun"), "hr-lead")
+                ctx = self._ctx(proj, "compact")
+        self.assertIn("활성 워커 세션: `hr-lead`", ctx)
+
+    def test_startup_source_has_no_recovery_block(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                for source in ("startup", "resume", "clear", None):
+                    self.assertNotIn("컨텍스트 압축 직후", self._ctx(proj, source))
+
+    def test_malformed_stdin_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_home, \
+             tempfile.TemporaryDirectory() as proj:
+            with _patched_home(fake_home):
+                init_run(Path(proj), company_name="LSKun", cpo_name="이세근", hr_name="김지혜")
+                with mock.patch("sys.stdin", io.StringIO("{not json")):
+                    rc, out, _ = _capture(session_start.main, env={}, cwd=Path(proj))
+        self.assertEqual(rc, 0)
+        self.assertNotIn("컨텍스트 압축 직후", out)
+        self.assertIn("LSKunCompanyKit", out)
 
 
 if __name__ == "__main__":  # pragma: no cover

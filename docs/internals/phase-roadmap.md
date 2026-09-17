@@ -5,6 +5,10 @@
 
 ## 8. 로드맵
 
+### Phase 30 (P131 — 컨텍스트 압축 직후 복구 정보, ADR-0025 D2 보강, 0.36.0)
+
+- **Phase 30 (0.36.0)** — 빙의 기본 경로에서는 워커 JD 가 메인 컨텍스트에 살고, 압축이 이를 요약으로 뭉갠다. SessionStart hook 이 `source=compact` 일 때만 복구 블록 (활성 워커 세션 · JD 원문 위치 · 결재 기록 확인 위치) 을 덧붙인다. 새 행동 규칙 없음 (동적 정보만), stdin 논블로킹 읽기. 새 ADR 없음.
+
 ### Phase 29 (P130 — 결재 기록 진입점 `lskun-audit record`, ADR-0027, 0.35.0)
 
 - **Phase 29 (0.35.0)** — 실사용 audit 288줄 관찰: 결재 기록이 월 141 → 62 → 35 → 1 로 감소, P126 이후 `embody:` 기록 0건, 일부 entry 는 schema 검증을 우회한 손기록 (`first_pass_score: null`). 원인 = 기록 절차의 마찰 (12필드 inline Python). ADR-0027: plugin `bin/lskun-audit` + `cli_audit.py` — 필수 입력 3개 (`--worker` `--verdict` `--reason`), company · domain · request_id · ts 자동 해소, `--embody` 접두 보장, schema 불변 (잔재 필드 기본값), 하위 명령 `record` 단일 (조회·집계 금지), 손기록 금지, doctor [39]. hook 자동화는 ADR-0006 §2 대로 미도입 (빙의 건은 hook 이 볼 수 없음). spec: `docs/p130-audit-record-entrypoint.md`.

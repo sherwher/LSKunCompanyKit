@@ -5,6 +5,17 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.36.0] — 2026-09-17
+
+### Added — 컨텍스트 압축 직후 복구 정보 (P131, ADR-0025 D2 보강)
+
+빙의가 기본 경로가 되면서 (ADR-0025 D2) 워커 JD 가 메인 세션 컨텍스트 안에 산다. 컨텍스트 압축은 그 JD 본문과 진행 중 결재 맥락을 요약으로 뭉갠다. SessionStart hook 은 이미 `source=compact` 에서도 발화해 회사 · hired 목록을 다시 주입하고 있었으나, 압축 시점에 필요한 정보는 빠져 있었다.
+
+- `session_start.py` 가 stdin payload 의 `source` 를 읽어, **`compact` 일 때만** `### 컨텍스트 압축 직후` 블록을 덧붙인다: 활성 워커 세션 (직통 경로), 워커 JD 원문 위치와 "빙의 중이었다면 다시 읽는다", 결재 기록 여부 확인 위치.
+- 새 행동 규칙을 만들지 않는다 — 현재 상태와 원문 위치만 알린다 (행동 지시는 CLAUDE.md 가 단일 SSOT 인 기존 원칙 유지). 새 ADR 없음.
+- stdin 은 논블로킹으로 읽는다 (`select`, 0.5초) — EOF 가 오지 않는 환경에서 hook 이 세션을 멈추지 않도록. `startup` / `resume` / `clear` / payload 부재 · 파손 시 기존 출력과 동일.
+- 508 → 512 tests. 실제 파이프 stdin 으로 `compact` / `startup` 두 경우 출력 확인.
+
 ## [0.35.0] — 2026-09-17
 
 ### Added — 결재 기록 진입점 `lskun-audit record` (ADR-0027, P130)

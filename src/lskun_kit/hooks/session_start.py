@@ -75,9 +75,47 @@ def _sanitize_inline(value: str, max_len: int = MAX_FIELD_LENGTH) -> str:
     return s
 
 
+SOURCE_COMPACT = "compact"
+STDIN_WAIT_SECONDS = 0.5
+
+
+def _read_stdin_nonblocking() -> str:
+    """stdin payload 를 블로킹 없이 읽는다.
+
+    Claude Code 는 payload 를 쓰고 stdin 을 닫지만, 수동 실행·테스트처럼 EOF 가
+    오지 않는 환경에서 ``read()`` 는 영원히 멈춘다. hook 은 세션을 막으면 안 되므로
+    읽을 데이터가 준비된 경우에만 읽는다.
+    """
+
+    import select
+
+    stream = sys.stdin
+    if stream is None:
+        return ""
+    try:
+        fd = stream.fileno()
+    except (AttributeError, OSError, ValueError):
+        return stream.read()  # fileno 없는 in-memory stream (테스트 mock)
+    if stream.isatty():
+        return ""
+    ready, _, _ = select.select([fd], [], [], STDIN_WAIT_SECONDS)
+    return stream.read() if ready else ""
+
+
+def _read_source() -> str:
+    """stdin payload 의 ``source`` (startup / resume / clear / compact). 실패 시 ""."""
+
+    try:
+        data = json.loads(_read_stdin_nonblocking() or "{}")
+    except Exception:  # noqa: BLE001 — hook 은 절대 세션을 막으면 안 됨
+        return ""
+    source = data.get("source") if isinstance(data, dict) else ""
+    return source if isinstance(source, str) else ""
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
-        context = _build_context()
+        context = _build_context(source=_read_source())
     except Exception as e:  # noqa: BLE001 — hook 은 절대 세션을 막으면 안 됨
         # 디버그용 stderr — Claude Code 는 stderr 를 사용자에게 직접 보여줌
         print(f"lskun-kit session_start: error {e!r}", file=sys.stderr)
@@ -97,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _build_context() -> str:
+def _build_context(source: str = "") -> str:
     company_root = _find_active_company_root()
     if company_root is None:
         return ""
@@ -145,7 +183,34 @@ def _build_context() -> str:
             " 동적 정보만 주입한다. 행동 지시는 CLAUDE.md 가 단일 SSOT.",
         ]
     )
+    if source == SOURCE_COMPACT:
+        lines.extend(_compact_recovery_lines(company_root))
     return "\n".join(lines) + "\n"
+
+
+def _compact_recovery_lines(company_root: Path) -> list[str]:
+    """P131 — 컨텍스트 압축 직후에만 덧붙는 복구용 동적 정보.
+
+    압축은 빙의 중이던 워커 JD 본문과 진행 중 결재 맥락을 요약으로 뭉갠다.
+    행동 규칙을 새로 만들지 않는다 — 현재 상태와, 원문이 어디 있는지만 알린다.
+    """
+
+    from lskun_kit import session  # 지연 import — hooks 의존성 격리
+
+    sess = session.read(company_root)
+    active = (
+        f"`{_sanitize_inline(sess.active_worker, max_len=80)}`" if sess is not None else "없음"
+    )
+    return [
+        "",
+        "### 컨텍스트 압축 직후",
+        "",
+        f"- 활성 워커 세션: {active}",
+        f"- 워커 JD 원문은 `{company_root}/hired/<name>.md` 에 있다. 압축 전에 어떤 워커로"
+        " 빙의 (embody) 해 작업 중이었다면, 요약된 기억으로 이어가지 말고 그 파일을 다시 읽는다.",
+        "- 압축 전에 끝낸 작업의 결재 기록 (`lskun-audit record`) 여부가 불확실하면"
+        f" `{company_root}/.audit/decisions.jsonl` 마지막 줄로 확인한다.",
+    ]
 
 
 def _find_active_company_root() -> Path | None:
