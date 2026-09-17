@@ -5,6 +5,27 @@
 
 본 changelog 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르며, 버전 관리는 [SemVer](https://semver.org/lang/ko/) 를 지향한다 (0.x 동안은 minor 단위 breaking 가능).
 
+## [0.35.0] — 2026-09-17
+
+### Added — 결재 기록 진입점 `lskun-audit record` (ADR-0027, P130)
+
+실사용 audit 을 관찰하니 결재 기록이 월 141 → 62 → 35 → 1 건으로 줄었고, 빙의가 기본 경로가 된 P126 이후 `embody:` 기록은 0건이었다. 일부 entry 는 schema 검증을 우회해 손으로 쓴 흔적 (`first_pass_score: null`) 이었다. 원인은 기록 절차의 마찰 — persona 가 지시하던 방법이 12필드 inline Python 이었다. spec: `docs/p130-audit-record-entrypoint.md`.
+
+- **`bin/lskun-audit`** (plugin 공식 구성요소 — Bash PATH 에 추가) + `src/lskun_kit/cli_audit.py`. 필수 입력 3개: `--worker` `--verdict` `--reason`. company · domain · request_id · ts 는 자동 해소.
+- **`--embody`**: 빙의 건의 reason 에 `embody:` 접두를 보장 (ADR-0025 D2 규약을 문자열로 기억할 필요 제거).
+- **schema 불변** (ADR-0006 §4): 폐기된 점수 체계의 잔재 필드는 기본값으로 채운다. 검증은 기존 `AuditEntry` 그대로 — 없는 워커 · 잘못된 verdict · 빈 reason 은 파일 변경 없이 거부.
+- **CPO persona** §결재 3단계를 진입점 1줄로 교체 (dispatch · 빙의 예시 병기). `decisions.jsonl` 손기록 금지 박제.
+- 하위 명령은 `record` 단일 — 조회 · 집계 하위 명령 없음 (ADR-0006). doctor [39] (37개 항목), forbidden 5항 추가.
+- 실제 세션 검증: 수정본 `--plugin-dir` 로드 후 `lskun-audit record … --embody` 가 이름만으로 실행되어 1줄 append. 490 → 508 tests.
+
+**hook 으로 강제하지 않는다** — hook 은 빙의 건을 볼 수 없고, ADR-0006 §2 가 hook 자동화를 배제한다. 진입점은 마찰을 줄일 뿐이며, 효과는 배포 후 `embody:` 기록이 다시 나타나는지로 사람이 확인한다.
+
+### 기존 회사 마이그레이션
+
+1. plugin update → 0.35.0, 세션 재시작 또는 `/reload-plugins`
+2. `/lskun-kit:sync-persona --execute` — CPO persona 의 결재 절차 갱신
+3. 첫 실행 시 Bash 권한 확인이 1회 뜰 수 있다 (`lskun-audit` 허용). 기존 `decisions.jsonl` 은 변경 없음
+
 ## [0.34.0] — 2026-09-17
 
 ### Changed — Worker Agent: 도구 권한으로 쓰기 단일화·chain 금지 강제 (ADR-0026, P129)

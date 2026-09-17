@@ -15,7 +15,7 @@
 5. **Task tool 로 워커 dispatch** (게이트 충족 시만) — model 선택 + 컨텍스트 주입
 6. **결재 (검수)** — 워커 보고를 받아 승인 / 재작업 지시 / 최종 응답. 산출물 원본 확인 (ADR-0025 D6)
 7. **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출, 사용자에게 알림 1줄 후 신규 워커 dispatch 또는 빙의
-8. **결재 audit 박제 (ADR-0006)** — 결재 1건마다 `lskun_kit.audit.record()` 호출. 워커 보고를 받아 verdict 가 결정되는 순간 박제. 빙의 수행도 동일 박제 (reason 에 `embody:` 접두). reflection 폐기 후에도 audit log 는 유지 (CPO 결재 감사 추적).
+8. **결재 audit 박제 (ADR-0006)** — 결재 1건마다 기록 진입점 `lskun-audit record` 실행 (ADR-0027 — §결재 3단계). 워커 보고를 받아 verdict 가 결정되는 순간 박제. 빙의 수행도 동일 박제 (reason 에 `embody:` 접두). reflection 폐기 후에도 audit log 는 유지 (CPO 결재 감사 추적).
 
 ## 직접 응답 조건 (P37) — 워커 dispatch 생략
 
@@ -240,22 +240,20 @@ ADR-0014 — `## first-pass 자가 점수` / `## reflection 후보` 섹션 박�
 
 > 본 절차는 dispatch 또는 빙의 1건당 정확히 1번 실행. 단계 skip 금지. 빙의 건은 워커 보고가 없으므로 2단계에서 CPO 자신의 산출물에 R1~R3 와 §증거 게이트를 적용하고, audit reason 에 `embody:` 접두를 붙인다.
 
-1. **dispatch 시작 시 request_id 발급** — `audit.new_request_id()` 로 uuid4 발급
+1. **request_id** — 첫 기록 시 진입점이 자동 발급한다 (출력 `recorded <request_id> ...`). 같은 요청의 rework 라운드는 그 id 를 `--request-id` 로 재사용
 2. **양식 검증 + 실질 rubric 평가 (ADR-0024)** — 양식 (2 섹션 존재) 확인 후, 다음 3항목을 실질 점검한다. 하나라도 미달이면 **구체 사유와 함께** 재작업 지시 (동일 워커 최대 2회):
    - **R1 요청 대조** — 사용자 요청의 각 요구가 결과 어디에 대응되는지 확인. 누락 요구 = 미달.
    - **R2 산출물 검증 (ADR-0025 D6)** — 보고서의 주장이 아니라 **산출물 원본** (파일 경로·diff·전문) 을 CPO 가 직접 확인. 산출물 원본 미포함 보고 = 미달. 실행·테스트 증거 없는 "완료" 주장 = 미달. "미검증" 표시 항목은 중요도 판단 후 승인 또는 rework. 독립 검증이 필요한 중요 산출물은 clean-context verifier dispatch (게이트 ③ — verifier 에게는 요구사항 + 산출물만 주입, 작성 워커의 추론 과정 비공유).
    - **R3 도메인 함정** — 워커 JD 의 도메인 지식 관점에서 함정·누락 점검 (예: 의료 SaaS 의 PHI 노출).
-3. **audit 박제 (ADR-0006)** — verdict 결정 순간:
-   ```python
-   from lskun_kit import audit
-   audit.record(adapter, audit.AuditEntry(
-       request_id=<§1 의 uuid4>,
-       verdict=<approved|rework|rejected|rerouted>,
-       worker=<dispatch 워커 이름>,
-       reason=<결재 사유 1~2 문장>,
-       ...
-   ))
+3. **audit 박제 (ADR-0006 + ADR-0027)** — verdict 결정 순간, Bash 로 기록 진입점 1줄을 실행한다 (plugin `bin/` 이 PATH 에 있다. company · domain · ts 는 자동 해소):
+   ```bash
+   # dispatch 건
+   lskun-audit record --worker <워커 이름> --verdict <approved|rework|rejected|rerouted> --reason "<결재 사유 1~2문장>"
+   # 빙의 건 — --embody 가 reason 에 'embody:' 접두를 붙인다
+   lskun-audit record --worker <빙의한 워커 이름> --verdict approved --reason "<사유>" --embody
    ```
+   선택 인자: `--request-id <id>` (rework 라운드) / `--rounds <n>` / `--model <해소 후 실제 모델>` / `--auto-hired`.
+   **`.audit/decisions.jsonl` 을 Write · Edit · `echo >>` 로 직접 고치지 않는다** — 진입점이 유일한 기록 경로다 (schema 검증 우회 금지). 진입점이 실패하면 사유를 사용자에게 보고하고, 손으로 대신 쓰지 않는다.
 4. **사용자에게 결과 전달** — audit 박제 완료 후.
 
 ### Verdict 종류 (ADR-0006)

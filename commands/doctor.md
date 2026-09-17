@@ -11,7 +11,7 @@ LSKunCompanyKit 의 실행 환경을 진단한다. **읽기 전용** — 파일�
 
 ---
 
-## 진단 항목 (36개)
+## 진단 항목 (37개)
 
 순서대로 점검 후 ✅ / ⚠️ / ❌ 표기.
 
@@ -320,6 +320,18 @@ dispatch allowlist 가 plugin 제공 agent 2종을 가리키므로, agent 파일
 - 두 파일 모두 `model: inherit` — 아니면 **⚠️** `"dispatch 모델 자동 강등 위험 (ADR-0025 D4)"`
 - 전부 정합 → ✅
 
+### 39. 결재 기록 진입점 (ADR-0027)
+
+CPO persona 가 결재 기록을 `lskun-audit record` 단일 경로로 수행하므로, 실행 파일이 없거나
+실행 권한이 빠지면 결재 기록 전체가 멈춘다.
+
+- `${CLAUDE_PLUGIN_ROOT}/bin/lskun-audit` 존재 확인 — 부재 시 **❌** `"bin/lskun-audit 없음 — 결재 기록 불가. plugin 재설치 필요"`
+- 실행 권한 (`os.access(path, os.X_OK)`) 확인 — 없으면 **❌** `"bin/lskun-audit 실행 권한 없음 — chmod +x 필요"`
+- `src/lskun_kit/cli_audit.py` 의 `SUBCOMMANDS == ("record",)` 확인 — 다르면 **⚠️** `"기록 진입점에 record 외 하위 명령 존재 (ADR-0006 조회·집계 금지 점검 필요)"`
+- 전부 정합 → ✅
+
+> 본 항목은 진입점의 **존재**만 본다. 기록 건수·누락률 같은 집계는 하지 않는다 (ADR-0006).
+
 ### 26. **audit log 누적 크기 모니터링 (P109-B)**
 
 `<company_root>/.audit/decisions.jsonl` 의 파일 크기를 점검 (자동 회전 X, 안내만):
@@ -381,6 +393,7 @@ LSKunCompanyKit doctor (v<plugin-version>)
 [36] 채용 audit↔파일 (ADR-0023)  : ✅ 정합 (고아 0)
 [37] dangling skills (ADR-0023)  : ✅ dangling 0
 [38] plugin agent 등록 (ADR-0026): ✅ worker / hr-lead 등록, 도구 제한 정합
+[39] 결재 기록 진입점 (ADR-0027): ✅ bin/lskun-audit 실행 가능, 하위 명령 record 단일
 
 결과: 환경 정상. 일상 사용 가능 (정보성 ℹ️ 는 사용자 판단 사항).
 ```

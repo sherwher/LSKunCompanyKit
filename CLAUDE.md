@@ -10,7 +10,7 @@
 
 - **이름:** LSKunCompanyKit
 - **종류:** Claude Code plugin
-- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 28 (0.34.0) — Worker Agent: 도구 권한으로 쓰기 단일화·chain 금지 강제 (P129, ADR-0026). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
+- **버전:** `.claude-plugin/plugin.json` 의 `version` 필드가 단일 진실원 (ADR-0012). 현재 Phase 29 (0.35.0) — 결재 기록 진입점 `lskun-audit record` (P130, ADR-0027). 버전별 변경 상세는 CHANGELOG 가 SSOT (본 필드에 이전 버전 서술을 누적하지 말 것 — CLAUDE.md 크기 가드, P109-C).
 - **GitHub:** `github.com/sherwher/LSKunCompanyKit`
 - **Plugin manifest name:** `LSKunCompanyKit`
 - **Slash command namespace:** `/lskun-kit:*` (다른 prefix 사용 금지)
@@ -41,7 +41,7 @@
 | `/lskun-kit:migrate-schema` | 기존 회사 frontmatter 를 현재 schema 로 보강 |
 | `/lskun-kit:sync-persona` | CPO/HR Lead persona body 를 plugin 최신 template 와 sync |
 | `/lskun-kit:org` | 회사 조직도 read-only view |
-| `/lskun-kit:doctor` | 환경 진단 (36개 항목, 라벨 [1]~[38] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
+| `/lskun-kit:doctor` | 환경 진단 (37개 항목, 라벨 [1]~[39] 중 18·19 결번 — 라벨별 근거 ADR 은 `commands/doctor.md` 참조) |
 | `/lskun-kit:external` | 프로젝트별 외주(레드팀·고객) 구성/청취/cancel (ADR-0021 + ADR-0022 자동 시퀀스) |
 
 ---
@@ -148,7 +148,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - persona evolution narrative (워커가 시간으로 자동 진화) — ADR-0014 폐기
 - 워커 → 워커 chain (sub-leader 출현) — ADR-0004 §8, PreToolUse hook 차단
 - CPO/HR 외 임원 자동 추가 — ADR-0002 §1~§2
-- audit log 위 자동 평가·대시보드·KPI — ADR-0006
+- audit log 위 자동 평가·대시보드·KPI, `decisions.jsonl` 손기록, `lskun-audit` 에 조회·집계 하위 명령 — ADR-0006 + ADR-0027
 - archive 메커니즘 재도입 — ADR-0019 (2026-05-27 폐기)
 - 외부 harness (cmux/ralph/ultrawork) plugin core 도입 — ADR-0009 self-contained
 - plugin 제공 agent (`LSKunCompanyKit:worker` / `:hr-lead`) 외 dispatch, dispatch 워커에 쓰기 가능 agent 부여 — ADR-0017 + ADR-0026
@@ -168,6 +168,7 @@ repo 에서 **결정/변경(ADR-급)** 이 생기면 vault 에 동기화한다 �
 - `src/lskun_kit/` — Python core (stdlib only, 0 외부 의존성)
 - `commands/` — slash command 본체 (markdown)
 - `agents/` — dispatch 전용 agent 2종, 도구 권한으로 쓰기·chain 제한 (ADR-0026)
+- `bin/` — CPO 가 호출하는 내부 실행 파일 (`lskun-audit`, ADR-0027). 사용자 CLI 아님
 - `hooks/` — SessionStart + PreToolUse:Task hook
 - `tests/` — stdlib unittest
 - `docs/internals/` — 본 plugin 의 분리된 내부 문서 (P109-C)
@@ -192,7 +193,7 @@ Phase 전체 기록은 [`docs/internals/phase-roadmap.md`](docs/internals/phase-
   - Task tool 로 워커 dispatch (model 결정 = `--model` / frontmatter / 미지정=메인 세션 상속, ADR-0025 D4)
   - 워커 보고 결재 (산출물 원본 확인, ADR-0025 D6 / 재작업 최대 2회)
   - **부재 워커 자동 채용** — HR Lead 를 Task tool 로 호출 + 사용자 알림 1줄 (차단 X)
-  - 결재 audit 박제 — 결재 1건마다 `audit.record()` (ADR-0006. ~~reflection.record~~ 는 ADR-0014 폐기)
+  - 결재 audit 박제 — 결재 1건마다 `lskun-audit record` (빙의 건은 `--embody`, ADR-0006 + ADR-0027. ~~reflection.record~~ 는 ADR-0014 폐기)
 - **금지:** 워커 → 워커 chain, PRD/분기 회고 자동 생성, persona evolution narrative, CPO/HR 외 임원 자동 추가
 
 ### 인사팀장 (HR Lead)

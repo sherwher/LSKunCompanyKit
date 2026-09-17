@@ -51,7 +51,7 @@ arguments:
    - 게이트 충족 → `Task` tool (현 Claude Code 에서는 `Agent` tool) 로 dispatch — **반드시 `subagent_type="LSKunCompanyKit:worker"`** (ADR-0026 — plugin 제공 agent, 쓰기·하위 dispatch 도구 없음). model 결정 = `--model` / frontmatter / 미지정(상속, ADR-0025 D4). **`description` 은 `<워커명·role · 작업요약>` 포맷** (아래 dispatch 강제 참조). dispatch 워커는 read-only 기여 — 파일 수정은 제안 (diff/전문) 으로 보고, 쓰기는 CPO 가 결재 후 수행 (D3).
    - 워커 없음 → `Task(subagent_type="LSKunCompanyKit:hr-lead", ...)` 로 HR Lead 호출 → 자동 채용 (① `create_worker` 파일 먼저 → ② `record_hire` audit, ADR-0023) → `[채용 알림]` 1줄 → 신규 워커에 게이트 판정 적용 (dispatch 또는 빙의)
 3. CPO 가 워커 보고를 받아 **결재** (산출물 원본 확인, ADR-0025 D6 → 승인 / 재작업 최대 2회). 보고의 `상태:` 줄 (상태코드 4종, P127) 에 따라 분기 — `DONE` 결재 / `DONE_WITH_CONCERNS` 우려 판단 / `NEEDS_CONTEXT` 브리프 보강 후 재dispatch / `BLOCKED` 원인 해소 또는 사용자 보고. 빙의 건은 CPO 자신의 산출물에 **증거 게이트** (새 검증 증거 없이 완료 주장 금지) 를 적용
-4. CPO 결재 audit 박제 (`audit.record`, ADR-0006)
+4. CPO 결재 audit 박제 — `lskun-audit record --worker … --verdict … --reason "…"` (빙의 건은 `--embody`). 기록 진입점 단일 경로, `decisions.jsonl` 손기록 금지 (ADR-0006 + ADR-0027)
 5. 사용자에게 결재된 결과 전달
 
 > 자동 채용은 **사용자 알림만** — 차단 없음. 해고만 사용자 명시 요청 필수.

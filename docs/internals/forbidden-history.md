@@ -106,6 +106,14 @@ ADR-0002 의 다음 조항은 ADR-0004 가 supersede 했다:
 - **`kind` 를 REQUIRED_WORKER_FIELDS 에 추가** — 기존 워커 호환 파괴. OPTIONAL 만.
 - **외주 template 을 `src/lskun_kit/templates/` 에 배치** — 메타 워커 template 과 SSOT 분리. 외주 template 은 저장소 root `templates/`.
 
+### ADR-0027 신규 금지 (결재 기록 진입점, P130)
+
+- **`.audit/decisions.jsonl` 손기록** (Write · Edit · `echo >>` 로 직접 append / 수정) — ADR-0027 D4. `lskun-audit record` 가 유일한 기록 경로. 손기록은 `AuditEntry` schema 검증을 우회한다 (실사용에서 `first_pass_score: null` entry 로 확인됨).
+- **`lskun-audit` 에 조회 · 집계 · 통계 하위 명령 추가** — ADR-0027 D5 + ADR-0006. 하위 명령은 `record` 단일. read-only 뷰는 `/doctor` · `/org`.
+- **결재 기록의 hook 자동화** (hook 이 대신 기록 / 누락 시 turn 차단) — ADR-0006 §2 + ADR-0027. hook 은 빙의 건을 볼 수 없고, 기록 주체는 판단 주체 (CPO) 여야 한다.
+- **`lskun-audit` 를 사용자용 CLI 로 확장** (설치 안내 · 사용자 문서화 · 사용자용 서브커맨드) — ADR-0001 §7 유지. 사용자 표면은 slash command 만. `bin/` 실행 파일은 CPO 가 호출하는 내부 진입점.
+- **기존 비정형 audit entry 자동 보정 · 재작성** — ADR-0006 §6 append-only.
+
 ### ADR-0026 신규 금지 (Worker Agent, P129)
 
 - **dispatch 워커에 쓰기 가능 agent 타입 부여** — ADR-0026 D1. 일반 워커·외주 dispatch 는 `LSKunCompanyKit:worker` (`disallowedTools: Write, Edit, NotebookEdit, Agent`) 만. 쓰기 단일화 (ADR-0025 D3) 를 프롬프트가 아닌 도구 권한으로 강제한다.
